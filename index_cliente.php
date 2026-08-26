@@ -562,7 +562,7 @@ const MESA_TOKEN = '<?= addslashes($mesa['qr_token']) ?>';
 let cart = [];
 
 // Recuperar el ID guardado al cargar la página
-
+let currentPedidoId = localStorage.getItem('restaurapp_pedido_' + MESA_ID) || null;
 
 // =====================
 // CARRITO
