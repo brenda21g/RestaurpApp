@@ -55,7 +55,7 @@ $ultimos_pedidos = $ultimos->fetchAll();
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard – RestaurApp Admin</title>
+<title>Dashboard – RestaurantApp Admin</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -548,7 +548,7 @@ td {
   <div class="charts-row">
     <!-- Pedidos por hora -->
     <div class="chart-card">
-      <div class="chart-title">📈 Pedidos por hora (hoy)</div>
+      <div class="chart-title"> Pedidos por hora (hoy)</div>
       <?php
         $max_pedidos = max(array_column($pedidos_hora, 'cantidad') ?: [1]);
       ?>
@@ -569,7 +569,7 @@ td {
 
     <!-- Top productos -->
     <div class="chart-card">
-      <div class="chart-title">🏆 Productos más vendidos (hoy)</div>
+      <div class="chart-title"> Productos más vendidos (hoy)</div>
       <?php if (empty($top_productos)): ?>
         <div style="color:var(--muted);font-size:13px;padding:20px 0;">Sin ventas completadas hoy</div>
       <?php else: ?>
@@ -636,8 +636,39 @@ td {
 </main>
 
 <script>
-// Auto-refresh cada 30 segundos
-setTimeout(() => location.reload(), 30000);
+(function() {
+    // 3 minutos de inactividad (3 * 60 * 1000 ms)
+    const TIEMPO_INACTIVIDAD = 3 * 60 * 1000;
+    const INTERVALO_RECARGA = 30000; // 30 segundos
+    
+    let temporizadorInactividad;
+    let temporizadorRecarga;
+
+    function cerrarSesion() {
+        window.location.href = 'logout.php?reason=inactividad';
+    }
+
+    function reiniciarInactividad() {
+        clearTimeout(temporizadorInactividad);
+        temporizadorInactividad = setTimeout(cerrarSesion, TIEMPO_INACTIVIDAD);
+    }
+
+    // Monitorear clicks, teclas y movimiento del cursor
+    const eventos = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
+    eventos.forEach(evento => {
+        window.addEventListener(evento, reiniciarInactividad, true);
+    });
+
+    // Iniciar temporizador de cierre por inactividad
+    reiniciarInactividad();
+
+    // Recarga automática controlada (solo refresca datos si la pestaña está activa)
+    temporizadorRecarga = setInterval(() => {
+        if (!document.hidden) {
+            location.reload();
+        }
+    }, INTERVALO_RECARGA);
+})();
 </script>
 </body>
 </html>

@@ -1,15 +1,30 @@
 <?php
+// Primero cargamos la configuración de base de datos y la sesión limpia
 require_once __DIR__ . '/config.php';
 
-// Iniciamos sesión si no existe una activa
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+// 1. Verificar si hay admin logueado (bloqueo directo)
+if (!isset($_SESSION['admin_id'])) {
+    header('Location: login.php'); 
+    exit;
 }
 
-// Si no hay ID de admin en la sesión, mandamos al login
-//if (!isset($_SESSION['admin_id'])) {
-  //  header('Location: login.php'); 
-   // exit;
-//}
+// 2. Control de Inactividad (3 minutos = 180 segundos)
+$inactividad = 180; 
 
-$admin_nombre = $_SESSION['admin_nombre'] ?? 'Admin';
+if (isset($_SESSION['ultimo_acceso'])) {
+    $tiempo_transcurrido = time() - $_SESSION['ultimo_acceso'];
+    
+    if ($tiempo_transcurrido > $inactividad) {
+        session_unset();
+        session_destroy();
+        header('Location: login.php?error=timeout');
+        exit;
+    }
+}
+
+// Nota: No actualizamos $_SESSION['ultimo_acceso'] en recargas pasivas.
+// Se actualiza únicamente cuando el usuario interactúa (vía frontend o clics de navegación).
+if (!isset($_SESSION['ultimo_acceso'])) {
+    $_SESSION['ultimo_acceso'] = time();
+}
+?>

@@ -1,6 +1,8 @@
 <?php
 session_start();
 if (session_status() === PHP_SESSION_NONE) {
+    ini_set('session.cookie_lifetime', 0);
+    ini_set('session.gc_maxlifetime', 300);
     session_start();
 }
 // Función para sanitizar entradas
@@ -17,7 +19,7 @@ define('DB_PASS', '');          // XAMPP por defecto no tiene contraseña
 define('DB_NAME', 'restaurante_db');
 define('DB_PORT', 3306);
 
-define('SITE_URL', 'http://10.221.115.197/Prototipo%20Men-Sitou_Negocios%20electronicos%20I');
+define('SITE_URL', 'http://192.168.1.8/Prototipo%20Men-Sitou_Negocios%20electronicos%20I');
 define('SITE_NAME', 'RestaurApp');
 
 // Zona horaria México
