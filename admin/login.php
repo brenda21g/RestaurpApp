@@ -1,5 +1,5 @@
 <?php
-require_once 'config.php';
+require_once __DIR__ . '/../config/config.php';
 
 // Si ya está logueado, redirigir al dashboard
 if (isset($_SESSION['admin_id'])) {

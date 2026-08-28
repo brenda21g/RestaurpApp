@@ -1,7 +1,8 @@
 <?php
-require_once 'config.php';
+// Carga config.php subiendo un nivel desde la carpeta api/
+require_once __DIR__ . '/../config/config.php';
 
-header('Content-Type: application/json');
+header('Content-Type: application/json; charset=utf-8');
 
 // Desactivar salida de errores HTML que puedan romper el JSON
 ini_set('display_errors', 0);
@@ -29,12 +30,13 @@ if (!$id || !in_array($nuevo_estado, $estados_validos)) {
 }
 
 try {
-    // Usamos getDB() para mantener coherencia con cocina_pedidos.php
     $db = getDB();
 
-    $stmt = $db->prepare("SELECT id FROM pedidos WHERE id = ?");
+    $stmt = $db->prepare("SELECT id, cliente_id, total FROM pedidos WHERE id = ?");
     $stmt->execute([$id]);
-    if (!$stmt->fetch()) {
+    $pedido = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$pedido) {
         enviarRespuesta(['success' => false, 'error' => 'Pedido no encontrado']);
     }
 
@@ -52,8 +54,20 @@ try {
 
     $params[] = $id;
 
+    // 1. Actualizar el pedido en la base de datos
     $upd = $db->prepare("UPDATE pedidos SET $fields WHERE id = ?");
     $upd->execute($params);
+
+    // 2. SISTEMA DE PUNTOS: Si pasa a 'entregado' y pertenece a un cliente registrado
+    if ($nuevo_estado === 'entregado' && !empty($pedido['cliente_id'])) {
+        // Regla: 1 punto por cada $10 consumidos
+        $puntos_ganados = floor($pedido['total'] / 10);
+
+        if ($puntos_ganados > 0) {
+            $updPuntos = $db->prepare("UPDATE usuarios_cliente SET puntos = puntos + ? WHERE id = ?");
+            $updPuntos->execute([$puntos_ganados, $pedido['cliente_id']]);
+        }
+    }
 
     enviarRespuesta(['success' => true, 'nuevo_estado' => $nuevo_estado]);
 

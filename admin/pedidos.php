@@ -1,6 +1,7 @@
 <?php
 // Este archivo protege la página. Asegúrate de que auth_check.php llame a config.php
-require_once 'auth_check.php'; 
+
+require_once __DIR__ . '/../config/auth_check.php';
 $db = getDB();
 
 $estado_filtro = $_GET['estado'] ?? '';

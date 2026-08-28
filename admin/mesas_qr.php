@@ -1,6 +1,6 @@
 <?php
-require_once 'auth_check.php';
-$db = getDB();
+
+require_once __DIR__ . '/../config/auth_check.php';$db = getDB();
 $mesas = $db->query("SELECT * FROM mesas ORDER BY numero")->fetchAll();
 ?>
 <!DOCTYPE html>
@@ -60,7 +60,7 @@ body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif
   <div class="mesas-grid">
     <?php foreach ($mesas as $m): 
       // URL corregida para apuntar a index_cliente.php en la raíz
-      $url = SITE_URL . '/index_cliente.php?mesa=' . urlencode($m['qr_token']);
+      $url = SITE_URL . '/cliente/index_cliente.php?mesa=' . urlencode($m['qr_token']);
     ?>
     <div class="mesa-card">
       <div class="mesa-num">Mesa <?= $m['numero'] ?></div>
@@ -77,7 +77,7 @@ body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif
 const mesasData = <?= json_encode(array_map(fn($m) => [
   'id' => $m['id'],
   'numero' => $m['numero'],
-  'url' => SITE_URL . '/index_cliente.php?mesa=' . urlencode($m['qr_token'])
+  'url' => SITE_URL . '/cliente/index_cliente.php?mesa=' . urlencode($m['qr_token'])
 ], $mesas)) ?>;
 
 // Generar los códigos QR al cargar la página

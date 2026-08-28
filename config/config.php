@@ -1,14 +1,16 @@
 <?php
-session_start();
+// Configurar duración de la sesión antes de iniciarla
 if (session_status() === PHP_SESSION_NONE) {
     ini_set('session.cookie_lifetime', 0);
     ini_set('session.gc_maxlifetime', 300);
     session_start();
 }
+
 // Función para sanitizar entradas
 function sanitize($str) {
     return htmlspecialchars(strip_tags(trim($str ?? '')), ENT_QUOTES, 'UTF-8');
 }
+
 // =============================================
 // CONFIGURACIÓN DE BASE DE DATOS
 // Modifica estos valores según tu XAMPP
@@ -45,10 +47,12 @@ function getDB() {
 }
 
 // Función helper para respuestas JSON
-function jsonResponse($data, $code = 200) {
-    header('Content-Type: application/json');
-    http_response_code($code);
-    echo json_encode($data);
-    exit;
+if (!function_exists('jsonResponse')) {
+    function jsonResponse($data, $code = 200) {
+        header('Content-Type: application/json; charset=utf-8');
+        http_response_code($code);
+        echo json_encode($data);
+        exit;
+    }
 }
 ?>

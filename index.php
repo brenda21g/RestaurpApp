@@ -1,4 +1,5 @@
 <?php
-// Al entrar a localhost/tu_proyecto/ nos manda directo al login
-header('Location: login.php');
+// Redirige al inicio de sesión de clientes dentro de la carpeta cliente/
+header('Location: cliente/login_cliente.php');
 exit;
+?>

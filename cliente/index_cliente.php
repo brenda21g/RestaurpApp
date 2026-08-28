@@ -1,29 +1,35 @@
 <?php
-// Corregimos la ruta al archivo de configuración
-require_once 'config.php';
+session_start();
+
+// 1. Si escanean el QR, capturamos el token de la mesa y lo guardamos en la sesión
+if (isset($_GET['mesa'])) {
+    $_SESSION['mesa_token'] = $_GET['mesa'];
+}
+
+// 2. PROTECCIÓN: Si el cliente NO ha iniciado sesión, lo mandamos al Login
+if (!isset($_SESSION['cliente_id'])) {
+    header('Location: login_cliente.php');
+    exit;
+}
+
+// 3. PROTECCIÓN ADICIONAL: Si no hay mesa guardada (ej. entró escribiendo la URL directa)
+if (!isset($_SESSION['mesa_token'])) {
+    echo "Error: Debes escanear el código QR de una mesa para ver el menú.";
+    exit;
+}
+
+// Conexión a la base de datos y lógica normal del menú...
+require_once __DIR__ . '/../config/config.php';
 $db = getDB();
 
-// Validar token de mesa
-$mesa_token = $_GET['mesa'] ?? '';
-if (!$mesa_token) {
-    die('<h1 style="font-family:sans-serif;text-align:center;margin-top:40px;color:#666">⚠️ Acceso inválido. Escanea el código QR de tu mesa.</h1>');
-}
+// Validar que la mesa exista
+$stmt = $db->prepare("SELECT * FROM mesas WHERE qr_token = ? AND activa = 1");
+$stmt->execute([$_SESSION['mesa_token']]);
+$mesaActual = $stmt->fetch();
 
-$mesa_stmt = $db->prepare("SELECT * FROM mesas WHERE qr_token = ? AND activa = 1");
-$mesa_stmt->execute([$mesa_token]);
-$mesa = $mesa_stmt->fetch(PDO::FETCH_ASSOC);
-
-if (!$mesa) {
-    die('<h1 style="font-family:sans-serif;text-align:center;margin-top:40px;color:#666">⚠️ Mesa no encontrada o inactiva.</h1>');
-}
-
-// Cargar menú: Categorías y Productos
-$categorias = $db->query("SELECT * FROM categorias WHERE activa=1 ORDER BY orden")->fetchAll(PDO::FETCH_ASSOC);
-$productos_q = $db->query("SELECT p.*, c.nombre as cat_nombre FROM productos p JOIN categorias c ON c.id = p.categoria_id WHERE p.disponible=1 ORDER BY p.categoria_id, p.nombre")->fetchAll(PDO::FETCH_ASSOC);
-
-$productos_por_cat = [];
-foreach ($productos_q as $prod) {
-    $productos_por_cat[$prod['categoria_id']][] = $prod;
+if (!$mesaActual) {
+    echo "Mesa no válida o inactiva.";
+    exit;
 }
 ?>
 <!DOCTYPE html>
@@ -654,7 +660,7 @@ async function enviarPedido() {
   const notas = document.getElementById('notas-input')?.value || '';
 
   try {
-    const res = await fetch('crear_pedido.php', {
+    const res = await fetch('../api/crear_pedido.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -701,7 +707,7 @@ function closeSuccess() {
 // =====================
 async function fetchStatus() {
   // Ruta corregida: 'estado_pedido.php' en lugar de '../api/estado_pedido.php'
-  let url = 'estado_pedido.php?';
+  let url = '../api/estado_pedido.php?';
   if (currentPedidoId) {
     url += 'pedido_id=' + currentPedidoId;
   } else {

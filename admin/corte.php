@@ -1,6 +1,5 @@
 <?php
-// Incluimos el protector de sesión
-require_once 'auth_check.php'; 
+require_once __DIR__ . '/../config/auth_check.php'; 
 // getDB() ya viene disponible gracias a que auth_check incluye a config.php
 $db = getDB();
 

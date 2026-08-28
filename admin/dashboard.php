@@ -1,5 +1,6 @@
 <?php
-require_once 'auth_check.php';
+
+require_once __DIR__ . '/../config/auth_check.php';
 $db = getDB();
 
 // Estadísticas del día

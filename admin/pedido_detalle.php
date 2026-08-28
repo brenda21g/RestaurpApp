@@ -1,6 +1,6 @@
 <?php
 // Corregimos la ruta al archivo de configuración en la raíz
-require_once 'config.php';
+require_once __DIR__ . '/../config/config.php';
 $db = getDB();
 
 $id = (int)($_GET['id'] ?? 0);
