@@ -499,6 +499,8 @@ td {
     <div class="role">Administrador</div>
   </div>
   <nav class="nav">
+    <a class="nav-item" href="clientes.php"><span>👥</span> Clientes</a>
+    <a class="nav-item" href="corte.php"><span>💵</span> Corte de Caja</a>
     <a class="nav-item active" href="dashboard.php"><span class="icon">📊</span> Dashboard</a>
     <a class="nav-item" href="pedidos.php"><span class="icon">📋</span> Pedidos</a>
     <a class="nav-item" href="mesas_qr.php"><span class="icon">🪑</span> Mesas & QR</a>
@@ -522,27 +524,33 @@ td {
   </div>
 
   <!-- STATS -->
-  <div class="stats-grid">
-    <div class="stat-card gold">
-      <span class="stat-icon">💰</span>
-      <div class="stat-label">Ingresos del día</div>
-      <div class="stat-value money"><?= number_format($stats['ingresos'] ?? 0, 2) ?></div>
-    </div>
-    <div class="stat-card blue">
-      <span class="stat-icon">📋</span>
-      <div class="stat-label">Total pedidos</div>
-      <div class="stat-value"><?= $stats['total_pedidos'] ?? 0 ?></div>
-    </div>
-    <div class="stat-card green">
-      <span class="stat-icon">✅</span>
-      <div class="stat-label">Completados</div>
-      <div class="stat-value"><?= $stats['completados'] ?? 0 ?></div>
-    </div>
-    <div class="stat-card orange">
-      <span class="stat-icon">⏳</span>
-      <div class="stat-label">En proceso</div>
-      <div class="stat-value"><?= $stats['activos'] ?? 0 ?></div>
-    </div>
+  <<div class="stats-grid">
+  <div class="stat-card gold">
+    <span class="stat-icon">💰</span>
+    <div class="stat-label">Ingresos del día</div>
+    <div class="stat-value money"><?= number_format($stats['ingresos'] ?? 0, 2) ?></div>
+  </div>
+  <div class="stat-card blue">
+    <span class="stat-icon">📋</span>
+    <div class="stat-label">Total pedidos</div>
+    <div class="stat-value"><?= $stats['total_pedidos'] ?? 0 ?></div>
+  </div>
+  <div class="stat-card green">
+    <span class="stat-icon">✅</span>
+    <div class="stat-label">Completados</div>
+    <div class="stat-value"><?= $stats['completados'] ?? 0 ?></div>
+  </div>
+  <div class="stat-card orange">
+    <span class="stat-icon">⏳</span>
+    <div class="stat-label">En proceso</div>
+    <div class="stat-value"><?= $stats['activos'] ?? 0 ?></div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-title">👥 Clientes Registrados</div>
+    <div class="kpi-value"><?= $totalClientes ?></div>
+    <a href="clientes.php" style="color: var(--accent); font-size: 12px; text-decoration: none; margin-top: 8px; display: inline-block;">
+      Ver todos →
+    </a>
   </div>
 
   <!-- CHARTS -->
