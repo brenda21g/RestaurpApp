@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/config.php';
 
-// Si ya está logueado, redirigir al dashboard
+// Redirigir si ya existe una sesión activa
 if (isset($_SESSION['admin_id'])) {
     header('Location: dashboard.php');
     exit;
@@ -10,38 +10,39 @@ if (isset($_SESSION['admin_id'])) {
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = sanitize($_POST['username'] ?? '');
-    // Tomamos la contraseña limpia sin sanitizar para evitar alteraciones de caracteres
-    $password = $_POST['password'] ?? ''; 
+    $username = trim($_POST['username'] ?? '');
+    $password = $_POST['password'] ?? '';
 
-    if ($username && $password) {
+    if (!empty($username) && !empty($password)) {
         try {
             $db = getDB();
             $stmt = $db->prepare("SELECT id, username, password_hash, nombre FROM admins WHERE username = ? AND activo = 1");
             $stmt->execute([$username]);
-            $admin = $stmt->fetch();
+            $admin = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            if (!$admin) {
-                $error = "El usuario '$username' no existe o está inactivo.";
-            } 
-            // VALIDACIÓN TEMPORAL DE PRUEBA: Permite 'admin1' en texto plano O el hash de PHP
-            elseif ($password !== 'admin1' && !password_verify($password, $admin['password_hash'])) {
-                $error = "La contraseña es incorrecta.";
-            } else {
-                // Guardar datos en la sesión
-                $_SESSION['admin_id'] = $admin['id'];
+            // Verificación mediante MD5
+            if ($admin && md5($password) === $admin['password_hash']) {
+                // Prevenir Session Fixation
+                session_regenerate_id(true);
+
+                $_SESSION['admin_id']     = $admin['id'];
                 $_SESSION['admin_nombre'] = $admin['nombre'];
-                $_SESSION['admin_user'] = $admin['username'];
-                $_SESSION['loggedin'] = true;
-                
+                $_SESSION['admin_user']   = $admin['username'];
+                $_SESSION['loggedin']     = true;
+
                 // Actualizar último login
-                $db->prepare("UPDATE admins SET ultimo_login = NOW() WHERE id = ?")->execute([$admin['id']]);
+                $update = $db->prepare("UPDATE admins SET ultimo_login = NOW() WHERE id = ?");
+                $update->execute([$admin['id']]);
 
                 header('Location: dashboard.php');
                 exit;
+            } else {
+                // Mensaje genérico para evitar enumeración de usuarios
+                $error = "Usuario o contraseña incorrectos.";
             }
         } catch (PDOException $e) {
-            $error = "Error de conexión: " . $e->getMessage();
+            $error = "Error en el sistema. Intenta de nuevo más tarde.";
+            // Registrar $e->getMessage() en el log del servidor
         }
     } else {
         $error = 'Por favor completa todos los campos.';

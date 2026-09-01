@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 28-08-2026 a las 05:30:07
+-- Tiempo de generación: 01-09-2026 a las 05:34:42
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -41,7 +41,7 @@ CREATE TABLE `admins` (
 --
 
 INSERT INTO `admins` (`id`, `username`, `password_hash`, `nombre`, `activo`, `ultimo_login`) VALUES
-(4, 'admin1', '$2y$10$eE0LqL0JjB7W/H6W3hFvNe8o/aR0D6.zXhB3yP6a1.Z8k9e2u4y6S', 'Administrador 1', 1, '2026-08-28 00:29:19');
+(4, 'admin1', 'e00cf25ad42683b3df678c61f42c6bda', 'Administrador 1', 1, '2026-09-01 02:31:24');
 
 -- --------------------------------------------------------
 
@@ -66,6 +66,24 @@ INSERT INTO `categorias` (`id`, `nombre`, `icono`, `orden`, `activa`) VALUES
 (2, 'Platillos', '🍽️', 2, 1),
 (3, 'Bebidas', '🥤', 3, 1),
 (4, 'Postres', '🍰', 4, 1);
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `interacciones`
+--
+
+CREATE TABLE `interacciones` (
+  `id` int(11) NOT NULL,
+  `cliente_id` int(11) DEFAULT NULL,
+  `tipo` enum('correo','llamada','reunion') NOT NULL DEFAULT 'correo',
+  `asunto` varchar(255) NOT NULL,
+  `descripcion` text DEFAULT NULL,
+  `fecha` date NOT NULL,
+  `hora` time NOT NULL,
+  `estado` enum('pendiente','completada','cancelada') NOT NULL DEFAULT 'pendiente',
+  `creado_en` datetime NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -240,13 +258,20 @@ CREATE TABLE `usuarios_cliente` (
   `id` int(11) NOT NULL,
   `nombre` varchar(100) NOT NULL,
   `email` varchar(150) NOT NULL,
-  `password` varchar(255) NOT NULL,
+  `password` varchar(32) NOT NULL,
   `telefono` varchar(20) DEFAULT NULL,
   `puntos` int(11) DEFAULT 0,
   `token_verificacion` varchar(100) DEFAULT NULL,
   `email_confirmado` tinyint(1) DEFAULT 0,
   `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Volcado de datos para la tabla `usuarios_cliente`
+--
+
+INSERT INTO `usuarios_cliente` (`id`, `nombre`, `email`, `password`, `telefono`, `puntos`, `token_verificacion`, `email_confirmado`, `creado_en`) VALUES
+(12, 'Lalo', 'sage040621haslnla5@gmail.com', '74b87337454200d4d33f80c4663dc5e5', '4499402367', 0, NULL, 1, '2026-09-01 02:58:05');
 
 --
 -- Índices para tablas volcadas
@@ -264,6 +289,13 @@ ALTER TABLE `admins`
 --
 ALTER TABLE `categorias`
   ADD PRIMARY KEY (`id`);
+
+--
+-- Indices de la tabla `interacciones`
+--
+ALTER TABLE `interacciones`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `fk_interaccion_cliente` (`cliente_id`);
 
 --
 -- Indices de la tabla `mesas`
@@ -321,6 +353,12 @@ ALTER TABLE `categorias`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
+-- AUTO_INCREMENT de la tabla `interacciones`
+--
+ALTER TABLE `interacciones`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT de la tabla `mesas`
 --
 ALTER TABLE `mesas`
@@ -348,11 +386,17 @@ ALTER TABLE `productos`
 -- AUTO_INCREMENT de la tabla `usuarios_cliente`
 --
 ALTER TABLE `usuarios_cliente`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- Restricciones para tablas volcadas
 --
+
+--
+-- Filtros para la tabla `interacciones`
+--
+ALTER TABLE `interacciones`
+  ADD CONSTRAINT `fk_interaccion_cliente` FOREIGN KEY (`cliente_id`) REFERENCES `usuarios_cliente` (`id`) ON DELETE SET NULL;
 
 --
 -- Filtros para la tabla `pedidos`

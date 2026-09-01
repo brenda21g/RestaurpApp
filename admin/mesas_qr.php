@@ -1,7 +1,19 @@
 <?php
+require_once __DIR__ . '/../config/auth_check.php';
+$db = getDB();
 
-require_once __DIR__ . '/../config/auth_check.php';$db = getDB();
-$mesas = $db->query("SELECT * FROM mesas ORDER BY numero")->fetchAll();
+// Carga explicita con FETCH_ASSOC
+$mesas = $db->query("SELECT * FROM mesas ORDER BY numero ASC")->fetchAll(PDO::FETCH_ASSOC);
+
+// Pre-generar la estructura para JavaScript en una sola pasada
+$mesasData = array_map(function($m) {
+    return [
+        'id' => $m['id'],
+        'numero' => $m['numero'],
+        // Apuntamos directamente al login del cliente, pasando el token de la mesa
+        'url' => SITE_URL . '/cliente/login.php?mesa=' . urlencode($m['qr_token'])
+    ];
+}, $mesas);
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -56,31 +68,23 @@ body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif
 </aside>
 <main class="main">
   <div class="page-title">🪑 Mesas & Códigos QR</div>
-  <div class="subtitle">Cada mesa tiene su propio QR corregido para funcionar en la raíz del proyecto.</div>
+  <div class="subtitle">Cada mesa cuenta con su código de acceso directo para el cliente.</div>
   <div class="mesas-grid">
-    <?php foreach ($mesas as $m): 
-      // URL corregida para apuntar a index_cliente.php en la raíz
-      $url = SITE_URL . '/cliente/index_cliente.php?mesa=' . urlencode($m['qr_token']);
-    ?>
+    <?php foreach ($mesasData as $m): ?>
     <div class="mesa-card">
-      <div class="mesa-num">Mesa <?= $m['numero'] ?></div>
-      <div class="mesa-token">Token: <?= htmlspecialchars($m['qr_token']) ?></div>
+      <div class="mesa-num">Mesa <?= htmlspecialchars($m['numero']) ?></div>
       <div class="qr-box" id="qr-<?= $m['id'] ?>"></div>
-      <span class="url-link"><?= htmlspecialchars($url) ?></span>
+      <span class="url-link"><?= htmlspecialchars($m['url']) ?></span>
       <button class="print-mesa-btn" onclick="printQR(<?= $m['id'] ?>, <?= $m['numero'] ?>)">🖨️ Imprimir QR</button>
     </div>
     <?php endforeach; ?>
   </div>
 </main>
 <script>
-// Datos de mesas para JavaScript
-const mesasData = <?= json_encode(array_map(fn($m) => [
-  'id' => $m['id'],
-  'numero' => $m['numero'],
-  'url' => SITE_URL . '/cliente/index_cliente.php?mesa=' . urlencode($m['qr_token'])
-], $mesas)) ?>;
+// Transmitir datos preparados a JavaScript
+const mesasData = <?= json_encode($mesasData) ?>;
 
-// Generar los códigos QR al cargar la página
+// Generar los códigos QR
 mesasData.forEach(m => {
   new QRCode(document.getElementById('qr-' + m.id), {
     text: m.url, 
@@ -92,13 +96,12 @@ mesasData.forEach(m => {
   });
 });
 
-// Función para imprimir un QR individual
+// Función para impresión individual de QR
 function printQR(id, numero) {
   const container = document.getElementById('qr-' + id);
   const canvas = container.querySelector('canvas');
   const img = container.querySelector('img');
   
-  // Obtener la imagen del QR (algunos navegadores usan canvas, otros img)
   const qrSrc = canvas ? canvas.toDataURL("image/png") : img.src;
   
   const w = window.open('', '_blank');

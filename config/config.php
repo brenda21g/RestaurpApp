@@ -21,7 +21,10 @@ define('DB_PASS', '');          // XAMPP por defecto no tiene contraseña
 define('DB_NAME', 'restaurante_db');
 define('DB_PORT', 3306);
 
-define('SITE_URL', 'http://192.168.1.8/Prototipo%20Men-Sitou_Negocios%20electronicos%20I');
+$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
+$host = $_SERVER['HTTP_HOST'];
+define('SITE_URL', $protocol . $host . '/restaurant_app');
+define('BASE_URL', SITE_URL . '/'); // Constante complementaria para redirecciones absolutas
 define('SITE_NAME', 'RestaurApp');
 
 // Zona horaria México
@@ -40,7 +43,12 @@ function getDB() {
             ]);
         } catch (PDOException $e) {
             http_response_code(500);
-            die(json_encode(['error' => 'Error de conexión a la base de datos: ' . $e->getMessage()]));
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode([
+                'success' => false,
+                'error'   => 'Error de conexión a la base de datos: ' . $e->getMessage()
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
         }
     }
     return $pdo;
@@ -51,7 +59,7 @@ if (!function_exists('jsonResponse')) {
     function jsonResponse($data, $code = 200) {
         header('Content-Type: application/json; charset=utf-8');
         http_response_code($code);
-        echo json_encode($data);
+        echo json_encode($data, JSON_UNESCAPED_UNICODE);
         exit;
     }
 }

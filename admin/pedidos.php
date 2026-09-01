@@ -1,6 +1,4 @@
 <?php
-// Este archivo protege la página. Asegúrate de que auth_check.php llame a config.php
-
 require_once __DIR__ . '/../config/auth_check.php';
 $db = getDB();
 
@@ -15,13 +13,16 @@ if ($estado_filtro && in_array($estado_filtro, ['pendiente','preparando','listo'
     $params[] = $estado_filtro;
 }
 
+// Se formatea explícitamente el identificador de orden como ID o columna dedicada
 $pedidos = $db->prepare("
     SELECT pe.*, m.numero as mesa_num
-    FROM pedidos pe JOIN mesas m ON m.id = pe.mesa_id
-    $where ORDER BY pe.creado_en DESC
+    FROM pedidos pe 
+    JOIN mesas m ON m.id = pe.mesa_id
+    {$where} 
+    ORDER BY pe.creado_en DESC
 ");
 $pedidos->execute($params);
-$lista = $pedidos->fetchAll();
+$lista = $pedidos->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -92,7 +93,7 @@ td{padding:12px 16px;border-top:1px solid var(--border);font-size:13px;vertical-
     <select class="filter-input" name="estado">
       <option value="">Todos los estados</option>
       <?php foreach (['pendiente','preparando','listo','entregado','cancelado'] as $e): ?>
-        <option value="<?= $e ?>" <?= $estado_filtro===$e?'selected':'' ?>><?= ucfirst($e) ?></option>
+        <option value="<?= $e ?>" <?= $estado_filtro === $e ? 'selected' : '' ?>><?= ucfirst($e) ?></option>
       <?php endforeach; ?>
     </select>
     <button class="filter-btn" type="submit">Filtrar</button>
@@ -102,16 +103,18 @@ td{padding:12px 16px;border-top:1px solid var(--border);font-size:13px;vertical-
       <thead><tr><th>#Orden</th><th>Mesa</th><th>Total</th><th>Estado</th><th>Hora</th><th></th></tr></thead>
       <tbody>
         <?php if (empty($lista)): ?>
-          <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px;">Sin pedidos</td></tr>
+          <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px;">Sin pedidos registrados para el filtro seleccionado</td></tr>
         <?php else: ?>
-          <?php foreach ($lista as $p): ?>
+          <?php foreach ($lista as $p): 
+            $numOrden = $p['numero_orden'] ?? ('#' . str_pad($p['id'], 4, '0', STR_PAD_LEFT));
+          ?>
           <tr>
-            <td style="font-weight:500;"><?= htmlspecialchars($p['numero_orden']) ?></td>
-            <td>Mesa <?= $p['mesa_num'] ?></td>
+            <td style="font-weight:500;"><?= htmlspecialchars($numOrden) ?></td>
+            <td>Mesa <?= htmlspecialchars($p['mesa_num']) ?></td>
             <td>$<?= number_format($p['total'], 2) ?></td>
-            <td><span class="badge <?= $p['estado'] ?>"><?= ucfirst($p['estado']) ?></span></td>
+            <td><span class="badge <?= htmlspecialchars($p['estado']) ?>"><?= ucfirst(htmlspecialchars($p['estado'])) ?></span></td>
             <td style="color:var(--muted);"><?= date('H:i', strtotime($p['creado_en'])) ?></td>
-            <td><button class="detail-btn" onclick="verDetalle(<?= $p['id'] ?>)">Ver detalle</button></td>
+            <td><button class="detail-btn" onclick="verDetalle(<?= (int)$p['id'] ?>)">Ver detalle</button></td>
           </tr>
           <?php endforeach; ?>
         <?php endif; ?>
@@ -130,20 +133,37 @@ td{padding:12px 16px;border-top:1px solid var(--border);font-size:13px;vertical-
 
 <script>
 async function verDetalle(id) {
-  // CORRECCIÓN: Se cambió '../api/pedido_detalle.php' por 'pedido_detalle.php'
-  const res = await fetch('pedido_detalle.php?id=' + id);
-  const data = await res.json();
-  if (data.error) { alert(data.error); return; }
-  const p = data.pedido;
-  const items = data.items;
-  let html = `<div style="color:var(--muted);font-size:12px;margin-bottom:16px;">Mesa ${p.mesa_num} · ${new Date(p.creado_en).toLocaleString('es-MX')}</div>`;
-  items.forEach(it => {
-    html += `<div class="item-row"><span>${it.cantidad}x ${it.nombre}</span><span>$${parseFloat(it.subtotal).toFixed(2)}</span></div>`;
-  });
-  html += `<div class="total-line"><span>Total</span><span>$${parseFloat(p.total).toFixed(2)}</span></div>`;
-  document.getElementById('modal-title').textContent = 'Orden ' + p.numero_orden;
-  document.getElementById('modal-body').innerHTML = html;
-  document.getElementById('modal').classList.add('show');
+  try {
+    const res = await fetch('pedido_detalle.php?id=' + id);
+    const data = await res.json();
+    
+    if (!data.success && data.error) { 
+      alert(data.error); 
+      return; 
+    }
+    
+    const p = data.pedido;
+    const items = data.items;
+    const ordenCodigo = p.numero_orden || ('#' + String(p.id).padStart(4, '0'));
+    
+    let html = `<div style="color:var(--muted);font-size:12px;margin-bottom:16px;">Mesa ${p.mesa_num} · ${new Date(p.creado_en).toLocaleString('es-MX')}</div>`;
+    
+    if (p.notas) {
+      html += `<div style="background:rgba(232,184,109,.1);border-left:3px solid var(--accent);padding:8px 12px;margin-bottom:16px;border-radius:4px;font-size:12px;"><strong>Notas:</strong> ${p.notas}</div>`;
+    }
+    
+    items.forEach(it => {
+      html += `<div class="item-row"><span>${it.cantidad}x ${it.nombre}</span><span>$${parseFloat(it.subtotal).toFixed(2)}</span></div>`;
+    });
+    
+    html += `<div class="total-line"><span>Total</span><span>$${parseFloat(p.total).toFixed(2)}</span></div>`;
+    
+    document.getElementById('modal-title').textContent = 'Orden ' + ordenCodigo;
+    document.getElementById('modal-body').innerHTML = html;
+    document.getElementById('modal').classList.add('show');
+  } catch (err) {
+    alert('Ocurrió un error al cargar el detalle del pedido.');
+  }
 }
 
 function cerrarModal() {
