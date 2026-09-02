@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 01-09-2026 a las 05:34:42
+-- Tiempo de generación: 02-09-2026 a las 08:17:31
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -41,7 +41,7 @@ CREATE TABLE `admins` (
 --
 
 INSERT INTO `admins` (`id`, `username`, `password_hash`, `nombre`, `activo`, `ultimo_login`) VALUES
-(4, 'admin1', 'e00cf25ad42683b3df678c61f42c6bda', 'Administrador 1', 1, '2026-09-01 02:31:24');
+(4, 'admin1', 'e00cf25ad42683b3df678c61f42c6bda', 'Administrador 1', 1, '2026-09-01 19:33:55');
 
 -- --------------------------------------------------------
 
@@ -105,12 +105,12 @@ CREATE TABLE `mesas` (
 --
 
 INSERT INTO `mesas` (`id`, `numero`, `nombre`, `qr_token`, `activa`, `creado_en`) VALUES
-(1, 1, 'Mesa 1', 'mesa_token_001_abc123', 1, '2026-04-30 01:11:24'),
-(2, 2, 'Mesa 2', 'mesa_token_002_def456', 1, '2026-04-30 01:11:24'),
-(3, 3, 'Mesa 3', 'mesa_token_003_ghi789', 1, '2026-04-30 01:11:24'),
-(4, 4, 'Mesa 4', 'mesa_token_004_jkl012', 1, '2026-04-30 01:11:24'),
-(5, 5, 'Mesa 5', 'mesa_token_005_mno345', 1, '2026-04-30 01:11:24'),
-(6, 6, 'Mesa 6', 'mesa_token_006_pqr678', 1, '2026-04-30 01:11:24');
+(1, 1, 'Mesa 1', 'mesa_token_001', 1, '2026-04-30 01:11:24'),
+(2, 2, 'Mesa 2', 'mesa_token_002', 1, '2026-04-30 01:11:24'),
+(3, 3, 'Mesa 3', 'mesa_token_003', 1, '2026-04-30 01:11:24'),
+(4, 4, 'Mesa 4', 'mesa_token_004', 1, '2026-04-30 01:11:24'),
+(5, 5, 'Mesa 5', 'mesa_token_005', 1, '2026-04-30 01:11:24'),
+(6, 6, 'Mesa 6', 'mesa_token_006', 1, '2026-04-30 01:11:24');
 
 -- --------------------------------------------------------
 
@@ -263,15 +263,19 @@ CREATE TABLE `usuarios_cliente` (
   `puntos` int(11) DEFAULT 0,
   `token_verificacion` varchar(100) DEFAULT NULL,
   `email_confirmado` tinyint(1) DEFAULT 0,
-  `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp(),
+  `etapa_crm` varchar(50) DEFAULT 'Prospecto',
+  `estado` varchar(20) DEFAULT 'Activo'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Volcado de datos para la tabla `usuarios_cliente`
 --
 
-INSERT INTO `usuarios_cliente` (`id`, `nombre`, `email`, `password`, `telefono`, `puntos`, `token_verificacion`, `email_confirmado`, `creado_en`) VALUES
-(12, 'Lalo', 'sage040621haslnla5@gmail.com', '74b87337454200d4d33f80c4663dc5e5', '4499402367', 0, NULL, 1, '2026-09-01 02:58:05');
+INSERT INTO `usuarios_cliente` (`id`, `nombre`, `email`, `password`, `telefono`, `puntos`, `token_verificacion`, `email_confirmado`, `creado_en`, `etapa_crm`, `estado`) VALUES
+(12, 'Lalo', 'sage040621haslnla5@gmail.com', '74b87337454200d4d33f80c4663dc5e5', '4499402367', 0, NULL, 1, '2026-09-01 02:58:05', 'Prospecto', 'Activo'),
+(13, 'La vaca lola', 'brendaguille284@gmail.com', '4380d9d10d189baad936986df28cbccd', '4495651176', 0, '0af4068910ce689abd3cfabc034ced4fd74895d04b090eaa6c24e532d2c61eb8', 0, '2026-09-01 19:35:07', 'Prospecto', 'Activo'),
+(14, 'Brenda Guillen', '22151246@aguascalientes.tecnm.mx', 'd6ff269bd9dbc6b7f612c2b254a45045', '4495651176', 0, NULL, 1, '2026-09-01 19:37:05', 'Prospecto', 'Activo');
 
 --
 -- Índices para tablas volcadas
@@ -386,7 +390,7 @@ ALTER TABLE `productos`
 -- AUTO_INCREMENT de la tabla `usuarios_cliente`
 --
 ALTER TABLE `usuarios_cliente`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
 
 --
 -- Restricciones para tablas volcadas

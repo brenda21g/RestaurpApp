@@ -21,10 +21,9 @@ define('DB_PASS', '');          // XAMPP por defecto no tiene contraseña
 define('DB_NAME', 'restaurante_db');
 define('DB_PORT', 3306);
 
-$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
-$host = $_SERVER['HTTP_HOST'];
-define('SITE_URL', $protocol . $host . '/restaurant_app');
-define('BASE_URL', SITE_URL . '/'); // Constante complementaria para redirecciones absolutas
+
+
+define('SITE_URL', 'http://10.221.115.197/restaurant_app');
 define('SITE_NAME', 'RestaurApp');
 
 // Zona horaria México
