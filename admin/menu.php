@@ -1,5 +1,4 @@
 <?php
-
 require_once __DIR__ . '/../config/auth_check.php';
 $db = getDB();
 
@@ -8,15 +7,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Content-Type: application/json');
     $action = $_POST['action'] ?? '';
 
-    // Cambiar disponibilidad (Switch ON/OFF)
+    // 1. Cambiar disponibilidad (Switch ON/OFF)
     if ($action === 'toggle_producto') {
-        $id = (int)$_POST['id'];
-        $db->prepare("UPDATE productos SET disponible = NOT disponible WHERE id = ?")->execute([$id]);
+        $id = (int)($_POST['id'] ?? 0);
+        $stmt = $db->prepare("UPDATE productos SET disponible = NOT disponible WHERE id = ?");
+        $stmt->execute([$id]);
         echo json_encode(['success' => true]);
         exit;
     }
 
-    // Agregar nuevo producto
+    // 2. Agregar nuevo producto
     if ($action === 'add_producto') {
         $nombre = sanitize($_POST['nombre'] ?? '');
         $desc   = sanitize($_POST['descripcion'] ?? '');
@@ -24,20 +24,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $cat_id = (int)($_POST['categoria_id'] ?? 0);
 
         if ($nombre && $precio > 0 && $cat_id) {
-            $db->prepare("INSERT INTO productos (categoria_id, nombre, descripcion, precio, disponible) VALUES (?,?,?,?,1)")
-               ->execute([$cat_id, $nombre, $desc, $precio]);
+            $stmt = $db->prepare("INSERT INTO productos (categoria_id, nombre, descripcion, precio, disponible) VALUES (?, ?, ?, ?, 1)");
+            $stmt->execute([$cat_id, $nombre, $desc, $precio]);
             echo json_encode(['success' => true]);
         } else {
-            echo json_encode(['error' => 'Datos incompletos o inválidos']);
+            echo json_encode(['error' => 'Por favor completa los campos requeridos correctamente.']);
         }
         exit;
     }
-    // ... resto de acciones
+
+    // 3. Eliminar producto de forma segura
+    if ($action === 'delete_producto') {
+        $id = (int)($_POST['id'] ?? 0);
+        
+        try {
+            // Intentamos eliminarlo de la tabla productos
+            $stmt = $db->prepare("DELETE FROM productos WHERE id = ?");
+            $stmt->execute([$id]);
+            echo json_encode(['success' => true]);
+        } catch (PDOException $e) {
+            // Si da error por Foreign Key (posee pedidos asociados), deshabilitamos el producto
+            if ($e->getCode() == '23000') {
+                $db->prepare("UPDATE productos SET disponible = 0 WHERE id = ?")->execute([$id]);
+                echo json_encode([
+                    'success' => false, 
+                    'error' => 'El producto no puede ser eliminado por completo porque ya se vendió previamente en órdenes anteriores. Se ha marcado como "No disponible".'
+                ]);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'Error al intentar eliminar el producto.']);
+            }
+        }
+        exit;
+    }
 }
 
 // Carga de datos para la vista
-$categorias = $db->query("SELECT * FROM categorias ORDER BY orden")->fetchAll();
-$productos = $db->query("SELECT p.*, c.nombre as cat_nombre FROM productos p JOIN categorias c ON c.id = p.categoria_id ORDER BY c.orden, p.nombre")->fetchAll();
+$categorias = $db->query("SELECT * FROM categorias ORDER BY orden ASC")->fetchAll(PDO::FETCH_ASSOC);
+$productos  = $db->query("
+    SELECT p.*, c.nombre as cat_nombre 
+    FROM productos p 
+    JOIN categorias c ON c.id = p.categoria_id 
+    ORDER BY c.orden ASC, p.nombre ASC
+")->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -181,14 +209,20 @@ async function toggleProducto(id, btn) {
 }
 
 async function eliminarProducto(id) {
-  if (!confirm('¿Eliminar este producto?')) return;
+  if (!confirm('¿Seguro que deseas eliminar este producto?')) return;
+  
   const fd = new FormData();
   fd.append('action', 'delete_producto');
   fd.append('id', id);
+
   const res = await fetch('menu.php', { method: 'POST', body: fd });
   const data = await res.json();
+
   if (data.success) {
     document.getElementById('row-' + id)?.remove();
+  } else {
+    alert(data.error);
+    location.reload(); // Recarga para actualizar el botón a "No disp." si fue desactivado
   }
 }
 

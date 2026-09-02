@@ -1,35 +1,43 @@
 <?php
-session_start();
-
-// 1. Si escanean el QR, capturamos el token de la mesa y lo guardamos en la sesión
-if (isset($_GET['mesa'])) {
-    $_SESSION['mesa_token'] = $_GET['mesa'];
-}
-
-// 2. PROTECCIÓN: Si el cliente NO ha iniciado sesión, lo mandamos al Login
-if (!isset($_SESSION['cliente_id'])) {
-    header('Location: login_cliente.php');
-    exit;
-}
-
-// 3. PROTECCIÓN ADICIONAL: Si no hay mesa guardada (ej. entró escribiendo la URL directa)
-if (!isset($_SESSION['mesa_token'])) {
-    echo "Error: Debes escanear el código QR de una mesa para ver el menú.";
-    exit;
-}
-
-// Conexión a la base de datos y lógica normal del menú...
 require_once __DIR__ . '/../config/config.php';
+
+// Capturar el parámetro de la URL si escanean un QR directamente
+if (isset($_GET['mesa']) && !empty($_GET['mesa'])) {
+    $_SESSION['mesa_token'] = sanitize($_GET['mesa']);
+}
+
+// 1. Verificar sesión del cliente
+if (!isset($_SESSION['cliente_id'])) {
+    header('Location: login.php');
+    exit;
+}
+
+// 2. Redirigir al escáner si no hay token de mesa en la sesión
+if (!isset($_SESSION['mesa_token'])) {
+    header('Location: escanear_mesa.php');
+    exit;
+}
+
 $db = getDB();
 
-// Validar que la mesa exista
-$stmt = $db->prepare("SELECT * FROM mesas WHERE qr_token = ? AND activa = 1");
-$stmt->execute([$_SESSION['mesa_token']]);
-$mesaActual = $stmt->fetch();
+// 3. Validar el token contra la tabla mesas del SQL
+$stmtMesa = $db->prepare("SELECT * FROM mesas WHERE qr_token = ? AND activa = 1");
+$stmtMesa->execute([$_SESSION['mesa_token']]);
+$mesa = $stmtMesa->fetch(PDO::FETCH_ASSOC);
 
-if (!$mesaActual) {
-    echo "Mesa no válida o inactiva.";
+if (!$mesa) {
+    unset($_SESSION['mesa_token']);
+    header('Location: escanear_mesa.php?error=mesa_invalida');
     exit;
+}
+
+// Cargar categorías y productos para la vista
+$categorias = $db->query("SELECT * FROM categorias WHERE activa = 1 ORDER BY orden ASC")->fetchAll(PDO::FETCH_ASSOC);
+$todos_productos = $db->query("SELECT * FROM productos WHERE disponible = 1 ORDER BY categoria_id, nombre ASC")->fetchAll(PDO::FETCH_ASSOC);
+
+$productos_por_cat = [];
+foreach ($todos_productos as $p) {
+    $productos_por_cat[$p['categoria_id']][] = $p;
 }
 ?>
 <!DOCTYPE html>
@@ -38,7 +46,7 @@ if (!$mesaActual) {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>Mesa <?= $mesa['numero'] ?> – RestaurApp</title>
+<title>Mesa <?= htmlspecialchars($mesa['numero']) ?> – RestaurApp</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -102,6 +110,15 @@ body {
   padding: 4px 12px;
   font-size: 12px;
   font-weight: 600;
+}
+
+.user-btn {
+  text-decoration: none;
+  font-size: 13px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 /* Tab nav */
@@ -490,7 +507,10 @@ body {
       <span style="font-size:22px;">🍽️</span>
       <div class="logo-text">RestaurApp</div>
     </div>
-    <div class="mesa-tag">Mesa <?= $mesa['numero'] ?></div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <a href="cuenta.php" class="user-btn">👤 Cuenta</a>
+      <div class="mesa-tag">Mesa <?= htmlspecialchars($mesa['numero']) ?></div>
+    </div>
   </div>
 </div>
 
@@ -505,7 +525,7 @@ body {
   <div class="cat-filter">
     <button class="cat-chip active" onclick="filterCat('todas', this)">🍽️ Todos</button>
     <?php foreach ($categorias as $cat): ?>
-      <button class="cat-chip" onclick="filterCat(<?= $cat['id'] ?>, this)"><?= $cat['icono'] ?> <?= htmlspecialchars($cat['nombre']) ?></button>
+      <button class="cat-chip" onclick="filterCat(<?= $cat['id'] ?>, this)"><?= $cat['icono'] ?? '🍽️' ?> <?= htmlspecialchars($cat['nombre']) ?></button>
     <?php endforeach; ?>
   </div>
 
@@ -514,9 +534,7 @@ body {
       <?php if (!empty($productos_por_cat[$cat['id']])): ?>
       <div class="cat-section" data-cat="<?= $cat['id'] ?>">
         <?php foreach ($productos_por_cat[$cat['id']] as $prod):
-          // Emoji por categoría
-          $emojis = [1=>'🥗', 2=>'🍽️', 3=>'🥤', 4=>'🍰'];
-          $emoji = $emojis[$prod['categoria_id']] ?? '🍴';
+          $emoji = $cat['icono'] ?? '🍴';
         ?>
         <div class="product-card">
           <div class="prod-emoji"><?= $emoji ?></div>
@@ -563,7 +581,7 @@ body {
 </div>
 
 <script>
-const MESA_ID = <?= $mesa['id'] ?>;
+const MESA_ID = <?= (int)$mesa['id'] ?>;
 const MESA_TOKEN = '<?= addslashes($mesa['qr_token']) ?>';
 let cart = [];
 
@@ -582,9 +600,11 @@ function addToCart(id, nombre, precio, emoji) {
   }
   updateCartUI();
   
-  const btn = event.target;
-  btn.style.transform = 'scale(1.3)';
-  setTimeout(() => btn.style.transform = '', 200);
+  if (event && event.target) {
+    const btn = event.target;
+    btn.style.transform = 'scale(1.3)';
+    setTimeout(() => btn.style.transform = '', 200);
+  }
 }
 
 function updateQty(id, delta) {
@@ -673,7 +693,6 @@ async function enviarPedido() {
 
     if (data.success) {
       currentPedidoId = data.pedido_id;
-      // Guardar localmente en el navegador para que no se pierda al recargar
       localStorage.setItem('restaurapp_pedido_' + MESA_ID, currentPedidoId);
 
       cart = [];
@@ -706,8 +725,8 @@ function closeSuccess() {
 // ESTADO DEL PEDIDO
 // =====================
 async function fetchStatus() {
-  // Ruta corregida: 'estado_pedido.php' en lugar de '../api/estado_pedido.php'
-  let url = '../api/estado_pedido.php?';
+  // Petición al endpoint local en cliente/
+  let url = 'estado_pedido.php?';
   if (currentPedidoId) {
     url += 'pedido_id=' + currentPedidoId;
   } else {
@@ -727,7 +746,7 @@ async function fetchStatus() {
         if (!window._notifiedReady) {
           window._notifiedReady = true;
           vibrateDevice();
-          if (Notification.permission === 'granted') {
+          if ('Notification' in window && Notification.permission === 'granted') {
             new Notification('🍽️ ¡Tu pedido está listo!', { body: 'El mesero llevará tu pedido pronto.' });
           }
         }

@@ -1,11 +1,11 @@
 <?php
-
 require_once __DIR__ . '/../config/auth_check.php';
 $db = getDB();
 
 // Estadísticas del día
 $hoy = date('Y-m-d');
 
+// 1. Métricas del día
 $stats_dia = $db->prepare("
     SELECT 
         COUNT(*) as total_pedidos,
@@ -17,39 +17,40 @@ $stats_dia = $db->prepare("
 $stats_dia->execute([$hoy]);
 $stats = $stats_dia->fetch(PDO::FETCH_ASSOC);
 
-// Aseguramos que los valores no sean null si la tabla está vacía
 $ingresos = $stats['ingresos'] ?? 0;
 $total_pedidos = $stats['total_pedidos'] ?? 0;
 
-// Pedidos por hora
+// 2. Pedidos por hora
 $por_hora = $db->prepare("
     SELECT HOUR(creado_en) as hora, COUNT(*) as cantidad, SUM(total) as ingresos
     FROM pedidos WHERE DATE(creado_en) = ?
-    GROUP BY HOUR(creado_en) ORDER BY hora
+    GROUP BY HOUR(creado_en) ORDER BY hora ASC
 ");
 $por_hora->execute([$hoy]);
-$pedidos_hora = $por_hora->fetchAll();
+$pedidos_hora = $por_hora->fetchAll(PDO::FETCH_ASSOC);
 
-// Productos más vendidos (hoy)
+// 3. Productos más vendidos (Usando pedido_items y subtotal real)
 $top_prod = $db->prepare("
     SELECT p.nombre, SUM(pi.cantidad) as vendidos, SUM(pi.subtotal) as total_ing
     FROM pedido_items pi
     JOIN productos p ON p.id = pi.producto_id
     JOIN pedidos pe ON pe.id = pi.pedido_id
     WHERE DATE(pe.creado_en) = ? AND pe.estado = 'entregado'
-    GROUP BY p.id, p.nombre ORDER BY vendidos DESC LIMIT 8
+    GROUP BY p.id, p.nombre 
+    ORDER BY vendidos DESC LIMIT 8
 ");
 $top_prod->execute([$hoy]);
-$top_productos = $top_prod->fetchAll();
+$top_productos = $top_prod->fetchAll(PDO::FETCH_ASSOC);
 
-// Últimos 10 pedidos
+// 4. Últimos 10 pedidos con relación a la tabla mesas
 $ultimos = $db->prepare("
     SELECT pe.*, m.numero as mesa_num
-    FROM pedidos pe JOIN mesas m ON m.id = pe.mesa_id
+    FROM pedidos pe 
+    JOIN mesas m ON m.id = pe.mesa_id
     ORDER BY pe.creado_en DESC LIMIT 10
 ");
 $ultimos->execute();
-$ultimos_pedidos = $ultimos->fetchAll();
+$ultimos_pedidos = $ultimos->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
 <html lang="es">

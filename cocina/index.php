@@ -1,5 +1,9 @@
 <?php
 require_once __DIR__ . '/../config/config.php';
+// Opcional: verificar si requiere autenticación de personal
+if (file_exists(__DIR__ . '/../config/auth_check.php')) {
+    require_once __DIR__ . '/../config/auth_check.php';
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -91,17 +95,6 @@ body {
   padding: 20px 24px;
 }
 
-.section-title {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin-bottom: 14px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--border);
-}
-
 /* Kanban columns */
 .kanban {
   display: grid;
@@ -142,7 +135,7 @@ body {
 
 .col-count.active { background: rgba(255,107,53,0.2); color: var(--accent); }
 .col-count.cooking { background: rgba(77,182,255,0.2); color: var(--blue); }
-.col-count.done { background: rgba(61,214,140,0.2); color: var(--green); }
+.col-count.listo { background: rgba(61,214,140,0.2); color: var(--green); }
 
 /* Order cards */
 .order-card {
@@ -376,13 +369,12 @@ body {
 let knownOrders = new Set();
 let timerValues = {};
 
-// Función para obtener pedidos corregida
+// Función para obtener pedidos corregida llamando a pedidos.php en el mismo directorio
 async function fetchPedidos() {
   try {
-    const res = await fetch('cocina_pedidos.php'); 
+    const res = await fetch('pedidos.php'); 
     const data = await res.json();
     
-    // Se acepta 'data.pedidos' sin depender obligatoriamente de 'data.success'
     if (data.pedidos && Array.isArray(data.pedidos)) {
       renderPedidos(data.pedidos);
     } else if (data.success && data.pedidos) {
@@ -436,7 +428,7 @@ function renderColumn(estado, pedidos) {
 
   col.innerHTML = pedidos.map(p => {
     const timerVal = timerValues[p.id] || (p.tiempo_estimado || '');
-    const items = p.items.map(it => `
+    const items = (p.items || []).map(it => `
       <div class="item-row">
         <span class="item-qty">${it.cantidad}x</span>
         <div>
@@ -446,7 +438,6 @@ function renderColumn(estado, pedidos) {
       </div>
     `).join('');
 
-    // Formatear hora de manera compatible con fechas SQL (reemplazando espacio por T)
     const fechaFormateable = p.creado_en ? p.creado_en.replace(' ', 'T') : new Date();
     const hora = new Date(fechaFormateable).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
 
@@ -479,11 +470,13 @@ function renderColumn(estado, pedidos) {
       `;
     }
 
+    const mesaNombre = p.mesa_num || p.mesa_nombre || p.mesa_id;
+
     return `
       <div class="order-card ${estado === 'pendiente' ? 'new-pulse' : ''}" id="card-${p.id}">
         <div class="order-top">
           <span class="order-num">${p.numero_orden}</span>
-          <span class="mesa-tag">Mesa ${p.mesa_num}</span>
+          <span class="mesa-tag">Mesa ${mesaNombre}</span>
         </div>
         <div class="order-time">Recibido a las ${hora}</div>
         <div class="items-list">${items}</div>
@@ -494,6 +487,7 @@ function renderColumn(estado, pedidos) {
   }).join('');
 }
 
+// Llamada a actualizar.php en la carpeta cocina/
 async function cambiarEstado(id, nuevoEstado) {
   const timerInput = document.getElementById('timer-' + id);
   const tiempoEstimado = timerInput ? parseInt(timerInput.value) || null : null;
@@ -502,7 +496,7 @@ async function cambiarEstado(id, nuevoEstado) {
   if (btn) { btn.disabled = true; btn.textContent = 'Actualizando...'; }
 
   try {
-    const res = await fetch('cocina_actualizar.php', { 
+    const res = await fetch('actualizar.php', { 
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, estado: nuevoEstado, tiempo_estimado: tiempoEstimado })

@@ -1,31 +1,35 @@
 <?php
-// Corregimos la ruta al archivo de configuración en la raíz
-require_once __DIR__ . '/../config/config.php';
+// Carga de configuración y verificación de sesión del administrador
+require_once __DIR__ . '/../config/auth_check.php';
+
 $db = getDB();
 
 $id = (int)($_GET['id'] ?? 0);
 
-if (!$id) {
-    jsonResponse(['error' => 'ID de pedido requerido'], 400);
+if ($id <= 0) {
+    jsonResponse(['error' => 'ID de pedido inválido o no proporcionado'], 400);
 }
 
-// Consultamos el pedido y unimos con la mesa para saber el número físico
+// Consultar el pedido junto con los datos de la mesa
 $pedido_stmt = $db->prepare("
-    SELECT pe.*, m.numero as mesa_num 
+    SELECT pe.id, pe.mesa_id, pe.estado, pe.total, pe.notas, pe.creado_en, m.numero as mesa_num 
     FROM pedidos pe 
     JOIN mesas m ON m.id = pe.mesa_id 
     WHERE pe.id = ?
 ");
 $pedido_stmt->execute([$id]);
-$p = $pedido_stmt->fetch(PDO::FETCH_ASSOC);
+$pedido = $pedido_stmt->fetch(PDO::FETCH_ASSOC);
 
-if (!$p) {
+if (!$pedido) {
     jsonResponse(['error' => 'Pedido no encontrado'], 404);
 }
 
-// Consultamos los productos (items) vinculados a este pedido
+// Convertir total a tipo float explícito
+$pedido['total'] = (float)$pedido['total'];
+
+// Consultar los ítems del pedido
 $items_stmt = $db->prepare("
-    SELECT pi.*, pr.nombre 
+    SELECT pi.id, pi.producto_id, pi.cantidad, pi.precio_unitario, pi.subtotal, pr.nombre 
     FROM pedido_items pi 
     JOIN productos pr ON pr.id = pi.producto_id 
     WHERE pi.pedido_id = ?
@@ -33,8 +37,17 @@ $items_stmt = $db->prepare("
 $items_stmt->execute([$id]);
 $items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Enviamos la respuesta combinada
+// Formatear numéricos de los ítems
+foreach ($items as &$item) {
+    $item['cantidad']        = (int)$item['cantidad'];
+    $item['precio_unitario'] = (float)$item['precio_unitario'];
+    $item['subtotal']        = (float)$item['subtotal'];
+}
+unset($item);
+
+// Responder con la información estructurada
 jsonResponse([
-    'pedido' => $p, 
-    'items'  => $items
+    'success' => true,
+    'pedido'  => $pedido, 
+    'items'   => $items
 ]);

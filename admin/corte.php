@@ -1,6 +1,5 @@
 <?php
 require_once __DIR__ . '/../config/auth_check.php'; 
-// getDB() ya viene disponible gracias a que auth_check incluye a config.php
 $db = getDB();
 
 $tipo = $_GET['tipo'] ?? 'dia';
@@ -24,7 +23,7 @@ switch ($tipo) {
         $label = 'Diario – ' . date('d/m/Y');
 }
 
-// Resumen general
+// 1. Resumen general
 $resumen = $db->prepare("
     SELECT 
         COUNT(*) as total_pedidos,
@@ -37,6 +36,52 @@ $resumen = $db->prepare("
 $resumen->execute([$desde, $hasta]);
 $res = $resumen->fetch(PDO::FETCH_ASSOC);
 
+// 2. Ingresos por día (solo para semana y mes)
+$ingresos_dia = [];
+if ($tipo !== 'dia') {
+    $q_dias = $db->prepare("
+        SELECT 
+            DATE(creado_en) as fecha,
+            COUNT(*) as pedidos,
+            SUM(CASE WHEN estado='entregado' THEN total ELSE 0 END) as ingresos
+        FROM pedidos
+        WHERE DATE(creado_en) BETWEEN ? AND ?
+        GROUP BY DATE(creado_en)
+        ORDER BY fecha ASC
+    ");
+    $q_dias->execute([$desde, $hasta]);
+    $ingresos_dia = $q_dias->fetchAll(PDO::FETCH_ASSOC);
+}
+
+// 3. Detalle de productos vendidos (Usando pedido_items y categorias)
+$q_prod = $db->prepare("
+    SELECT 
+        pr.nombre,
+        COALESCE(c.nombre, 'General') as categoria,
+        pi.precio_unitario,
+        SUM(pi.cantidad) as cantidad_total,
+        SUM(pi.subtotal) as total_generado
+    FROM pedido_items pi
+    JOIN pedidos p ON pi.pedido_id = p.id
+    JOIN productos pr ON pi.producto_id = pr.id
+    LEFT JOIN categorias c ON pr.categoria_id = c.id
+    WHERE DATE(p.creado_en) BETWEEN ? AND ? AND p.estado = 'entregado'
+    GROUP BY pr.id, pr.nombre, c.nombre, pi.precio_unitario
+    ORDER BY cantidad_total DESC
+");
+$q_prod->execute([$desde, $hasta]);
+$prod_vendidos = $q_prod->fetchAll(PDO::FETCH_ASSOC);
+
+// 4. Registro completo de pedidos (Uniendo la tabla mesas)
+$q_pedidos = $db->prepare("
+    SELECT p.id, p.numero_orden, m.numero as mesa, p.total, p.estado, p.creado_en
+    FROM pedidos p
+    JOIN mesas m ON p.mesa_id = m.id
+    WHERE DATE(p.creado_en) BETWEEN ? AND ?
+    ORDER BY p.creado_en DESC
+");
+$q_pedidos->execute([$desde, $hasta]);
+$lista_pedidos = $q_pedidos->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
 <html lang="es">
