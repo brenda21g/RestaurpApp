@@ -178,23 +178,25 @@ textarea{min-height:100px;resize:vertical}
 </style>
 </head>
 <body>
+<!-- SIDEBAR -->
 <aside class="sidebar">
-<div class="sidebar-logo">
-<div class="name">🍽️ RestaurApp</div>
-<div class="role">Administrador</div>
-</div>
+  <div class="sidebar-logo">
+    <div class="name">🍽️ RestaurApp</div>
+    <div class="role">Administrador</div>
+  </div>
 <nav class="nav">
-<a class="nav-item" href="clientes.php"><span>👥</span>Clientes</a>
-<a class="nav-item" href="corte.php"><span>💵</span>Corte de Caja</a>
-<a class="nav-item" href="dashboard.php"><span>📊</span>Dashboard</a>
-<a class="nav-item" href="pedidos.php"><span>📋</span>Pedidos</a>
-<a class="nav-item" href="mesas_qr.php"><span>🪑</span>Mesas & QR</a>
-<a class="nav-item" href="menu.php"><span>🍽️</span>Menú</a>
-<a class="nav-item active" href="interacciones.php"><span>💬</span>Interacciones</a>
+    <a class="nav-item active" href="dashboard.php"><span class="icon">📊</span> Dashboard</a>
+    <a class="nav-item" href="clientes.php"><span>👥</span> Clientes</a>
+    <a class="nav-item" href="interacciones.php"><span class="icon">💬</span> Interacciones</a>
+    <a class="nav-item" href="pedidos.php"><span class="icon">📋</span> Pedidos</a>
+    <a class="nav-item" href="mesas_qr.php"><span class="icon">🪑</span> Mesas & QR</a>
+    <a class="nav-item" href="menu.php"><span class="icon">🍽️</span> Menú</a>
+    <a class="nav-item" href="corte.php"><span>💵</span> Corte de Caja</a>
+
 </nav>
-<div class="sidebar-bottom">
-<a class="logout-btn" href="logout.php">🚪 Cerrar sesión</a>
-</div>
+  <div class="sidebar-bottom">
+    <a class="logout-btn" href="logout.php">🚪 Cerrar sesión</a>
+  </div>
 </aside>
 
 <main class="main">
