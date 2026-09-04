@@ -51,6 +51,24 @@ $ultimos = $db->prepare("
 ");
 $ultimos->execute();
 $ultimos_pedidos = $ultimos->fetchAll(PDO::FETCH_ASSOC);
+
+// 5. Total de clientes registrados y desglose por estado para la gráfica
+$stmt_clientes = $db->query("SELECT COUNT(*) FROM usuarios_cliente");
+$totalClientes = $stmt_clientes->fetchColumn();
+
+$stmt_clientes_estado = $db->query("SELECT estado, COUNT(*) as cantidad FROM usuarios_cliente GROUP BY estado");
+$clientes_por_estado = $stmt_clientes_estado->fetchAll(PDO::FETCH_ASSOC);
+
+// Mapeamos los resultados a un arreglo asociativo para usarlos fácilmente
+$conteo_estados = ['Activo' => 0, 'Inactivo' => 0, 'Baja' => 0, 'Prospecto' => 0];
+foreach ($clientes_por_estado as $ce) {
+    $estado_db = $ce['estado'] ?: 'Activo'; // Por si viene nulo
+    if (array_key_exists($estado_db, $conteo_estados)) {
+        $conteo_estados[$estado_db] = $ce['cantidad'];
+    } else {
+        $conteo_estados[$estado_db] = $ce['cantidad']; // Por si hay algún estado personalizado adicional
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -309,8 +327,8 @@ body {
   color: var(--muted);
 }
 
-/* Productos list */
-.prod-list { display: flex; flex-direction: column; gap: 8px; }
+/* Productos / Clientes list (Barras horizontales) */
+.prod-list { display: flex; flex-direction: column; gap: 10px; }
 
 .prod-item {
   display: flex;
@@ -318,38 +336,29 @@ body {
   gap: 10px;
 }
 
-.prod-rank {
-  width: 20px;
-  font-size: 11px;
-  color: var(--muted);
-  text-align: right;
-  flex-shrink: 0;
+.prod-name {
+  font-size: 12px;
+  color: var(--text);
+  min-width: 90px;
 }
 
 .prod-bar-wrap {
   flex: 1;
-  height: 6px;
+  height: 8px;
   background: var(--border);
-  border-radius: 3px;
+  border-radius: 4px;
   overflow: hidden;
 }
 
 .prod-bar {
   height: 100%;
-  background: linear-gradient(to right, var(--accent), var(--accent2));
-  border-radius: 3px;
-}
-
-.prod-name {
-  font-size: 12px;
-  color: var(--text);
-  min-width: 120px;
+  border-radius: 4px;
 }
 
 .prod-count {
   font-size: 12px;
   color: var(--muted);
-  width: 40px;
+  width: 45px;
   text-align: right;
   flex-shrink: 0;
 }
@@ -508,6 +517,9 @@ td {
     <a class="nav-item" href="menu.php"><span class="icon">🍽️</span> Menú</a>
     <a class="nav-item" href="corte.php"><span>💵</span> Corte de Caja</a>
 
+    <?php if (isset($_SESSION['admin_rol']) && $_SESSION['admin_rol'] === 'super_admin'): ?>
+        <a class="nav-item" href="usuarios.php"><span class="icon">🛡️</span> Administradores</a>
+    <?php endif; ?>
 </nav>
   <div class="sidebar-bottom">
     <a class="logout-btn" href="logout.php">🚪 Cerrar sesión</a>
@@ -526,41 +538,35 @@ td {
     <div class="date-badge">📅 <?= date('d \d\e F \d\e Y') ?></div>
   </div>
 
-  <!-- STATS -->
-  <<div class="stats-grid">
-  <div class="stat-card gold">
-    <span class="stat-icon">💰</span>
-    <div class="stat-label">Ingresos del día</div>
-    <div class="stat-value money"><?= number_format($stats['ingresos'] ?? 0, 2) ?></div>
-  </div>
-  <div class="stat-card blue">
-    <span class="stat-icon">📋</span>
-    <div class="stat-label">Total pedidos</div>
-    <div class="stat-value"><?= $stats['total_pedidos'] ?? 0 ?></div>
-  </div>
-  <div class="stat-card green">
-    <span class="stat-icon">✅</span>
-    <div class="stat-label">Completados</div>
-    <div class="stat-value"><?= $stats['completados'] ?? 0 ?></div>
-  </div>
-  <div class="stat-card orange">
-    <span class="stat-icon">⏳</span>
-    <div class="stat-label">En proceso</div>
-    <div class="stat-value"><?= $stats['activos'] ?? 0 ?></div>
-  </div>
-  <div class="kpi-card">
-    <div class="kpi-title">👥 Clientes Registrados</div>
-    <div class="kpi-value"><?= $totalClientes ?></div>
-    <a href="clientes.php" style="color: var(--accent); font-size: 12px; text-decoration: none; margin-top: 8px; display: inline-block;">
-      Ver todos →
-    </a>
+<!-- STATS -->
+  <div class="stats-grid">
+    <div class="stat-card gold">
+      <span class="stat-icon">💰</span>
+      <div class="stat-label">Ingresos del día</div>
+      <div class="stat-value money"><?= number_format($stats['ingresos'] ?? 0, 2) ?></div>
+    </div>
+    <div class="stat-card blue">
+      <span class="stat-icon">📋</span>
+      <div class="stat-label">Total pedidos</div>
+      <div class="stat-value"><?= $stats['total_pedidos'] ?? 0 ?></div>
+    </div>
+    <div class="stat-card green">
+      <span class="stat-icon">✅</span>
+      <div class="stat-label">Completados</div>
+      <div class="stat-value"><?= $stats['completados'] ?? 0 ?></div>
+    </div>
+    <div class="stat-card orange">
+      <span class="stat-icon">⏳</span>
+      <div class="stat-label">En proceso</div>
+      <div class="stat-value"><?= $stats['activos'] ?? 0 ?></div>
+    </div>
   </div>
 
-  <!-- CHARTS -->
+  <!-- CHARTS ROW 1: Pedidos por hora & Top Productos -->
   <div class="charts-row">
     <!-- Pedidos por hora -->
     <div class="chart-card">
-      <div class="chart-title"> Pedidos por hora (hoy)</div>
+      <div class="chart-title">📊 Pedidos por hora (hoy)</div>
       <?php
         $max_pedidos = max(array_column($pedidos_hora, 'cantidad') ?: [1]);
       ?>
@@ -581,7 +587,7 @@ td {
 
     <!-- Top productos -->
     <div class="chart-card">
-      <div class="chart-title"> Productos más vendidos (hoy)</div>
+      <div class="chart-title">🔥 Productos más vendidos (hoy)</div>
       <?php if (empty($top_productos)): ?>
         <div style="color:var(--muted);font-size:13px;padding:20px 0;">Sin ventas completadas hoy</div>
       <?php else: ?>
@@ -589,16 +595,53 @@ td {
         <div class="prod-list">
           <?php foreach ($top_productos as $i => $p): ?>
           <div class="prod-item">
-            <span class="prod-rank"><?= $i+1 ?></span>
-            <span class="prod-name"><?= htmlspecialchars($p['nombre']) ?></span>
+            <span style="width: 20px; font-size: 11px; color: var(--muted); text-align: right; flex-shrink: 0;"><?= $i+1 ?></span>
+            <span class="prod-name" style="min-width: 120px;"><?= htmlspecialchars($p['nombre']) ?></span>
             <div class="prod-bar-wrap">
-              <div class="prod-bar" style="width:<?= round(($p['vendidos']/$max_v)*100) ?>%"></div>
+              <div class="prod-bar" style="width:<?= round(($p['vendidos']/$max_v)*100) ?>%; background: linear-gradient(to right, var(--accent), var(--accent2));"></div>
             </div>
-            <span class="prod-count"><?= $p['vendidos'] ?> uds</span>
+            <span style="font-size: 12px; color: var(--muted); width: 40px; text-align: right; flex-shrink: 0;"><?= $p['vendidos'] ?> uds</span>
           </div>
           <?php endforeach; ?>
         </div>
       <?php endif; ?>
+    </div>
+  </div>
+
+  <!-- CHARTS ROW 2: Desglose de Clientes por Estado -->
+  <div class="charts-row" style="grid-template-columns: 1fr;">
+    <div class="chart-card">
+      <div class="chart-title" style="justify-content: space-between;">
+        <span>👥 Estado general de Clientes (Total: <?= $totalClientes ?>)</span>
+        <a href="clientes.php" style="color:var(--accent); font-size:12px; text-decoration:none;">Gestionar clientes →</a>
+      </div>
+      
+      <?php 
+        $max_clientes = max(array_values($conteo_estados)) ?: 1;
+        // Definimos colores para cada estado
+        $colores_estados = [
+            'Activo'    => 'var(--green)',
+            'Inactivo'  => 'var(--muted)',
+            'Baja'      => 'var(--red)',
+            'Prospecto' => 'var(--accent)'
+        ];
+      ?>
+      
+      <div class="prod-list" style="margin-top: 10px;">
+        <?php foreach ($conteo_estados as $estado_nombre => $cantidad): ?>
+          <?php 
+            $porcentaje = ($totalClientes > 0) ? round(($cantidad / $totalClientes) * 100) : 0;
+            $color_barra = $colores_estados[$estado_nombre] ?? 'var(--blue)';
+          ?>
+          <div class="prod-item">
+            <span class="prod-name" style="width: 110px; font-weight: 500;"><?= htmlspecialchars($estado_nombre) ?></span>
+            <div class="prod-bar-wrap">
+              <div class="prod-bar" style="width: <?= round(($cantidad / $max_clientes) * 100) ?>%; background: <?= $color_barra ?>;"></div>
+            </div>
+            <span class="prod-count" style="width: 80px;"><?= $cantidad ?> (<?= $porcentaje ?>%)</span>
+          </div>
+        <?php endforeach; ?>
+      </div>
     </div>
   </div>
 

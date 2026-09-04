@@ -7,8 +7,8 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Definir ruta base de login (usa la constante BASE_URL si existe en config.php, o ruta relativa universal)
-$loginUrl = defined('BASE_URL') ? BASE_URL . 'admin/login.php' : '/admin/login.php';
+// Definir ruta base de login usando SITE_URL de config.php
+$loginUrl = defined('SITE_URL') ? SITE_URL . '/admin/login.php' : '/admin/login.php';
 
 // 2. Verificar si hay admin logueado
 if (!isset($_SESSION['admin_id'])) {

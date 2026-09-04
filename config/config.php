@@ -23,7 +23,7 @@ define('DB_PORT', 3306);
 
 
 
-define('SITE_URL', 'http://10.0.13.166/restaurapp');
+define('SITE_URL', 'http://192.168.1.8/restaurant_app');
 define('SITE_NAME', 'RestaurApp');
 
 // Zona horaria México

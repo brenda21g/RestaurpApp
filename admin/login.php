@@ -16,18 +16,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!empty($username) && !empty($password)) {
         try {
             $db = getDB();
-            $stmt = $db->prepare("SELECT id, username, password_hash, nombre FROM admins WHERE username = ? AND activo = 1");
+            
+           $stmt = $db->prepare("SELECT id, username, password_hash, nombre, rol, pin FROM admins WHERE username = ? AND activo = 1");
             $stmt->execute([$username]);
             $admin = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            // Verificación mediante MD5
+            // Verificación mediante MD5 y existencia del usuario
             if ($admin && md5($password) === $admin['password_hash']) {
                 // Prevenir Session Fixation
                 session_regenerate_id(true);
 
+                // Si es Super Administrador y tiene un PIN configurado, pedir PIN en segundo paso
+                if ($admin['rol'] === 'super_admin' && !empty($admin['pin'])) {
+                    $_SESSION['temp_admin_id'] = $admin['id'];
+                    $_SESSION['requires_pin'] = true;
+                    header('Location: verificar_pin.php');
+                    exit;
+                }
+
+                // Para administradores menores o superadmins sin PIN configurado
                 $_SESSION['admin_id']     = $admin['id'];
                 $_SESSION['admin_nombre'] = $admin['nombre'];
                 $_SESSION['admin_user']   = $admin['username'];
+                $_SESSION['admin_rol']    = $admin['rol'];
                 $_SESSION['loggedin']     = true;
 
                 // Actualizar último login
@@ -37,12 +48,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 header('Location: dashboard.php');
                 exit;
             } else {
-                // Mensaje genérico para evitar enumeración de usuarios
                 $error = "Usuario o contraseña incorrectos.";
             }
         } catch (PDOException $e) {
             $error = "Error en el sistema. Intenta de nuevo más tarde.";
-            // Registrar $e->getMessage() en el log del servidor
+            // Registrar $e->getMessage() en el log del servidor si es necesario
         }
     } else {
         $error = 'Por favor completa todos los campos.';
@@ -218,7 +228,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <form method="POST">
       <div class="field">
         <label>Usuario</label>
-        <input type="text" name="username" placeholder="admin" required autocomplete="username">
+        <input type="text" name="username" placeholder="Presione para escribir" required autocomplete="username">
       </div>
       <div class="field">
         <label>Contraseña</label>
@@ -227,7 +237,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <button type="submit" class="btn">Entrar al panel →</button>
     </form>
 
-    <p class="hint">Credenciales: admin1 / admin1</p>
+    <p class="hint">Derechos reservados BrendaEloy S.A. de C.V</p>
   </div>
 </div>
 </body>

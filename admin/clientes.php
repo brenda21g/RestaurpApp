@@ -14,9 +14,18 @@ if (!empty($busqueda)) {
     $params[] = "%$busqueda%";
 }
 
-if (!empty($filtro_estado) && $filtro_estado !== 'Todos') {
-    $sql .= " AND estado = ?";
-    $params[] = $filtro_estado;
+// LÓGICA DE FILTRADO DE ESTADOS:
+if (!empty($filtro_estado)) {
+    if ($filtro_estado !== 'Todos') {
+        // Si selecciona un estado específico (Activo, Inactivo, Baja, Prospecto), se filtra por ese
+        $sql .= " AND estado = ?";
+        $params[] = $filtro_estado;
+    }
+    // Si selecciona 'Todos', no agregamos ninguna condición de estado, por lo que trae absolutamente todos.
+} else {
+    // POR DEFECTO (si no se ha seleccionado nada en el filtro): 
+    // Excluimos a los que tienen estado 'Baja' para que no aparezcan en la lista principal.
+    $sql .= " AND estado != 'Baja'";
 }
 
 $sql .= " ORDER BY id DESC";
@@ -304,6 +313,10 @@ $clientes = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <a class="nav-item" href="mesas_qr.php"><span class="icon">🪑</span> Mesas & QR</a>
     <a class="nav-item" href="menu.php"><span class="icon">🍽️</span> Menú</a>
     <a class="nav-item" href="corte.php"><span>💵</span> Corte de Caja</a>
+
+    <?php if (isset($_SESSION['admin_rol']) && $_SESSION['admin_rol'] === 'super_admin'): ?>
+        <a class="nav-item" href="usuarios.php"><span class="icon">🛡️</span> Administradores</a>
+    <?php endif; ?>
   </nav>
   <div class="sidebar-bottom">
     <a class="logout-btn" href="logout.php">🚪 Cerrar sesión</a>
@@ -320,7 +333,8 @@ $clientes = $stmt->fetchAll(PDO::FETCH_ASSOC);
   <form method="GET" class="filters-bar">
     <input class="filter-input" type="text" name="q" placeholder="Buscar por nombre o correo..." value="<?= htmlspecialchars($busqueda) ?>">
     <select class="filter-input" name="estado" onchange="this.form.submit()">
-        <option value="Todos">Todos los estados</option>
+        <option value="">Todos (Excluyendo Bajas)</option>
+        <option value="Todos" <?= $filtro_estado === 'Todos' ? 'selected' : '' ?>>Todos (Incluyendo Bajas)</option>
         <option value="Activo" <?= $filtro_estado === 'Activo' ? 'selected' : '' ?>>Activo</option>
         <option value="Inactivo" <?= $filtro_estado === 'Inactivo' ? 'selected' : '' ?>>Inactivo</option>
         <option value="Baja" <?= $filtro_estado === 'Baja' ? 'selected' : '' ?>>Baja</option>
@@ -356,7 +370,7 @@ $clientes = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <td class="actions-icons">
                         <a href="cliente_ver.php?id=<?= $c['id'] ?>" title="Ver detalle">👁️</a>
                         <a href="cliente_editar.php?id=<?= $c['id'] ?>" title="Editar">✏️</a>
-                        <a href="cliente_eliminar.php?id=<?= $c['id'] ?>" title="Eliminar" class="delete" onclick="return confirm('¿Seguro que deseas eliminar este cliente?');">🗑️</a>
+                        <a href="cliente_eliminar.php?id=<?= $c['id'] ?>" title="Eliminar" class="delete" onclick="return confirm('¿Seguro que deseas dar de baja este cliente?');">🗑️</a>
                     </td>
                 </tr>
                 <?php endforeach; ?>

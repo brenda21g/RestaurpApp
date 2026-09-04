@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 02-09-2026 a las 08:17:31
+-- Tiempo de generación: 04-09-2026 a las 02:54:00
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -32,6 +32,10 @@ CREATE TABLE `admins` (
   `username` varchar(50) NOT NULL,
   `password_hash` varchar(255) NOT NULL,
   `nombre` varchar(100) DEFAULT NULL,
+  `rol` enum('super_admin','admin_menor') NOT NULL DEFAULT 'admin_menor',
+  `pregunta_seguridad` varchar(255) DEFAULT NULL,
+  `respuesta_seguridad` varchar(255) DEFAULT NULL,
+  `pin` varchar(255) DEFAULT NULL,
   `activo` tinyint(1) DEFAULT 1,
   `ultimo_login` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -40,8 +44,10 @@ CREATE TABLE `admins` (
 -- Volcado de datos para la tabla `admins`
 --
 
-INSERT INTO `admins` (`id`, `username`, `password_hash`, `nombre`, `activo`, `ultimo_login`) VALUES
-(4, 'admin1', 'e00cf25ad42683b3df678c61f42c6bda', 'Administrador 1', 1, '2026-09-01 19:33:55');
+INSERT INTO `admins` (`id`, `username`, `password_hash`, `nombre`, `rol`, `pregunta_seguridad`, `respuesta_seguridad`, `pin`, `activo`, `ultimo_login`) VALUES
+(1, 'superadmin', '2c7b0576873ffcbb4ca61c5a225b94e7', 'Super Administrador', 'super_admin', '¿Cual es el amor de mi vida?', 'BlackPink', '81dc9bdb52d04dc20036dbd8313ed055', 1, '2026-09-04 00:53:08'),
+(4, 'admin1', 'e00cf25ad42683b3df678c61f42c6bda', 'Administrador 1', 'admin_menor', NULL, NULL, NULL, 1, '2026-09-04 00:48:18'),
+(5, 'admin2', 'c84258e9c39059a89ab77d846ddab909', 'Lalo', 'admin_menor', NULL, NULL, NULL, 1, '2026-09-04 00:53:46');
 
 -- --------------------------------------------------------
 
@@ -84,6 +90,14 @@ CREATE TABLE `interacciones` (
   `estado` enum('pendiente','completada','cancelada') NOT NULL DEFAULT 'pendiente',
   `creado_en` datetime NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Volcado de datos para la tabla `interacciones`
+--
+
+INSERT INTO `interacciones` (`id`, `cliente_id`, `tipo`, `asunto`, `descripcion`, `fecha`, `hora`, `estado`, `creado_en`) VALUES
+(1, NULL, 'llamada', 'Reclamacion por trato', 'La vida de hoy', '2026-09-12', '16:16:00', 'completada', '2026-09-03 16:13:56'),
+(2, 13, 'reunion', 'lsdkfhljshfdkl', 'sfjkdfhkjshfjlkhlkfds', '2026-09-18', '17:58:00', 'pendiente', '2026-09-03 17:56:10');
 
 -- --------------------------------------------------------
 
@@ -273,7 +287,7 @@ CREATE TABLE `usuarios_cliente` (
 --
 
 INSERT INTO `usuarios_cliente` (`id`, `nombre`, `email`, `password`, `telefono`, `puntos`, `token_verificacion`, `email_confirmado`, `creado_en`, `etapa_crm`, `estado`) VALUES
-(12, 'Lalo', 'sage040621haslnla5@gmail.com', '74b87337454200d4d33f80c4663dc5e5', '4499402367', 0, NULL, 1, '2026-09-01 02:58:05', 'Prospecto', 'Activo'),
+(12, 'Lalo', 'sage040621haslnla5@gmail.com', '74b87337454200d4d33f80c4663dc5e5', '4499402367', 0, NULL, 1, '2026-09-01 02:58:05', 'Prospecto', 'Baja'),
 (13, 'La vaca lola', 'brendaguille284@gmail.com', '4380d9d10d189baad936986df28cbccd', '4495651176', 0, '0af4068910ce689abd3cfabc034ced4fd74895d04b090eaa6c24e532d2c61eb8', 0, '2026-09-01 19:35:07', 'Prospecto', 'Activo'),
 (14, 'Brenda Guillen', '22151246@aguascalientes.tecnm.mx', 'd6ff269bd9dbc6b7f612c2b254a45045', '4495651176', 0, NULL, 1, '2026-09-01 19:37:05', 'Prospecto', 'Activo');
 
@@ -348,7 +362,7 @@ ALTER TABLE `usuarios_cliente`
 -- AUTO_INCREMENT de la tabla `admins`
 --
 ALTER TABLE `admins`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT de la tabla `categorias`
@@ -360,7 +374,7 @@ ALTER TABLE `categorias`
 -- AUTO_INCREMENT de la tabla `interacciones`
 --
 ALTER TABLE `interacciones`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT de la tabla `mesas`
@@ -390,7 +404,7 @@ ALTER TABLE `productos`
 -- AUTO_INCREMENT de la tabla `usuarios_cliente`
 --
 ALTER TABLE `usuarios_cliente`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
 
 --
 -- Restricciones para tablas volcadas
