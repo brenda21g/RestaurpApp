@@ -51,24 +51,6 @@ $ultimos = $db->prepare("
 ");
 $ultimos->execute();
 $ultimos_pedidos = $ultimos->fetchAll(PDO::FETCH_ASSOC);
-
-// 5. Total de clientes registrados y desglose por estado para la gráfica
-$stmt_clientes = $db->query("SELECT COUNT(*) FROM usuarios_cliente");
-$totalClientes = $stmt_clientes->fetchColumn();
-
-$stmt_clientes_estado = $db->query("SELECT estado, COUNT(*) as cantidad FROM usuarios_cliente GROUP BY estado");
-$clientes_por_estado = $stmt_clientes_estado->fetchAll(PDO::FETCH_ASSOC);
-
-// Mapeamos los resultados a un arreglo asociativo para usarlos fácilmente
-$conteo_estados = ['Activo' => 0, 'Inactivo' => 0, 'Baja' => 0, 'Prospecto' => 0];
-foreach ($clientes_por_estado as $ce) {
-    $estado_db = $ce['estado'] ?: 'Activo'; // Por si viene nulo
-    if (array_key_exists($estado_db, $conteo_estados)) {
-        $conteo_estados[$estado_db] = $ce['cantidad'];
-    } else {
-        $conteo_estados[$estado_db] = $ce['cantidad']; // Por si hay algún estado personalizado adicional
-    }
-}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -77,29 +59,29 @@ foreach ($clientes_por_estado as $ce) {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard – RestaurantApp Admin</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg: #0b0b0b;
-  --surface: #141414;
-  --card: #1c1c1c;
-  --border: #2a2a2a;
-  --accent: #e8b86d;
-  --accent2: #c9956a;
-  --green: #6dbf8a;
-  --red: #e07070;
-  --blue: #6db0e8;
-  --text: #f0ede8;
-  --muted: #7a7060;
+  --bg-app: #f8fafc;
+  --sidebar-bg: #031038;
   --sidebar-w: 240px;
+  --card-bg: #ffffff;
+  --card-border: #e2e8f0;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --text-light: #94a3b8;
+  --primary: #0052cc;
+  --green: #10b981;
+  --amber: #f59e0b;
+  --red: #ef4444;
 }
 
 body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: 'DM Sans', sans-serif;
+  background: var(--bg-app);
+  color: var(--text-main);
+  font-family: 'Plus Jakarta Sans', sans-serif;
   display: flex;
   min-height: 100vh;
   font-size: 14px;
@@ -108,113 +90,125 @@ body {
 /* Sidebar */
 .sidebar {
   width: var(--sidebar-w);
-  background: var(--surface);
-  border-right: 1px solid var(--border);
+  background: var(--sidebar-bg);
   display: flex;
   flex-direction: column;
   position: fixed;
   top: 0; left: 0;
   height: 100vh;
   z-index: 100;
+  padding: 24px 16px;
 }
 
 .sidebar-logo {
-  padding: 24px 20px;
-  border-bottom: 1px solid var(--border);
+  padding: 0 8px 24px 8px;
 }
 
 .sidebar-logo .name {
-  font-family: 'Playfair Display', serif;
   font-size: 20px;
-  color: var(--accent);
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.5px;
 }
 
 .sidebar-logo .role {
   font-size: 11px;
-  color: var(--muted);
+  font-weight: 700;
+  color: var(--text-light);
   letter-spacing: 1px;
   text-transform: uppercase;
-  margin-top: 2px;
+  margin-top: 4px;
 }
 
 .nav {
-  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   flex: 1;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: 12px;
+  padding: 12px 14px;
   border-radius: 8px;
-  color: var(--muted);
+  color: #94a3b8;
   text-decoration: none;
-  font-size: 13px;
-  font-weight: 500;
-  transition: all .15s;
-  cursor: pointer;
+  font-size: 13.5px;
+  font-weight: 600;
+  transition: all .2s ease;
   border: none;
   background: none;
   width: 100%;
   text-align: left;
-  margin-bottom: 2px;
 }
 
-.nav-item:hover, .nav-item.active {
-  background: rgba(232,184,109,0.08);
-  color: var(--accent);
+.nav-item:hover {
+  color: #ffffff;
 }
 
-.nav-item span.icon { font-size: 16px; }
+.nav-item.active {
+  background: #0d286d;
+  color: #ffffff;
+}
+
+.nav-item span.icon { 
+  font-size: 16px; 
+}
 
 .sidebar-bottom {
-  padding: 16px 12px;
-  border-top: 1px solid var(--border);
+  padding-top: 16px;
 }
 
 .logout-btn {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: 12px;
+  padding: 12px 14px;
   border-radius: 8px;
-  color: var(--red);
+  color: #ef4444;
   text-decoration: none;
-  font-size: 13px;
-  font-weight: 500;
-  transition: background .15s;
+  font-size: 13.5px;
+  font-weight: 600;
+  transition: background .2s;
 }
-.logout-btn:hover { background: rgba(224,112,112,0.1); }
 
-/* Main */
+.logout-btn:hover { 
+  background: rgba(239, 68, 68, 0.1); 
+}
+
+/* Main Content */
 .main {
   margin-left: var(--sidebar-w);
   flex: 1;
-  padding: 28px 32px;
+  padding: 32px 40px;
   max-width: calc(100% - var(--sidebar-w));
 }
 
 .topbar {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   margin-bottom: 28px;
 }
 
 .page-title {
-  font-family: 'Playfair Display', serif;
   font-size: 26px;
-  color: var(--text);
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: -0.5px;
 }
 
 .date-badge {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px 16px;
+  background: #ffffff;
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  padding: 10px 18px;
   font-size: 13px;
-  color: var(--muted);
+  font-weight: 600;
+  color: var(--text-muted);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
 }
 
 /* Stats grid */
@@ -226,82 +220,77 @@ body {
 }
 
 .stat-card {
-  background: var(--card);
-  border: 1px solid var(--border);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
   border-radius: 12px;
   padding: 20px;
   position: relative;
-  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
 }
-
-.stat-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 2px;
-}
-
-.stat-card.green::before { background: var(--green); }
-.stat-card.gold::before  { background: var(--accent); }
-.stat-card.blue::before  { background: var(--blue); }
-.stat-card.orange::before{ background: var(--accent2); }
 
 .stat-label {
   font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 1px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
-  color: var(--muted);
-  margin-bottom: 8px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
 }
 
 .stat-value {
   font-size: 28px;
-  font-weight: 600;
-  color: var(--text);
+  font-weight: 800;
+  color: var(--text-main);
   line-height: 1;
 }
 
-.stat-value.money::before { content: '$'; font-size: 16px; color: var(--muted); margin-right: 2px; }
+.stat-value.money::before { 
+  content: '$'; 
+  font-size: 18px; 
+  color: var(--text-muted); 
+  margin-right: 2px; 
+}
 
 .stat-icon {
   position: absolute;
-  top: 16px; right: 16px;
-  font-size: 28px;
-  opacity: .15;
+  top: 16px; 
+  right: 16px;
+  font-size: 24px;
+  opacity: .3;
 }
 
 /* Charts row */
 .charts-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: 20px;
   margin-bottom: 28px;
 }
 
 .chart-card {
-  background: var(--card);
-  border: 1px solid var(--border);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
   border-radius: 12px;
-  padding: 20px;
+  padding: 22px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
 }
 
 .chart-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text);
-  margin-bottom: 16px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 20px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 /* Bar chart */
 .bar-chart {
   display: flex;
   align-items: flex-end;
-  gap: 6px;
-  height: 120px;
+  gap: 8px;
+  height: 130px;
 }
 
 .bar-col {
@@ -309,14 +298,14 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   height: 100%;
   justify-content: flex-end;
 }
 
 .bar {
   width: 100%;
-  background: linear-gradient(to top, var(--accent), var(--accent2));
+  background: var(--primary);
   border-radius: 4px 4px 0 0;
   min-height: 4px;
   transition: height .3s ease;
@@ -324,11 +313,16 @@ body {
 
 .bar-label {
   font-size: 10px;
-  color: var(--muted);
+  font-weight: 600;
+  color: var(--text-muted);
 }
 
-/* Productos / Clientes list (Barras horizontales) */
-.prod-list { display: flex; flex-direction: column; gap: 10px; }
+/* Productos list */
+.prod-list { 
+  display: flex; 
+  flex-direction: column; 
+  gap: 12px; 
+}
 
 .prod-item {
   display: flex;
@@ -337,52 +331,56 @@ body {
 }
 
 .prod-name {
-  font-size: 12px;
-  color: var(--text);
-  min-width: 90px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+  min-width: 110px;
 }
 
 .prod-bar-wrap {
   flex: 1;
   height: 8px;
-  background: var(--border);
-  border-radius: 4px;
+  background: #f1f5f9;
+  border-radius: 10px;
   overflow: hidden;
 }
 
 .prod-bar {
   height: 100%;
-  border-radius: 4px;
+  background: var(--primary);
+  border-radius: 10px;
 }
 
 .prod-count {
   font-size: 12px;
-  color: var(--muted);
-  width: 45px;
+  font-weight: 600;
+  color: var(--text-muted);
+  width: 50px;
   text-align: right;
   flex-shrink: 0;
 }
 
 /* Table */
 .table-card {
-  background: var(--card);
-  border: 1px solid var(--border);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
   border-radius: 12px;
   overflow: hidden;
-  margin-bottom: 24px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  margin-bottom: 28px;
 }
 
 .table-header {
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--border);
+  padding: 18px 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
 .table-header h3 {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-main);
 }
 
 table {
@@ -392,53 +390,63 @@ table {
 
 th {
   text-align: left;
-  padding: 10px 20px;
+  padding: 12px 24px;
   font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 1px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
-  color: var(--muted);
-  background: rgba(255,255,255,0.02);
+  color: var(--text-muted);
+  background: #f8fafc;
+  border-top: 1px solid var(--card-border);
+  border-bottom: 1px solid var(--card-border);
 }
 
 td {
-  padding: 12px 20px;
-  border-top: 1px solid var(--border);
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--card-border);
   font-size: 13px;
+  font-weight: 500;
+  color: var(--text-main);
+}
+
+tr:last-child td {
+  border-bottom: none;
 }
 
 .badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 10px;
+  padding: 4px 10px;
   border-radius: 20px;
-  font-size: 11px;
-  font-weight: 500;
+  font-size: 11.5px;
+  font-weight: 600;
 }
 
-.badge.pendiente  { background: rgba(232,184,109,0.15); color: var(--accent); }
-.badge.preparando { background: rgba(109,176,232,0.15); color: var(--blue); }
-.badge.listo      { background: rgba(109,191,138,0.2);  color: var(--green); }
-.badge.entregado  { background: rgba(109,191,138,0.1);  color: #4a9a67; }
-.badge.cancelado  { background: rgba(224,112,112,0.1);  color: var(--red); }
+.badge.pendiente  { background: #fef3c7; color: #d97706; }
+.badge.preparando { background: #e0f2fe; color: #0284c7; }
+.badge.listo      { background: #d1fae5; color: #059669; }
+.badge.entregado  { background: #ecfdf5; color: #10b981; }
+.badge.cancelado  { background: #fee2e2; color: #dc2626; }
 
 /* Cortes section */
 .cortes-section {
-  background: var(--card);
-  border: 1px solid var(--border);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
   border-radius: 12px;
-  padding: 24px;
+  padding: 22px 24px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
   margin-bottom: 24px;
 }
 
 .cortes-title {
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 700;
   margin-bottom: 16px;
   display: flex;
   align-items: center;
   gap: 8px;
+  color: var(--text-main);
 }
 
 .cortes-btns {
@@ -451,32 +459,32 @@ td {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 20px;
+  padding: 10px 18px;
   border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  font-family: 'DM Sans', sans-serif;
+  border: 1px solid var(--card-border);
+  background: #ffffff;
+  color: var(--text-main);
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   transition: all .15s;
   text-decoration: none;
 }
 
 .corte-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: rgba(232,184,109,0.05);
+  background: #f8fafc;
+  border-color: #cbd5e1;
 }
 
 .corte-btn.primary {
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  color: #0f0f0f;
+  background: var(--primary);
+  color: #ffffff;
   border-color: transparent;
 }
 
-.corte-btn.primary:hover { opacity: .9; color: #0f0f0f; }
+.corte-btn.primary:hover { 
+  background: #0043a8; 
+}
 
 /* Live badge */
 .live-dot {
@@ -506,21 +514,15 @@ td {
 <aside class="sidebar">
   <div class="sidebar-logo">
     <div class="name">🍽️ RestaurApp</div>
-    <div class="role">Administrador</div>
+    <div class="role">Subgerente</div>
   </div>
-<nav class="nav">
+  <nav class="nav">
     <a class="nav-item active" href="dashboard.php"><span class="icon">📊</span> Dashboard</a>
-    <a class="nav-item" href="clientes.php"><span>👥</span> Clientes</a>
-    <a class="nav-item" href="interacciones.php"><span class="icon">💬</span> Interacciones</a>
     <a class="nav-item" href="pedidos.php"><span class="icon">📋</span> Pedidos</a>
     <a class="nav-item" href="mesas_qr.php"><span class="icon">🪑</span> Mesas & QR</a>
     <a class="nav-item" href="menu.php"><span class="icon">🍽️</span> Menú</a>
-    <a class="nav-item" href="corte.php"><span>💵</span> Corte de Caja</a>
-
-    <?php if (isset($_SESSION['admin_rol']) && $_SESSION['admin_rol'] === 'super_admin'): ?>
-        <a class="nav-item" href="usuarios.php"><span class="icon">🛡️</span> Administradores</a>
-    <?php endif; ?>
-</nav>
+    <a class="nav-item" href="corte.php"><span class="icon">💵</span> Corte de Caja</a>
+  </nav>
   <div class="sidebar-bottom">
     <a class="logout-btn" href="logout.php">🚪 Cerrar sesión</a>
   </div>
@@ -531,34 +533,34 @@ td {
   <div class="topbar">
     <div>
       <div class="page-title">Dashboard</div>
-      <div style="color:var(--muted);font-size:13px;margin-top:2px;">
+      <div style="color:var(--text-muted);font-size:13px;margin-top:2px;">
         <span class="live-dot"></span>Actualizando en tiempo real
       </div>
     </div>
     <div class="date-badge">📅 <?= date('d \d\e F \d\e Y') ?></div>
   </div>
 
-<!-- STATS -->
+  <!-- STATS -->
   <div class="stats-grid">
-    <div class="stat-card gold">
+    <div class="stat-card">
       <span class="stat-icon">💰</span>
       <div class="stat-label">Ingresos del día</div>
       <div class="stat-value money"><?= number_format($stats['ingresos'] ?? 0, 2) ?></div>
     </div>
-    <div class="stat-card blue">
+    <div class="stat-card">
       <span class="stat-icon">📋</span>
       <div class="stat-label">Total pedidos</div>
       <div class="stat-value"><?= $stats['total_pedidos'] ?? 0 ?></div>
     </div>
-    <div class="stat-card green">
+    <div class="stat-card">
       <span class="stat-icon">✅</span>
       <div class="stat-label">Completados</div>
-      <div class="stat-value"><?= $stats['completados'] ?? 0 ?></div>
+      <div class="stat-value" style="color: var(--green);"><?= $stats['completados'] ?? 0 ?></div>
     </div>
-    <div class="stat-card orange">
+    <div class="stat-card">
       <span class="stat-icon">⏳</span>
       <div class="stat-label">En proceso</div>
-      <div class="stat-value"><?= $stats['activos'] ?? 0 ?></div>
+      <div class="stat-value" style="color: var(--amber);"><?= $stats['activos'] ?? 0 ?></div>
     </div>
   </div>
 
@@ -567,17 +569,15 @@ td {
     <!-- Pedidos por hora -->
     <div class="chart-card">
       <div class="chart-title">📊 Pedidos por hora (hoy)</div>
-      <?php
-        $max_pedidos = max(array_column($pedidos_hora, 'cantidad') ?: [1]);
-      ?>
+      <?php $max_pedidos = max(array_column($pedidos_hora, 'cantidad') ?: [1]); ?>
       <div class="bar-chart">
         <?php if (empty($pedidos_hora)): ?>
-          <div style="color:var(--muted);font-size:13px;width:100%;text-align:center;padding:40px 0;">Sin pedidos hoy</div>
+          <div style="color:var(--text-muted);font-size:13px;width:100%;text-align:center;padding:40px 0;">Sin pedidos hoy</div>
         <?php else: ?>
           <?php foreach ($pedidos_hora as $ph): ?>
             <div class="bar-col">
-              <div style="font-size:10px;color:var(--muted);margin-bottom:4px;"><?= $ph['cantidad'] ?></div>
-              <div class="bar" style="height:<?= round(($ph['cantidad']/$max_pedidos)*100) ?>px;"></div>
+              <div style="font-size:10px;color:var(--text-muted);"><?= $ph['cantidad'] ?></div>
+              <div class="bar" style="height:<?= round(($ph['cantidad']/$max_pedidos)*100) ?>%;"></div>
               <div class="bar-label"><?= str_pad($ph['hora'],2,'0',STR_PAD_LEFT) ?>h</div>
             </div>
           <?php endforeach; ?>
@@ -589,18 +589,18 @@ td {
     <div class="chart-card">
       <div class="chart-title">🔥 Productos más vendidos (hoy)</div>
       <?php if (empty($top_productos)): ?>
-        <div style="color:var(--muted);font-size:13px;padding:20px 0;">Sin ventas completadas hoy</div>
+        <div style="color:var(--text-muted);font-size:13px;padding:20px 0;">Sin ventas completadas hoy</div>
       <?php else: ?>
         <?php $max_v = max(array_column($top_productos, 'vendidos')); ?>
         <div class="prod-list">
           <?php foreach ($top_productos as $i => $p): ?>
           <div class="prod-item">
-            <span style="width: 20px; font-size: 11px; color: var(--muted); text-align: right; flex-shrink: 0;"><?= $i+1 ?></span>
+            <span style="width: 20px; font-size: 11px; color: var(--text-muted); text-align: right; flex-shrink: 0;"><?= $i+1 ?></span>
             <span class="prod-name" style="min-width: 120px;"><?= htmlspecialchars($p['nombre']) ?></span>
             <div class="prod-bar-wrap">
-              <div class="prod-bar" style="width:<?= round(($p['vendidos']/$max_v)*100) ?>%; background: linear-gradient(to right, var(--accent), var(--accent2));"></div>
+              <div class="prod-bar" style="width:<?= round(($p['vendidos']/$max_v)*100) ?>%;"></div>
             </div>
-            <span style="font-size: 12px; color: var(--muted); width: 40px; text-align: right; flex-shrink: 0;"><?= $p['vendidos'] ?> uds</span>
+            <span class="prod-count"><?= $p['vendidos'] ?> uds</span>
           </div>
           <?php endforeach; ?>
         </div>
@@ -608,48 +608,11 @@ td {
     </div>
   </div>
 
-  <!-- CHARTS ROW 2: Desglose de Clientes por Estado -->
-  <div class="charts-row" style="grid-template-columns: 1fr;">
-    <div class="chart-card">
-      <div class="chart-title" style="justify-content: space-between;">
-        <span>👥 Estado general de Clientes (Total: <?= $totalClientes ?>)</span>
-        <a href="clientes.php" style="color:var(--accent); font-size:12px; text-decoration:none;">Gestionar clientes →</a>
-      </div>
-      
-      <?php 
-        $max_clientes = max(array_values($conteo_estados)) ?: 1;
-        // Definimos colores para cada estado
-        $colores_estados = [
-            'Activo'    => 'var(--green)',
-            'Inactivo'  => 'var(--muted)',
-            'Baja'      => 'var(--red)',
-            'Prospecto' => 'var(--accent)'
-        ];
-      ?>
-      
-      <div class="prod-list" style="margin-top: 10px;">
-        <?php foreach ($conteo_estados as $estado_nombre => $cantidad): ?>
-          <?php 
-            $porcentaje = ($totalClientes > 0) ? round(($cantidad / $totalClientes) * 100) : 0;
-            $color_barra = $colores_estados[$estado_nombre] ?? 'var(--blue)';
-          ?>
-          <div class="prod-item">
-            <span class="prod-name" style="width: 110px; font-weight: 500;"><?= htmlspecialchars($estado_nombre) ?></span>
-            <div class="prod-bar-wrap">
-              <div class="prod-bar" style="width: <?= round(($cantidad / $max_clientes) * 100) ?>%; background: <?= $color_barra ?>;"></div>
-            </div>
-            <span class="prod-count" style="width: 80px;"><?= $cantidad ?> (<?= $porcentaje ?>%)</span>
-          </div>
-        <?php endforeach; ?>
-      </div>
-    </div>
-  </div>
-
   <!-- ÚLTIMOS PEDIDOS -->
   <div class="table-card">
     <div class="table-header">
       <h3>📋 Registro de pedidos recientes</h3>
-      <a href="pedidos.php" style="color:var(--accent);font-size:12px;text-decoration:none;">Ver todos →</a>
+      <a href="pedidos.php" style="color:var(--primary);font-size:13px;font-weight:600;text-decoration:none;">Ver todos →</a>
     </div>
     <table>
       <thead>
@@ -663,15 +626,15 @@ td {
       </thead>
       <tbody>
         <?php if (empty($ultimos_pedidos)): ?>
-          <tr><td colspan="5" style="text-align:center;color:var(--muted);padding:30px;">Sin pedidos aún</td></tr>
+          <tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:30px;">Sin pedidos aún</td></tr>
         <?php else: ?>
           <?php foreach ($ultimos_pedidos as $p): ?>
           <tr>
-            <td style="font-weight:500;"><?= htmlspecialchars($p['numero_orden']) ?></td>
+            <td style="font-weight:700;"><?= htmlspecialchars($p['numero_orden']) ?></td>
             <td>Mesa <?= $p['mesa_num'] ?></td>
             <td>$<?= number_format($p['total'], 2) ?></td>
             <td><span class="badge <?= $p['estado'] ?>"><?= ucfirst($p['estado']) ?></span></td>
-            <td style="color:var(--muted);"><?= date('H:i', strtotime($p['creado_en'])) ?></td>
+            <td style="color:var(--text-muted);"><?= date('H:i', strtotime($p['creado_en'])) ?></td>
           </tr>
           <?php endforeach; ?>
         <?php endif; ?>
@@ -692,9 +655,8 @@ td {
 
 <script>
 (function() {
-    // 3 minutos de inactividad (3 * 60 * 1000 ms)
     const TIEMPO_INACTIVIDAD = 3 * 60 * 1000;
-    const INTERVALO_RECARGA = 30000; // 30 segundos
+    const INTERVALO_RECARGA = 30000;
     
     let temporizadorInactividad;
     let temporizadorRecarga;
@@ -708,16 +670,13 @@ td {
         temporizadorInactividad = setTimeout(cerrarSesion, TIEMPO_INACTIVIDAD);
     }
 
-    // Monitorear clicks, teclas y movimiento del cursor
     const eventos = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
     eventos.forEach(evento => {
         window.addEventListener(evento, reiniciarInactividad, true);
     });
 
-    // Iniciar temporizador de cierre por inactividad
     reiniciarInactividad();
 
-    // Recarga automática controlada (solo refresca datos si la pestaña está activa)
     temporizadorRecarga = setInterval(() => {
         if (!document.hidden) {
             location.reload();

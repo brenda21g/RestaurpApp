@@ -120,20 +120,14 @@ select option{background:#1c1c1c;}
 <aside class="sidebar">
   <div class="sidebar-logo">
     <div class="name">🍽️ RestaurApp</div>
-    <div class="role">Administrador</div>
+    <div class="role">Subgerente</div>
   </div>
 <nav class="nav">
     <a class="nav-item" href="dashboard.php"><span class="icon">📊</span> Dashboard</a>
-    <a class="nav-item" href="clientes.php"><span>👥</span> Clientes</a>
-    <a class="nav-item" href="interacciones.php"><span class="icon">💬</span> Interacciones</a>
     <a class="nav-item" href="pedidos.php"><span class="icon">📋</span> Pedidos</a>
     <a class="nav-item" href="mesas_qr.php"><span class="icon">🪑</span> Mesas & QR</a>
     <a class="nav-item active" href="menu.php"><span class="icon">🍽️</span> Menú</a>
     <a class="nav-item" href="corte.php"><span>💵</span> Corte de Caja</a>
-
-    <?php if (isset($_SESSION['admin_rol']) && $_SESSION['admin_rol'] === 'super_admin'): ?>
-        <a class="nav-item" href="usuarios.php"><span class="icon">🛡️</span> Administradores</a>
-    <?php endif; ?>
 </nav>
   <div class="sidebar-bottom">
     <a class="logout-btn" href="logout.php">🚪 Cerrar sesión</a>

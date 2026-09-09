@@ -27,8 +27,12 @@ $mesasData = array_map(function($m) {
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
-  --bg: #0b0b0b; --card: #1c1c1c; --border: #2a2a2a;
-  --accent: #e8b86d; --text: #f0ede8; --muted: #7a7060;
+  --bg: #ffffff; 
+  --card: #f8f9e1; 
+  --border: #2a2a2a;
+  --accent: #e8b86d; 
+  --text: #f0ede8; 
+  --muted: #7a7060;
   --sidebar-w: 240px;
 }
 body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; display:flex; min-height:100vh; font-size:14px; }
@@ -60,20 +64,14 @@ body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif
 <aside class="sidebar">
   <div class="sidebar-logo">
     <div class="name">🍽️ RestaurApp</div>
-    <div class="role">Administrador</div>
+    <div class="role">Subgerente</div>
   </div>
 <nav class="nav">
     <a class="nav-item" href="dashboard.php"><span class="icon">📊</span> Dashboard</a>
-    <a class="nav-item" href="clientes.php"><span>👥</span> Clientes</a>
-    <a class="nav-item" href="interacciones.php"><span class="icon">💬</span> Interacciones</a>
     <a class="nav-item" href="pedidos.php"><span class="icon">📋</span> Pedidos</a>
     <a class="nav-item active" href="mesas_qr.php"><span class="icon">🪑</span> Mesas & QR</a>
     <a class="nav-item" href="menu.php"><span class="icon">🍽️</span> Menú</a>
     <a class="nav-item" href="corte.php"><span>💵</span> Corte de Caja</a>
-
-    <?php if (isset($_SESSION['admin_rol']) && $_SESSION['admin_rol'] === 'super_admin'): ?>
-        <a class="nav-item" href="usuarios.php"><span class="icon">🛡️</span> Administradores</a>
-    <?php endif; ?>
 </nav>
   <div class="sidebar-bottom">
     <a class="logout-btn" href="logout.php">🚪 Cerrar sesión</a>
