@@ -80,11 +80,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
     :root {
-        --bg-body: #002e5c;
+        --bg-body: #011139;
         --bg-surface: #ffffff;
         --color-primary: #0284c7;
         --color-primary-hover: #0369a1;
-        --text-main: #0f172a;
+        --text-main: #000000;
         --text-muted: #64748b;
         --border-color: #e2e8f0;
         --color-danger: #ef4444;
@@ -105,7 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     .login-wrap { width: 100%; max-width: 400px; padding: 20px; }
     .logo-area { text-align: center; margin-bottom: 28px; }
     .logo-icon { font-size: 40px; display: block; margin-bottom: 10px; }
-    .logo-title { font-size: 22px; font-weight: 700; color: var(--text-main); }
+    .logo-title { font-size: 22px; font-weight: 700; color: #ffffff; }
     .logo-sub { color: var(--text-muted); font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; margin-top: 4px; }
     .card { background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 12px; padding: 32px; box-shadow: var(--shadow-lg); }
     .card h2 { font-size: 16px; font-weight: 600; margin-bottom: 20px; color: var(--text-main); }

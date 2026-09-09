@@ -41,11 +41,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
            VARIABLES Y RESET GENERAL
            ========================================================================== */
         :root {
-            --bg-body: #f8fafc;
+            --bg-body: #011139;
             --bg-surface: #ffffff;
-            --sidebar-bg: #0f172a;
-            --sidebar-hover: #1e293b;
-            --sidebar-text: #94a3b8;
             --text-main: #0f172a;
             --text-muted: #64748b;
             --border-color: #e2e8f0;

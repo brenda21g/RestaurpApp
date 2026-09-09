@@ -64,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         VARIABLES Y RESET GENERAL (TEMA AZUL Y BLANCO - RESTAURANT_APP)
         ========================================================================== */
     :root {
-        --bg-body: #002e5c;
+        --bg-body: #011139;
         --bg-surface: #ffffff;
         --text-main: #0f172a;
         --text-muted: #64748b;

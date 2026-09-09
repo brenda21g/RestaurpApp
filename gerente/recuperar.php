@@ -100,7 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
     :root {
-        --bg-body: #002e5c;
+        --bg-body: #011139;
         --bg-surface: #ffffff;
         --color-primary: #0284c7;
         --color-primary-hover: #0369a1;
