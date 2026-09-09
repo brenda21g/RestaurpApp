@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 04-09-2026 a las 02:54:00
+-- Tiempo de generación: 09-09-2026 a las 06:45:10
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -32,22 +32,22 @@ CREATE TABLE `admins` (
   `username` varchar(50) NOT NULL,
   `password_hash` varchar(255) NOT NULL,
   `nombre` varchar(100) DEFAULT NULL,
-  `rol` enum('super_admin','admin_menor') NOT NULL DEFAULT 'admin_menor',
-  `pregunta_seguridad` varchar(255) DEFAULT NULL,
-  `respuesta_seguridad` varchar(255) DEFAULT NULL,
+  `email` varchar(100) NOT NULL,
+  `rol` enum('gerente','subgerente') NOT NULL DEFAULT 'subgerente',
   `pin` varchar(255) DEFAULT NULL,
   `activo` tinyint(1) DEFAULT 1,
-  `ultimo_login` timestamp NULL DEFAULT NULL
+  `ultimo_login` timestamp NULL DEFAULT NULL,
+  `pin_recuperacion` varchar(6) DEFAULT NULL,
+  `pin_expira` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Volcado de datos para la tabla `admins`
 --
 
-INSERT INTO `admins` (`id`, `username`, `password_hash`, `nombre`, `rol`, `pregunta_seguridad`, `respuesta_seguridad`, `pin`, `activo`, `ultimo_login`) VALUES
-(1, 'superadmin', '2c7b0576873ffcbb4ca61c5a225b94e7', 'Super Administrador', 'super_admin', '¿Cual es el amor de mi vida?', 'BlackPink', '81dc9bdb52d04dc20036dbd8313ed055', 1, '2026-09-04 00:53:08'),
-(4, 'admin1', 'e00cf25ad42683b3df678c61f42c6bda', 'Administrador 1', 'admin_menor', NULL, NULL, NULL, 1, '2026-09-04 00:48:18'),
-(5, 'admin2', 'c84258e9c39059a89ab77d846ddab909', 'Lalo', 'admin_menor', NULL, NULL, NULL, 1, '2026-09-04 00:53:46');
+INSERT INTO `admins` (`id`, `username`, `password_hash`, `nombre`, `email`, `rol`, `pin`, `activo`, `ultimo_login`, `pin_recuperacion`, `pin_expira`) VALUES
+(1, 'Eloy', '29bcc859bb5cf372f7f86102efadb490', 'Gerente1', 'sage040621haslnla5@gmail.com', 'gerente', '81dc9bdb52d04dc20036dbd8313ed055', 1, '2026-09-09 04:21:33', NULL, NULL),
+(6, 'Admin1', 'e00cf25ad42683b3df678c61f42c6bda', 'Prueba 1', '22151220@aguascalientes.tecnm.mx', 'subgerente', NULL, 1, '2026-09-09 04:35:45', NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -76,6 +76,21 @@ INSERT INTO `categorias` (`id`, `nombre`, `icono`, `orden`, `activa`) VALUES
 -- --------------------------------------------------------
 
 --
+-- Estructura de tabla para la tabla `evaluaciones`
+--
+
+CREATE TABLE `evaluaciones` (
+  `id` int(11) NOT NULL,
+  `cliente_id` int(11) NOT NULL,
+  `puntuacion` int(11) DEFAULT 5,
+  `tipo` varchar(50) DEFAULT 'General',
+  `comentario` text DEFAULT NULL,
+  `fecha` datetime DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Estructura de tabla para la tabla `interacciones`
 --
 
@@ -97,7 +112,8 @@ CREATE TABLE `interacciones` (
 
 INSERT INTO `interacciones` (`id`, `cliente_id`, `tipo`, `asunto`, `descripcion`, `fecha`, `hora`, `estado`, `creado_en`) VALUES
 (1, NULL, 'llamada', 'Reclamacion por trato', 'La vida de hoy', '2026-09-12', '16:16:00', 'completada', '2026-09-03 16:13:56'),
-(2, 13, 'reunion', 'lsdkfhljshfdkl', 'sfjkdfhkjshfjlkhlkfds', '2026-09-18', '17:58:00', 'pendiente', '2026-09-03 17:56:10');
+(2, 13, 'reunion', 'lsdkfhljshfdkl', 'sfjkdfhkjshfjlkhlkfds', '2026-09-18', '17:58:00', 'pendiente', '2026-09-03 17:56:10'),
+(3, NULL, 'correo', 'gukefkegkdrj', 'dthedujrjn', '2026-09-16', '11:20:00', 'completada', '2026-09-04 08:20:37');
 
 -- --------------------------------------------------------
 
@@ -287,9 +303,10 @@ CREATE TABLE `usuarios_cliente` (
 --
 
 INSERT INTO `usuarios_cliente` (`id`, `nombre`, `email`, `password`, `telefono`, `puntos`, `token_verificacion`, `email_confirmado`, `creado_en`, `etapa_crm`, `estado`) VALUES
-(12, 'Lalo', 'sage040621haslnla5@gmail.com', '74b87337454200d4d33f80c4663dc5e5', '4499402367', 0, NULL, 1, '2026-09-01 02:58:05', 'Prospecto', 'Baja'),
 (13, 'La vaca lola', 'brendaguille284@gmail.com', '4380d9d10d189baad936986df28cbccd', '4495651176', 0, '0af4068910ce689abd3cfabc034ced4fd74895d04b090eaa6c24e532d2c61eb8', 0, '2026-09-01 19:35:07', 'Prospecto', 'Activo'),
-(14, 'Brenda Guillen', '22151246@aguascalientes.tecnm.mx', 'd6ff269bd9dbc6b7f612c2b254a45045', '4495651176', 0, NULL, 1, '2026-09-01 19:37:05', 'Prospecto', 'Activo');
+(14, 'Brenda Guillen', '22151246@aguascalientes.tecnm.mx', 'd6ff269bd9dbc6b7f612c2b254a45045', '4495651176', 0, NULL, 1, '2026-09-01 19:37:05', 'Prospecto', 'Activo'),
+(17, 'Eloy', 'juanyto383@gmail.com', 'e10adc3949ba59abbe56e057f20f883e', '4498765432', 0, NULL, 1, '2026-09-08 22:45:38', 'Prospecto', 'Baja'),
+(18, 'Eloy', 'juanyto38354@gmail.com', 'e10adc3949ba59abbe56e057f20f883e', '4498765432', 0, NULL, 1, '2026-09-08 22:48:18', 'Prospecto', 'Baja');
 
 --
 -- Índices para tablas volcadas
@@ -307,6 +324,13 @@ ALTER TABLE `admins`
 --
 ALTER TABLE `categorias`
   ADD PRIMARY KEY (`id`);
+
+--
+-- Indices de la tabla `evaluaciones`
+--
+ALTER TABLE `evaluaciones`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `fk_evaluaciones_cliente` (`cliente_id`);
 
 --
 -- Indices de la tabla `interacciones`
@@ -362,7 +386,7 @@ ALTER TABLE `usuarios_cliente`
 -- AUTO_INCREMENT de la tabla `admins`
 --
 ALTER TABLE `admins`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT de la tabla `categorias`
@@ -371,10 +395,16 @@ ALTER TABLE `categorias`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
+-- AUTO_INCREMENT de la tabla `evaluaciones`
+--
+ALTER TABLE `evaluaciones`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT de la tabla `interacciones`
 --
 ALTER TABLE `interacciones`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT de la tabla `mesas`
@@ -404,11 +434,17 @@ ALTER TABLE `productos`
 -- AUTO_INCREMENT de la tabla `usuarios_cliente`
 --
 ALTER TABLE `usuarios_cliente`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
 
 --
 -- Restricciones para tablas volcadas
 --
+
+--
+-- Filtros para la tabla `evaluaciones`
+--
+ALTER TABLE `evaluaciones`
+  ADD CONSTRAINT `fk_evaluaciones_cliente` FOREIGN KEY (`cliente_id`) REFERENCES `usuarios_cliente` (`id`) ON DELETE CASCADE;
 
 --
 -- Filtros para la tabla `interacciones`
