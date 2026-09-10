@@ -297,7 +297,7 @@ $totalActividades = count($actividades);
 <aside class="sidebar">
     <div class="sidebar-logo">
         <div class="name">Restaurant App</div>
-        <div class="role">Administrador</div>
+        <div class="role">GERENTE</div>
     </div>
     <nav class="nav">
         <a class="nav-item" href="dashboard.php"><span>📊</span> Dashboard</a>
