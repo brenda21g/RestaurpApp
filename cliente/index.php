@@ -135,9 +135,9 @@ body {
 
 .tab-btn {
   flex: 1;
-  padding: 12px;
+  padding: 12px 8px;
   text-align: center;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--muted);
   cursor: pointer;
@@ -454,12 +454,14 @@ body {
   font-weight: 700;
 }
 
-/* Success overlay */
+/* Success overlay (Fondo borroso / Modal) */
 .success-overlay {
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.7);
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
   z-index: 400;
   align-items: center;
   justify-content: center;
@@ -475,6 +477,7 @@ body {
   max-width: 320px;
   width: 90%;
   animation: popIn .3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
 }
 
 @keyframes popIn {
@@ -518,6 +521,7 @@ body {
   <button class="tab-btn active" onclick="showPage('menu', this)">🍽️ Menú</button>
   <button class="tab-btn" onclick="showPage('carrito', this)">🛒 Carrito <span id="cart-tab-count"></span></button>
   <button class="tab-btn" onclick="showPage('estado', this)">📋 Mi pedido</button>
+  <button class="tab-btn" onclick="showPage('evaluar', this)">⭐ Evaluar</button>
 </div>
 
 <!-- MENÚ -->
@@ -564,13 +568,51 @@ body {
   <div id="status-container"></div>
 </div>
 
+<!-- EVALUAR -->
+<div class="page" id="page-evaluar">
+  <div class="status-card" style="text-align: left;">
+    <div class="status-title" style="margin-bottom: 4px;">⭐ Déjanos tu opinión</div>
+    <div class="status-sub" style="margin-bottom: 16px;">Califica tu experiencia para ayudarnos a mejorar el servicio.</div>
+    
+    <form onsubmit="enviarResenaRapida(event)">
+      <div style="margin-bottom: 14px;">
+        <label style="display:block; font-size:11px; font-weight:600; text-transform:uppercase; color:var(--muted); margin-bottom:6px;">Puntuación</label>
+        <select id="eval-puntuacion" style="width:100%; padding:10px; background:var(--bg); border:1px solid var(--border); border-radius:8px; font-family:'DM Sans',sans-serif; color:var(--text); outline:none;">
+          <option value="5">⭐⭐⭐⭐⭐ (5 - Excelente)</option>
+          <option value="4">⭐⭐⭐⭐ (4 - Muy bueno)</option>
+          <option value="3">⭐⭐⭐ (3 - Bueno)</option>
+          <option value="2">⭐⭐ (2 - Regular)</option>
+          <option value="1">⭐ (1 - Malo)</option>
+        </select>
+      </div>
+
+      <div style="margin-bottom: 14px;">
+        <label style="display:block; font-size:11px; font-weight:600; text-transform:uppercase; color:var(--muted); margin-bottom:6px;">Categoría</label>
+        <select id="eval-tipo" style="width:100%; padding:10px; background:var(--bg); border:1px solid var(--border); border-radius:8px; font-family:'DM Sans',sans-serif; color:var(--text); outline:none;">
+          <option value="Servicio">Servicio</option>
+          <option value="Comida">Comida</option>
+          <option value="Ambiente">Ambiente</option>
+          <option value="General">General</option>
+        </select>
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <label style="display:block; font-size:11px; font-weight:600; text-transform:uppercase; color:var(--muted); margin-bottom:6px;">Comentario</label>
+        <textarea id="eval-comentario" placeholder="Cuéntanos cómo fue tu visita..." required style="width:100%; padding:10px; background:var(--bg); border:1px solid var(--border); border-radius:8px; font-family:'DM Sans',sans-serif; color:var(--text); outline:none; resize:vertical; min-height:90px;"></textarea>
+      </div>
+
+      <button type="submit" class="order-btn" id="eval-btn">Enviar Evaluación</button>
+    </form>
+  </div>
+</div>
+
 <!-- Floating cart button -->
 <button class="cart-float hidden" id="cart-float-btn" onclick="showPage('carrito', null)">
   🛒 Ver carrito
   <span class="cart-badge" id="cart-float-count">0</span>
 </button>
 
-<!-- Success overlay -->
+<!-- Success overlay (Pedido) -->
 <div class="success-overlay" id="success-overlay">
   <div class="success-box">
     <div class="big-icon">🎉</div>
@@ -580,12 +622,21 @@ body {
   </div>
 </div>
 
+<!-- Success overlay (Evaluación) -->
+<div class="success-overlay" id="eval-success-overlay">
+  <div class="success-box">
+    <div class="big-icon">⭐</div>
+    <h2>¡Muchas gracias!</h2>
+    <p>Tu evaluación ha sido registrada correctamente. Agradecemos tus comentarios.</p>
+    <button class="success-close-btn" onclick="closeEvalSuccess()">Volver al Menú</button>
+  </div>
+</div>
+
 <script>
 const MESA_ID = <?= (int)$mesa['id'] ?>;
 const MESA_TOKEN = '<?= addslashes($mesa['qr_token']) ?>';
 let cart = [];
 
-// Recuperar el ID guardado al cargar la página
 let currentPedidoId = localStorage.getItem('restaurapp_pedido_' + MESA_ID) || null;
 
 // =====================
@@ -711,6 +762,45 @@ async function enviarPedido() {
   }
 }
 
+// =====================
+// EVALUACIONES / RESEÑAS
+// =====================
+async function enviarResenaRapida(e) {
+  e.preventDefault();
+  const puntuacion = document.getElementById('eval-puntuacion').value;
+  const tipo = document.getElementById('eval-tipo').value;
+  const comentario = document.getElementById('eval-comentario').value;
+  const btn = document.getElementById('eval-btn');
+
+  btn.disabled = true;
+  btn.textContent = 'Enviando...';
+
+  try {
+    await fetch('cuenta.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `enviar_evaluacion=1&puntuacion=${puntuacion}&tipo=${encodeURIComponent(tipo)}&comentario=${encodeURIComponent(comentario)}`
+    });
+
+    document.getElementById('eval-comentario').value = '';
+    btn.disabled = false;
+    btn.textContent = 'Enviar Evaluación';
+    
+    // Mostrar overlay borroso de éxito de evaluación
+    document.getElementById('eval-success-overlay').classList.add('show');
+    vibrateDevice();
+  } catch (err) {
+    alert('Error al enviar la evaluación. Inténtalo de nuevo.');
+    btn.disabled = false;
+    btn.textContent = 'Enviar Evaluación';
+  }
+}
+
+function closeEvalSuccess() {
+  document.getElementById('eval-success-overlay').classList.remove('show');
+  showPage('menu', null);
+}
+
 function vibrateDevice() {
   if ('vibrate' in navigator) navigator.vibrate([200, 100, 200]);
 }
@@ -725,7 +815,6 @@ function closeSuccess() {
 // ESTADO DEL PEDIDO
 // =====================
 async function fetchStatus() {
-  // Petición al endpoint local en cliente/
   let url = 'estado_pedido.php?';
   if (currentPedidoId) {
     url += 'pedido_id=' + currentPedidoId;
@@ -826,6 +915,7 @@ function showPage(id, btn) {
     if (id === 'menu')    btns[0].classList.add('active');
     if (id === 'carrito') btns[1].classList.add('active');
     if (id === 'estado')  btns[2].classList.add('active');
+    if (id === 'evaluar') btns[3].classList.add('active');
   }
 
   if (id !== 'menu') document.getElementById('cart-float-btn').classList.add('hidden');
@@ -851,14 +941,12 @@ if ('Notification' in window && Notification.permission === 'default') {
   Notification.requestPermission();
 }
 
-// Consultar actualización de estado cada 5 segundos automáticamente
 setInterval(() => {
   if (document.getElementById('page-estado').classList.contains('active') || currentPedidoId) {
     fetchStatus();
   }
 }, 5000);
 
-// Cargar carrito e iniciar verificación de pedido existente al entrar
 updateCartUI();
 fetchStatus();
 </script>

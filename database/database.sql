@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 09-09-2026 a las 06:45:10
+-- Tiempo de generación: 10-09-2026 a las 09:06:20
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -46,8 +46,8 @@ CREATE TABLE `admins` (
 --
 
 INSERT INTO `admins` (`id`, `username`, `password_hash`, `nombre`, `email`, `rol`, `pin`, `activo`, `ultimo_login`, `pin_recuperacion`, `pin_expira`) VALUES
-(1, 'Eloy', '29bcc859bb5cf372f7f86102efadb490', 'Gerente1', 'sage040621haslnla5@gmail.com', 'gerente', '81dc9bdb52d04dc20036dbd8313ed055', 1, '2026-09-09 04:21:33', NULL, NULL),
-(6, 'Admin1', 'e00cf25ad42683b3df678c61f42c6bda', 'Prueba 1', '22151220@aguascalientes.tecnm.mx', 'subgerente', NULL, 1, '2026-09-09 04:35:45', NULL, NULL);
+(1, 'Eloy', 'b0d8dc4e2b69059c760d53c7637cb44d', 'Gerente1', 'sage040621haslnla5@gmail.com', 'gerente', '81dc9bdb52d04dc20036dbd8313ed055', 1, '2026-09-10 07:05:41', NULL, NULL),
+(6, 'Admin1', 'e00cf25ad42683b3df678c61f42c6bda', 'Prueba 1', '22151220@aguascalientes.tecnm.mx', 'subgerente', NULL, 1, '2026-09-10 06:55:44', NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -87,6 +87,15 @@ CREATE TABLE `evaluaciones` (
   `comentario` text DEFAULT NULL,
   `fecha` datetime DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Volcado de datos para la tabla `evaluaciones`
+--
+
+INSERT INTO `evaluaciones` (`id`, `cliente_id`, `puntuacion`, `tipo`, `comentario`, `fecha`) VALUES
+(1, 14, 4, 'General', 'Muy buena, está chido', '2026-09-10 00:58:09'),
+(2, 14, 1, 'Comida', 'Estaba fria', '2026-09-10 01:00:15'),
+(3, 14, 5, 'Servicio', 'Muy chido', '2026-09-10 01:04:44');
 
 -- --------------------------------------------------------
 
@@ -398,7 +407,7 @@ ALTER TABLE `categorias`
 -- AUTO_INCREMENT de la tabla `evaluaciones`
 --
 ALTER TABLE `evaluaciones`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT de la tabla `interacciones`
