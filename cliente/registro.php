@@ -120,8 +120,8 @@ $loginUrl = "login.php" . $mesa_param;
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body { 
-            background: #0b0b0b; 
-            color: #f0ede8; 
+            background: #f3f4fb; 
+            color: #131cbf; 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
             display: flex; 
             justify-content: center; 
@@ -130,8 +130,8 @@ $loginUrl = "login.php" . $mesa_param;
             padding: 20px;
         }
         .card { 
-            background: #1c1c1c; 
-            border: 1px solid #2a2a2a; 
+            background: #060274; 
+            border: 1px solid #fff7f7; 
             padding: 30px; 
             border-radius: 12px; 
             width: 100%;
@@ -139,14 +139,14 @@ $loginUrl = "login.php" . $mesa_param;
             box-shadow: 0 4px 20px rgba(0,0,0,0.5);
         }
         h2 { 
-            color: #e8b86d; 
+            color: #f7f5f3; 
             margin-bottom: 20px; 
             font-size: 22px; 
             text-align: center; 
         }
         .msg { font-size: 13px; margin-bottom: 15px; text-align: center; line-height: 1.4; }
         .msg.success { color: #6dbf8a; }
-        .msg.error { color: #e07070; }
+        .msg.error { color: #ef5757; }
         
         label {
             display: block;
@@ -158,21 +158,21 @@ $loginUrl = "login.php" . $mesa_param;
             width: 100%; 
             padding: 12px; 
             margin-bottom: 16px; 
-            background: #141414; 
+            background: #faf9f9; 
             border: 1px solid #2a2a2a; 
-            color: #fff; 
+            color: #0e0c0c; 
             border-radius: 6px; 
             font-size: 14px;
             outline: none;
             transition: border-color 0.2s;
         }
         input:focus {
-            border-color: #e8b86d;
+            border-color: #0c0e5d;
         }
         button { 
             width: 100%; 
             padding: 12px; 
-            background: #e8b86d; 
+            background: #0062d9; 
             border: none; 
             color: #0b0b0b;
             font-weight: bold; 
@@ -185,7 +185,7 @@ $loginUrl = "login.php" . $mesa_param;
             background: #d4a359;
         }
         a { 
-            color: #7a7060; 
+            color: #fffbf5; 
             text-decoration: none; 
             font-size: 13px; 
             display: block; 
@@ -194,7 +194,7 @@ $loginUrl = "login.php" . $mesa_param;
             transition: color 0.2s;
         }
         a:hover {
-            color: #e8b86d;
+            color: #fffdf9;
         }
     </style>
 </head>

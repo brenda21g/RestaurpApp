@@ -510,7 +510,7 @@ input:hover {
 
 
         <a
-            href="<?= htmlspecialchars($registroUrl) ?>"
+            href="registro.php"
             class="register-link"
         >
             ¿No tienes cuenta? Regístrate

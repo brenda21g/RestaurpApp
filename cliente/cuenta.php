@@ -72,7 +72,7 @@ if (!empty($_GET['mesa'])) {
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         :root {
-          --bg: #0b0b0b; --card: #1c1c1c; --border: #2a2a2a;
+          --bg: #fdfdfd; --card: #d4cccc; --border: #2a2a2a;
           --accent: #e8b86d; --text: #f0ede8; --muted: #7a7060;
         }
         body { 
@@ -99,7 +99,7 @@ if (!empty($_GET['mesa'])) {
             margin-bottom: 20px; 
         }
         .puntos-box { 
-            background: rgba(232, 184, 109, 0.08); 
+            background: rgba(255, 255, 255, 0.08); 
             border: 1px solid var(--accent); 
             border-radius: 12px; 
             padding: 20px; 
@@ -117,7 +117,7 @@ if (!empty($_GET['mesa'])) {
         input, select, textarea { 
             width: 100%; 
             padding: 12px 14px; 
-            background: #121212; 
+            background: #2c267e; 
             border: 1px solid var(--border); 
             color: var(--text); 
             border-radius: 8px; 
@@ -131,8 +131,8 @@ if (!empty($_GET['mesa'])) {
         button { 
             width: 100%; 
             padding: 12px; 
-            background: linear-gradient(135deg, #e8b86d, #c9956a); 
-            color: #0f0f0f;
+            background: linear-gradient(135deg, #6d9ae8, #1d1283); 
+            color: #f4eded;
             border: none; 
             font-family: 'DM Sans', sans-serif;
             font-weight: 600; 
@@ -155,14 +155,14 @@ if (!empty($_GET['mesa'])) {
         .alert-error { background: rgba(224,112,112,.15); color: #e07070; border: 1px solid rgba(224,112,112,.3); }
         
         .eval-item {
-            background: #121212;
+            background: #9b90ff;
             border: 1px solid var(--border);
             border-radius: 10px;
             padding: 12px;
             margin-bottom: 10px;
             font-size: 13px;
         }
-        .stars { color: #e8b86d; font-weight: bold; }
+        .stars { color: #0a0a0a; font-weight: bold; }
     </style>
 </head>
 <body>

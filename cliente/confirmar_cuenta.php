@@ -40,7 +40,7 @@ if ($token) {
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body { 
-            background: #0b0b0b; 
+            background: #010374; 
             color: #f0ede8; 
             font-family: 'DM Sans', sans-serif; 
             display: flex;
@@ -50,7 +50,7 @@ if ($token) {
             padding: 20px;
         }
         .card {
-            background: #1c1c1c;
+            background: #b6adad;
             border: 1px solid #2a2a2a;
             border-radius: 16px;
             padding: 32px;
