@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 10-09-2026 a las 09:06:20
+-- Tiempo de generación: 18-09-2026 a las 18:55:19
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -46,8 +46,8 @@ CREATE TABLE `admins` (
 --
 
 INSERT INTO `admins` (`id`, `username`, `password_hash`, `nombre`, `email`, `rol`, `pin`, `activo`, `ultimo_login`, `pin_recuperacion`, `pin_expira`) VALUES
-(1, 'Eloy', 'b0d8dc4e2b69059c760d53c7637cb44d', 'Gerente1', 'sage040621haslnla5@gmail.com', 'gerente', '81dc9bdb52d04dc20036dbd8313ed055', 1, '2026-09-10 07:05:41', NULL, NULL),
-(6, 'Admin1', 'e00cf25ad42683b3df678c61f42c6bda', 'Prueba 1', '22151220@aguascalientes.tecnm.mx', 'subgerente', NULL, 1, '2026-09-10 06:55:44', NULL, NULL);
+(1, 'Eloy', '29bcc859bb5cf372f7f86102efadb490', 'Gerente1', 'sage040621haslnla5@gmail.com', 'gerente', '81dc9bdb52d04dc20036dbd8313ed055', 1, '2026-09-10 18:48:46', NULL, NULL),
+(7, 'Brenda', '03e222fc51e9f4f5382ca4cbe26adddd', 'Brenda Cecilia Guillen', '22151220@aguascalientes.tecnm.mx', 'subgerente', NULL, 1, '2026-09-10 18:50:57', NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -87,15 +87,6 @@ CREATE TABLE `evaluaciones` (
   `comentario` text DEFAULT NULL,
   `fecha` datetime DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
---
--- Volcado de datos para la tabla `evaluaciones`
---
-
-INSERT INTO `evaluaciones` (`id`, `cliente_id`, `puntuacion`, `tipo`, `comentario`, `fecha`) VALUES
-(1, 14, 4, 'General', 'Muy buena, está chido', '2026-09-10 00:58:09'),
-(2, 14, 1, 'Comida', 'Estaba fria', '2026-09-10 01:00:15'),
-(3, 14, 5, 'Servicio', 'Muy chido', '2026-09-10 01:04:44');
 
 -- --------------------------------------------------------
 
@@ -290,6 +281,40 @@ INSERT INTO `productos` (`id`, `categoria_id`, `nombre`, `descripcion`, `precio`
 -- --------------------------------------------------------
 
 --
+-- Estructura de tabla para la tabla `proveedores`
+--
+
+CREATE TABLE `proveedores` (
+  `id` int(11) NOT NULL,
+  `nombre` varchar(150) NOT NULL,
+  `contacto` varchar(100) DEFAULT NULL,
+  `correo` varchar(100) DEFAULT NULL,
+  `telefono` varchar(20) DEFAULT NULL,
+  `direccion` text DEFAULT NULL,
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `scm_productos`
+--
+
+CREATE TABLE `scm_productos` (
+  `id` int(11) NOT NULL,
+  `nombre` varchar(150) NOT NULL,
+  `descripcion` text DEFAULT NULL,
+  `stock_actual` int(11) DEFAULT 0,
+  `stock_minimo` int(11) DEFAULT 5,
+  `estrategia_logistica` enum('PUSH','PULL') DEFAULT 'PUSH',
+  `proveedor_id` int(11) DEFAULT NULL,
+  `precio` decimal(10,2) DEFAULT 0.00,
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Estructura de tabla para la tabla `usuarios_cliente`
 --
 
@@ -381,6 +406,19 @@ ALTER TABLE `productos`
   ADD KEY `categoria_id` (`categoria_id`);
 
 --
+-- Indices de la tabla `proveedores`
+--
+ALTER TABLE `proveedores`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indices de la tabla `scm_productos`
+--
+ALTER TABLE `scm_productos`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `fk_scm_prod_proveedor` (`proveedor_id`);
+
+--
 -- Indices de la tabla `usuarios_cliente`
 --
 ALTER TABLE `usuarios_cliente`
@@ -395,7 +433,7 @@ ALTER TABLE `usuarios_cliente`
 -- AUTO_INCREMENT de la tabla `admins`
 --
 ALTER TABLE `admins`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT de la tabla `categorias`
@@ -407,7 +445,7 @@ ALTER TABLE `categorias`
 -- AUTO_INCREMENT de la tabla `evaluaciones`
 --
 ALTER TABLE `evaluaciones`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `interacciones`
@@ -438,6 +476,18 @@ ALTER TABLE `pedido_items`
 --
 ALTER TABLE `productos`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
+
+--
+-- AUTO_INCREMENT de la tabla `proveedores`
+--
+ALTER TABLE `proveedores`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `scm_productos`
+--
+ALTER TABLE `scm_productos`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `usuarios_cliente`
@@ -480,6 +530,12 @@ ALTER TABLE `pedido_items`
 --
 ALTER TABLE `productos`
   ADD CONSTRAINT `fk_productos_categoria` FOREIGN KEY (`categoria_id`) REFERENCES `categorias` (`id`) ON DELETE CASCADE;
+
+--
+-- Filtros para la tabla `scm_productos`
+--
+ALTER TABLE `scm_productos`
+  ADD CONSTRAINT `fk_scm_prod_proveedor` FOREIGN KEY (`proveedor_id`) REFERENCES `proveedores` (`id`) ON DELETE SET NULL;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
