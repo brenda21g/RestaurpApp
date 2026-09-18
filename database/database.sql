@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 18-09-2026 a las 18:55:19
+-- Tiempo de generación: 18-09-2026 a las 19:01:13
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -46,8 +46,9 @@ CREATE TABLE `admins` (
 --
 
 INSERT INTO `admins` (`id`, `username`, `password_hash`, `nombre`, `email`, `rol`, `pin`, `activo`, `ultimo_login`, `pin_recuperacion`, `pin_expira`) VALUES
-(1, 'Eloy', '29bcc859bb5cf372f7f86102efadb490', 'Gerente1', 'sage040621haslnla5@gmail.com', 'gerente', '81dc9bdb52d04dc20036dbd8313ed055', 1, '2026-09-10 18:48:46', NULL, NULL),
-(7, 'Brenda', '03e222fc51e9f4f5382ca4cbe26adddd', 'Brenda Cecilia Guillen', '22151220@aguascalientes.tecnm.mx', 'subgerente', NULL, 1, '2026-09-10 18:50:57', NULL, NULL);
+(1, 'Eloy', 'b0d8dc4e2b69059c760d53c7637cb44d', 'Gerente1', 'sage040621haslnla5@gmail.com', 'gerente', '81dc9bdb52d04dc20036dbd8313ed055', 1, '2026-09-17 19:44:42', NULL, NULL),
+(7, 'Brenda', '03e222fc51e9f4f5382ca4cbe26adddd', 'Brenda Cecilia Guillen', '22151220@aguascalientes.tecnm.mx', 'subgerente', NULL, 1, '2026-09-10 19:05:47', NULL, NULL),
+(8, 'Hola', '724d5a689f541cf37b5eddfa8de1c5c3', 'hkashda', 'brendaguille284@gmail.com', 'gerente', 'd93591bdf7860e1e4ee2fca799911215', 1, '2026-09-10 19:36:09', NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -88,6 +89,16 @@ CREATE TABLE `evaluaciones` (
   `fecha` datetime DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Volcado de datos para la tabla `evaluaciones`
+--
+
+INSERT INTO `evaluaciones` (`id`, `cliente_id`, `puntuacion`, `tipo`, `comentario`, `fecha`) VALUES
+(1, 14, 4, 'General', 'Muy buena, está chido', '2026-09-10 00:58:09'),
+(2, 14, 1, 'Comida', 'Estaba fria', '2026-09-10 01:00:15'),
+(3, 14, 5, 'Servicio', 'Muy chido', '2026-09-10 01:04:44'),
+(4, 14, 5, 'Servicio', 'Super', '2026-09-10 12:47:01');
+
 -- --------------------------------------------------------
 
 --
@@ -112,8 +123,11 @@ CREATE TABLE `interacciones` (
 
 INSERT INTO `interacciones` (`id`, `cliente_id`, `tipo`, `asunto`, `descripcion`, `fecha`, `hora`, `estado`, `creado_en`) VALUES
 (1, NULL, 'llamada', 'Reclamacion por trato', 'La vida de hoy', '2026-09-12', '16:16:00', 'completada', '2026-09-03 16:13:56'),
-(2, 13, 'reunion', 'lsdkfhljshfdkl', 'sfjkdfhkjshfjlkhlkfds', '2026-09-18', '17:58:00', 'pendiente', '2026-09-03 17:56:10'),
-(3, NULL, 'correo', 'gukefkegkdrj', 'dthedujrjn', '2026-09-16', '11:20:00', 'completada', '2026-09-04 08:20:37');
+(2, NULL, 'reunion', 'lsdkfhljshfdkl', 'sfjkdfhkjshfjlkhlkfds', '2026-09-18', '17:58:00', 'pendiente', '2026-09-03 17:56:10'),
+(3, NULL, 'correo', 'gukefkegkdrj', 'dthedujrjn', '2026-09-16', '11:20:00', 'completada', '2026-09-04 08:20:37'),
+(4, 20, 'correo', 'Revicion', 'Hoola', '2026-09-17', '15:30:00', 'pendiente', '2026-09-10 13:30:46'),
+(5, 20, 'correo', 'Leoa', 'jhaskjdhak', '2026-09-11', '13:33:00', 'pendiente', '2026-09-10 13:31:40'),
+(6, 14, 'llamada', 'trato', 'datalles', '2026-09-17', '19:40:00', 'pendiente', '2026-09-10 13:37:22');
 
 -- --------------------------------------------------------
 
@@ -297,6 +311,41 @@ CREATE TABLE `proveedores` (
 -- --------------------------------------------------------
 
 --
+-- Estructura de tabla para la tabla `scm_movimientos`
+--
+
+CREATE TABLE `scm_movimientos` (
+  `id` int(11) NOT NULL,
+  `producto_id` int(11) NOT NULL,
+  `tipo` enum('Entrada','Salida') NOT NULL,
+  `cantidad` int(11) NOT NULL,
+  `motivo` varchar(255) NOT NULL,
+  `fecha` date NOT NULL,
+  `usuario_id` int(11) DEFAULT NULL COMMENT 'Administrador que registra',
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `scm_pedidos`
+--
+
+CREATE TABLE `scm_pedidos` (
+  `id` int(11) NOT NULL,
+  `numero_orden_scm` varchar(20) NOT NULL,
+  `producto_id` int(11) NOT NULL,
+  `proveedor_id` int(11) NOT NULL,
+  `cantidad` int(11) NOT NULL,
+  `tipo` varchar(50) DEFAULT 'Reposición',
+  `estado` enum('pendiente','en_proceso','recibido','cancelado') DEFAULT 'pendiente',
+  `fecha` date NOT NULL,
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Estructura de tabla para la tabla `scm_productos`
 --
 
@@ -337,10 +386,10 @@ CREATE TABLE `usuarios_cliente` (
 --
 
 INSERT INTO `usuarios_cliente` (`id`, `nombre`, `email`, `password`, `telefono`, `puntos`, `token_verificacion`, `email_confirmado`, `creado_en`, `etapa_crm`, `estado`) VALUES
-(13, 'La vaca lola', 'brendaguille284@gmail.com', '4380d9d10d189baad936986df28cbccd', '4495651176', 0, '0af4068910ce689abd3cfabc034ced4fd74895d04b090eaa6c24e532d2c61eb8', 0, '2026-09-01 19:35:07', 'Prospecto', 'Activo'),
 (14, 'Brenda Guillen', '22151246@aguascalientes.tecnm.mx', 'd6ff269bd9dbc6b7f612c2b254a45045', '4495651176', 0, NULL, 1, '2026-09-01 19:37:05', 'Prospecto', 'Activo'),
 (17, 'Eloy', 'juanyto383@gmail.com', 'e10adc3949ba59abbe56e057f20f883e', '4498765432', 0, NULL, 1, '2026-09-08 22:45:38', 'Prospecto', 'Baja'),
-(18, 'Eloy', 'juanyto38354@gmail.com', 'e10adc3949ba59abbe56e057f20f883e', '4498765432', 0, NULL, 1, '2026-09-08 22:48:18', 'Prospecto', 'Baja');
+(18, 'Eloy', 'juanyto38354@gmail.com', 'e10adc3949ba59abbe56e057f20f883e', '4498765432', 0, NULL, 1, '2026-09-08 22:48:18', 'Prospecto', 'Baja'),
+(20, 'Prueba2', 'vane.tejeda@aguascalientes.tecnm.mx', '827ccb0eea8a706c4c34a16891f84e7b', '', 0, NULL, 1, '2026-09-10 19:22:57', 'Prospecto', 'Activo');
 
 --
 -- Índices para tablas volcadas
@@ -412,6 +461,23 @@ ALTER TABLE `proveedores`
   ADD PRIMARY KEY (`id`);
 
 --
+-- Indices de la tabla `scm_movimientos`
+--
+ALTER TABLE `scm_movimientos`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `fk_movimiento_scm_prod` (`producto_id`),
+  ADD KEY `fk_movimiento_admin` (`usuario_id`);
+
+--
+-- Indices de la tabla `scm_pedidos`
+--
+ALTER TABLE `scm_pedidos`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `numero_orden_scm` (`numero_orden_scm`),
+  ADD KEY `fk_scm_pedido_prod` (`producto_id`),
+  ADD KEY `fk_scm_pedido_prov` (`proveedor_id`);
+
+--
 -- Indices de la tabla `scm_productos`
 --
 ALTER TABLE `scm_productos`
@@ -433,7 +499,7 @@ ALTER TABLE `usuarios_cliente`
 -- AUTO_INCREMENT de la tabla `admins`
 --
 ALTER TABLE `admins`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT de la tabla `categorias`
@@ -445,13 +511,13 @@ ALTER TABLE `categorias`
 -- AUTO_INCREMENT de la tabla `evaluaciones`
 --
 ALTER TABLE `evaluaciones`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT de la tabla `interacciones`
 --
 ALTER TABLE `interacciones`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT de la tabla `mesas`
@@ -484,6 +550,18 @@ ALTER TABLE `proveedores`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT de la tabla `scm_movimientos`
+--
+ALTER TABLE `scm_movimientos`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `scm_pedidos`
+--
+ALTER TABLE `scm_pedidos`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT de la tabla `scm_productos`
 --
 ALTER TABLE `scm_productos`
@@ -493,7 +571,7 @@ ALTER TABLE `scm_productos`
 -- AUTO_INCREMENT de la tabla `usuarios_cliente`
 --
 ALTER TABLE `usuarios_cliente`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
 
 --
 -- Restricciones para tablas volcadas
@@ -530,6 +608,20 @@ ALTER TABLE `pedido_items`
 --
 ALTER TABLE `productos`
   ADD CONSTRAINT `fk_productos_categoria` FOREIGN KEY (`categoria_id`) REFERENCES `categorias` (`id`) ON DELETE CASCADE;
+
+--
+-- Filtros para la tabla `scm_movimientos`
+--
+ALTER TABLE `scm_movimientos`
+  ADD CONSTRAINT `fk_movimiento_admin` FOREIGN KEY (`usuario_id`) REFERENCES `admins` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `fk_movimiento_scm_prod` FOREIGN KEY (`producto_id`) REFERENCES `scm_productos` (`id`) ON DELETE CASCADE;
+
+--
+-- Filtros para la tabla `scm_pedidos`
+--
+ALTER TABLE `scm_pedidos`
+  ADD CONSTRAINT `fk_scm_pedido_prod` FOREIGN KEY (`producto_id`) REFERENCES `scm_productos` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_scm_pedido_prov` FOREIGN KEY (`proveedor_id`) REFERENCES `proveedores` (`id`) ON DELETE CASCADE;
 
 --
 -- Filtros para la tabla `scm_productos`
