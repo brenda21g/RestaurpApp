@@ -1,11 +1,14 @@
 <?php
 /**
  * Archivo: scm/inventario.php
- * Descripción: Control de stock actual y alertas de inventario bajo con Sidebar.
+ * Descripción: Control de stock actual y alertas de inventario bajo con Sidebar y banner global.
  */
 require_once __DIR__ . '/../config/auth_check.php';
 verificarAcceso(['gerente', 'subgerente']);
 $db = getDB();
+
+$stmt_alertas = $db->query("SELECT * FROM scm_productos WHERE stock_actual <= stock_minimo");
+$num_alertas_global = count($stmt_alertas->fetchAll(PDO::FETCH_ASSOC));
 
 $productos = $db->query("SELECT p.*, pr.nombre as proveedor_nombre FROM scm_productos p LEFT JOIN proveedores pr ON p.proveedor_id = pr.id ORDER BY p.stock_actual ASC")->fetchAll(PDO::FETCH_ASSOC);
 ?>
@@ -19,7 +22,6 @@ $productos = $db->query("SELECT p.*, pr.nombre as proveedor_nombre FROM scm_prod
     :root {
       --bg: #f8fafc;
       --surface: #ffffff;
-      --secondary: #000049;
       --text: #0f172a;
       --muted: #64748b;
       --border: #e2e8f0;
@@ -46,7 +48,7 @@ $productos = $db->query("SELECT p.*, pr.nombre as proveedor_nombre FROM scm_prod
 
     .sidebar {
       width: 260px;
-      background: var(--secondary);
+      background: var(--surface);
       border-right: 1px solid var(--border);
       display: flex;
       flex-direction: column;
@@ -103,6 +105,27 @@ $productos = $db->query("SELECT p.*, pr.nombre as proveedor_nombre FROM scm_prod
       font-size: 22px;
       font-weight: 700;
       color: var(--text);
+    }
+
+    .alert-banner {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-left: 4px solid var(--danger);
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .alert-banner span.icon {
+      font-size: 20px;
+    }
+
+    .alert-banner .content {
+      color: #991b1b;
+      font-weight: 500;
     }
 
     .btn {
@@ -208,7 +231,12 @@ $productos = $db->query("SELECT p.*, pr.nombre as proveedor_nombre FROM scm_prod
         <a href="dashboard.php" class="sidebar-item">📈 Dashboard SCM</a>
         <a href="productos.php" class="sidebar-item">📦 Materias Primas</a>
         <a href="proveedores.php" class="sidebar-item">🤝 Proveedores</a>
-        <a href="inventario.php" class="sidebar-item active">📊 Inventario / Alertas</a>
+        <a href="inventario.php" class="sidebar-item active">
+            📊 Inventario / Alertas 
+            <?php if($num_alertas_global > 0): ?>
+                <span style="background: var(--danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700;">⚠️ <?= $num_alertas_global ?></span>
+            <?php endif; ?>
+        </a>
         <a href="movimientos.php" class="sidebar-item">🔄 Movimientos</a>
         <a href="pedidos.php" class="sidebar-item">🛒 Pedidos Internos</a>
         <a href="logistica.php" class="sidebar-item">⚙️ Logística Push/Pull</a>
@@ -217,6 +245,16 @@ $productos = $db->query("SELECT p.*, pr.nombre as proveedor_nombre FROM scm_prod
 </div>
 
 <div class="main-content">
+    <?php if ($num_alertas_global > 0): ?>
+        <div class="alert-banner">
+            <span class="icon">⚠️</span>
+            <div class="content">
+                <b>¡Atención SCM!</b> Hay <b><?= $num_alertas_global ?></b> insumo(s) con stock crítico por debajo del mínimo permitido. 
+                <a href="inventario.php" style="color: #b91c1c; font-weight: 700; text-decoration: underline; margin-left: 5px;">Ver inventario y solicitar reposición</a>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <div class="header">
         <h1>📊 Control de Inventario y Alertas</h1>
         <div>
@@ -229,7 +267,7 @@ $productos = $db->query("SELECT p.*, pr.nombre as proveedor_nombre FROM scm_prod
         <table>
             <thead>
                 <tr>
-                    <th>Materia Prima</th>
+                    <th>Materia Prima / Insumo</th>
                     <th>Proveedor Asignado</th>
                     <th>Stock Actual</th>
                     <th>Stock Mínimo</th>

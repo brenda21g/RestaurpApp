@@ -1,11 +1,16 @@
 <?php
 /**
  * Archivo: scm/movimientos.php
- * Descripción: Historial trazable de entradas/salidas con Sidebar.
+ * Descripción: Historial trazable de entradas/salidas con Sidebar azul y alerta global de stock crítico.
  */
 require_once __DIR__ . '/../config/auth_check.php';
 verificarAcceso(['gerente', 'subgerente']);
 $db = getDB();
+
+// Conteo global de stock crítico para mostrar la alerta en el menú lateral de esta y cualquier ventana
+$db_sidebar = getDB();
+$num_alertas_global = $db_sidebar->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= stock_minimo")->fetchColumn();
+
 $movs = $db->query("SELECT m.*, p.nombre as producto_nombre, a.username as admin_nombre FROM scm_movimientos m JOIN scm_productos p ON m.producto_id = p.id LEFT JOIN admins a ON m.usuario_id = a.id ORDER BY m.id DESC")->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
@@ -57,8 +62,8 @@ $movs = $db->query("SELECT m.*, p.nombre as producto_nombre, a.username as admin
       padding: 24px;
       font-size: 18px;
       font-weight: 700;
-      color: var(--primary);
-      border-bottom: 1px solid var(--border);
+      color: #ffffff;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
     }
 
     .sidebar-menu {
@@ -71,7 +76,7 @@ $movs = $db->query("SELECT m.*, p.nombre as producto_nombre, a.username as admin
     .sidebar-item {
       padding: 12px 16px;
       border-radius: 8px;
-      color: var(--muted);
+      color: #cbd5e1;
       text-decoration: none;
       font-weight: 500;
       display: flex;
@@ -81,8 +86,8 @@ $movs = $db->query("SELECT m.*, p.nombre as producto_nombre, a.username as admin
     }
 
     .sidebar-item:hover, .sidebar-item.active {
-      background: #e0f2fe;
-      color: var(--primary);
+      background: #0369a1;
+      color: #ffffff;
     }
 
     .main-content {
@@ -166,13 +171,23 @@ $movs = $db->query("SELECT m.*, p.nombre as producto_nombre, a.username as admin
     <div class="sidebar-brand">Restaurant App SCM</div>
     <div class="sidebar-menu">
         <a href="dashboard.php" class="sidebar-item">📈 Dashboard SCM</a>
-        <a href="productos.php" class="sidebar-item">📦 Productos SCM</a>
+        <a href="productos.php" class="sidebar-item">📦 Materias Primas</a>
         <a href="proveedores.php" class="sidebar-item">🤝 Proveedores</a>
-        <a href="inventario.php" class="sidebar-item">📊 Inventario / Alertas</a>
+        
+        <!-- Alerta visible globalmente en el menú lateral -->
+        <a href="inventario.php" class="sidebar-item">
+            📊 Inventario / Alertas 
+            <?php if($num_alertas_global > 0): ?>
+                <span style="background: var(--danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700; display: inline-flex; align-items: center; gap: 2px;">
+                    ⚠️ <?= $num_alertas_global ?>
+                </span>
+            <?php endif; ?>
+        </a>
+
         <a href="movimientos.php" class="sidebar-item active">🔄 Movimientos</a>
         <a href="pedidos.php" class="sidebar-item">🛒 Pedidos Internos</a>
         <a href="logistica.php" class="sidebar-item">⚙️ Logística Push/Pull</a>
-        <a href="../gerente/dashboard.php" class="sidebar-item" style="margin-top: 20px; color:var(--danger);">← Salir al Panel</a>
+        <a href="../gerente/dashboard.php" class="sidebar-item" style="margin-top: 20px; color: #fca5a5;">← Salir al Panel</a>
     </div>
 </div>
 
@@ -195,7 +210,9 @@ $movs = $db->query("SELECT m.*, p.nombre as producto_nombre, a.username as admin
                 </tr>
             </thead>
             <tbody>
-                <?php foreach($movs as $m): ?>
+                <?php if(empty($movs)): ?>
+                    <tr><td colspan="6" style="text-align:center; color:var(--muted); padding:20px;">No hay movimientos registrados.</td></tr>
+                <?php else: foreach($movs as $m): ?>
                     <tr>
                         <td><?= $m['fecha'] ?></td>
                         <td><b><?= $m['tipo'] ?></b></td>
@@ -204,7 +221,7 @@ $movs = $db->query("SELECT m.*, p.nombre as producto_nombre, a.username as admin
                         <td><?= htmlspecialchars($m['motivo']) ?></td>
                         <td><?= htmlspecialchars($m['admin_nombre'] ?? 'Sistema') ?></td>
                     </tr>
-                <?php endforeach; ?>
+                <?php endforeach; endif; ?>
             </tbody>
         </table>
     </div>

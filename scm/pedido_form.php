@@ -11,7 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $producto_id = intval($_POST['producto_id']);
     $cantidad = intval($_POST['cantidad']);
     $fecha = $_POST['fecha'];
-    $num_orden = 'ORD-SCM-' . strtoupper(substr(uniqid(), -6));
+    $num_orden = 'ORD-PULL-' . strtoupper(substr(uniqid(), -6));
 
     $stmt_prod = $db->prepare("SELECT proveedor_id FROM scm_productos WHERE id = ?");
     $stmt_prod->execute([$producto_id]);
@@ -19,8 +19,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $proveedor_id = $prod['proveedor_id'] ?? null;
 
     if ($proveedor_id) {
+        // Se registra como Pull manual en estado procesando para que luego de la simulación sume stock
         $stmt = $db->prepare("INSERT INTO scm_pedidos (numero_orden_scm, producto_id, proveedor_id, cantidad, tipo, estado, fecha) VALUES (?,?,?,?,?,?,?)");
-        $stmt->execute([$num_orden, $producto_id, $proveedor_id, $cantidad, 'Reposición Manual (Pull)', 'pendiente', $fecha]);
+        $stmt->execute([$num_orden, $producto_id, $proveedor_id, $cantidad, 'Reposición Manual (Pull)', 'procesando', $fecha]);
     }
     header("Location: pedidos.php");
     exit;
@@ -31,13 +32,12 @@ $productos = $db->query("SELECT id, nombre FROM scm_productos WHERE proveedor_id
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Generar Pedido SCM</title>
+<title>Generar Pedido Pull SCM</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
     :root {
       --bg: #f8fafc;
       --surface: #ffffff;
-      --secondary: #000049;
       --text: #0f172a;
       --muted: #64748b;
       --border: #e2e8f0;
@@ -178,27 +178,41 @@ $productos = $db->query("SELECT id, nombre FROM scm_productos WHERE proveedor_id
 </style>
 </head>
 <body>
-
+<?php
+// Conteo global de stock crítico para mostrar la alerta en cualquier ventana
+$db_sidebar = getDB();
+$num_alertas_global = $db_sidebar->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= stock_minimo")->fetchColumn();
+?>
 <div class="sidebar">
     <div class="sidebar-brand">Restaurant App SCM</div>
     <div class="sidebar-menu">
         <a href="dashboard.php" class="sidebar-item">📈 Dashboard SCM</a>
         <a href="productos.php" class="sidebar-item">📦 Materias Primas</a>
         <a href="proveedores.php" class="sidebar-item">🤝 Proveedores</a>
-        <a href="inventario.php" class="sidebar-item">📊 Inventario / Alertas</a>
+        
+        <!-- Alerta visible globalmente en el menú lateral -->
+        <a href="inventario.php" class="sidebar-item">
+            📊 Inventario / Alertas 
+            <?php if($num_alertas_global > 0): ?>
+                <span style="background: var(--danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700; display: inline-flex; align-items: center; gap: 2px;">
+                    ⚠️ <?= $num_alertas_global ?>
+                </span>
+            <?php endif; ?>
+        </a>
+
         <a href="movimientos.php" class="sidebar-item">🔄 Movimientos</a>
         <a href="pedidos.php" class="sidebar-item active">🛒 Pedidos Internos</a>
         <a href="logistica.php" class="sidebar-item">⚙️ Logística Push/Pull</a>
-        <a href="../gerente/dashboard.php" class="sidebar-item" style="margin-top: 20px; color:var(--danger);">← Salir al Panel</a>
+        <a href="../gerente/dashboard.php" class="sidebar-item" style="margin-top: 20px; color: var(--danger);">← Salir al Panel</a>
     </div>
 </div>
 
 <div class="main-content">
     <div class="card">
-        <h2>Generar Pedido Interno (Pull Manual)</h2>
+        <h2>Generar Pedido Manual (Estrategia PULL)</h2>
         <form method="POST">
             <div class="field">
-                <label>Insumo (Con proveedor asignado)</label>
+                <label>Insumo (Con su proveedor asignado)</label>
                 <select name="producto_id" required>
                     <?php foreach($productos as $p): ?>
                         <option value="<?= $p['id'] ?>"><?= htmlspecialchars($p['nombre']) ?></option>
@@ -206,14 +220,14 @@ $productos = $db->query("SELECT id, nombre FROM scm_productos WHERE proveedor_id
                 </select>
             </div>
             <div class="field">
-                <label>Cantidad a Solicitar</label>
+                <label>Cantidad a solicitar</label>
                 <input type="number" name="cantidad" required min="1">
             </div>
             <div class="field">
-                <label>Fecha Esperada</label>
+                <label>Fecha de Solicitud</label>
                 <input type="date" name="fecha" value="<?= date('Y-m-d') ?>" required>
             </div>
-            <button type="submit">Crear Orden de Reposición</button>
+            <button type="submit">Crear Orden de Reposición Pull</button>
         </form>
     </div>
 </div>
