@@ -1,8 +1,10 @@
 <?php
-// ==========================================================================
-// CONTROLADOR Y VISTA: Dashboard Principal (Resumen CRM)
-// ==========================================================================
+/**
+ * Archivo: gerente/dashboard.php
+ * Descripción: Dashboard Principal (Resumen CRM) con Sidebar azul institucional y control de roles.
+ */
 require_once __DIR__ . '/../config/auth_check.php';
+verificarAcceso(['gerente', 'subgerente']);
 $db = getDB();
 
 // Estadísticas del día / CRM
@@ -55,6 +57,11 @@ foreach ($clientes_por_estado as $ce) {
         $conteo_estados['Inactivos'] += $ce['cantidad'];
     }
 }
+
+// Control de alertas de stock crítico para la barra lateral
+$db_sidebar = getDB();
+$num_alertas_global = $db_sidebar->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= stock_minimo")->fetchColumn();
+$rol_actual = $_SESSION['admin_rol'] ?? '';
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -65,23 +72,20 @@ foreach ($clientes_por_estado as $ce) {
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* ==========================================================================
-            VARIABLES Y RESET GENERAL (TEMA VERDE Y BLANCO - SEGÚN IMAGEN)
-            ========================================================================== */
         :root {
             --bg-body: #f8fafc;
             --bg-surface: #ffffff;
-            --sidebar-bg: #011139;
-            --sidebar-hover: #002056;
-            --sidebar-text: #94a3b8;
+            --sidebar-bg: #000049;
+            --sidebar-hover: #0369a1;
+            --sidebar-text: #cbd5e1;
             --text-main: #0f172a;
             --text-muted: #64748b;
             --border-color: #e2e8f0;
-            --color-primary: #0d3b2c;
+            --color-primary: #0284c7;
             --color-success: #10b981;
             --color-danger: #ef4444;
             --color-warning: #f59e0b;
-            --sidebar-w: 250px;
+            --sidebar-w: 260px;
             --radius: 10px;
             --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
@@ -97,9 +101,7 @@ foreach ($clientes_por_estado as $ce) {
             font-size: 14px;
         }
 
-        /* ==========================================================================
-            SIDEBAR DE NAVEGACIÓN
-            ========================================================================== */
+        /* SIDEBAR INSTITUCIONAL AZUL */
         .sidebar {
             width: var(--sidebar-w);
             background-color: var(--sidebar-bg);
@@ -111,11 +113,12 @@ foreach ($clientes_por_estado as $ce) {
             left: 0;
             height: 100vh;
             z-index: 100;
+            overflow-y: auto;
         }
 
         .sidebar-logo {
             padding: 24px 20px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .sidebar-logo .name {
@@ -126,7 +129,7 @@ foreach ($clientes_por_estado as $ce) {
 
         .sidebar-logo .role {
             font-size: 11px;
-            color: var(--sidebar-text);
+            color: #94a3b8;
             letter-spacing: 1px;
             text-transform: uppercase;
             margin-top: 2px;
@@ -160,7 +163,7 @@ foreach ($clientes_por_estado as $ce) {
 
         .sidebar-bottom {
             padding: 16px 12px;
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .logout-btn {
@@ -169,7 +172,7 @@ foreach ($clientes_por_estado as $ce) {
             gap: 12px;
             padding: 12px 16px;
             border-radius: var(--radius);
-            color: #f87171;
+            color: #fca5a5;
             text-decoration: none;
             font-size: 13px;
             font-weight: 500;
@@ -178,12 +181,10 @@ foreach ($clientes_por_estado as $ce) {
 
         .logout-btn:hover {
             background-color: rgba(239, 68, 68, 0.1);
-            color: #fca5a5;
+            color: #f87171;
         }
 
-        /* ==========================================================================
-            CONTENIDO PRINCIPAL
-            ========================================================================== */
+        /* CONTENIDO PRINCIPAL */
         .main {
             margin-left: var(--sidebar-w);
             flex: 1;
@@ -213,9 +214,7 @@ foreach ($clientes_por_estado as $ce) {
             box-shadow: var(--shadow-sm);
         }
 
-        /* ==========================================================================
-            TARJETAS DE MÉTRICAS (STATS GRID)
-            ========================================================================== */
+        /* TARJETAS DE MÉTRICAS */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -254,9 +253,7 @@ foreach ($clientes_por_estado as $ce) {
             margin-top: 6px;
         }
 
-        /* ==========================================================================
-            FILAS DE GRÁFICAS Y COMPONENTES VISUALES
-            ========================================================================== */
+        /* FILAS DE GRÁFICAS */
         .charts-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -282,7 +279,6 @@ foreach ($clientes_por_estado as $ce) {
             justify-content: space-between;
         }
 
-        /* Simulación de gráfica de dona / circular para Clientes activos vs inactivos */
         .donut-container {
             display: flex;
             align-items: center;
@@ -330,7 +326,6 @@ foreach ($clientes_por_estado as $ce) {
             border-radius: 50%;
         }
 
-        /* Clientes en Riesgo */
         .risk-item {
             padding: 12px 0;
             border-bottom: 1px solid var(--border-color);
@@ -360,7 +355,6 @@ foreach ($clientes_por_estado as $ce) {
             font-size: 16px;
         }
 
-        /* Indicador en tiempo real */
         .live-dot {
             display: inline-block;
             width: 8px;
@@ -388,7 +382,7 @@ foreach ($clientes_por_estado as $ce) {
 <aside class="sidebar">
     <div class="sidebar-logo">
         <div class="name">Restaurant App</div>
-        <div class="role">Gerente</div>
+        <div class="role"><?= ucfirst(htmlspecialchars($rol_actual)) ?></div>
     </div>
     <nav class="nav">
         <a class="nav-item active" href="dashboard.php"><span>📊</span> Dashboard</a>
@@ -398,9 +392,19 @@ foreach ($clientes_por_estado as $ce) {
         <a class="nav-item" href="usuarios.php"><span>🛡️</span> Usuarios</a>
         <a class="nav-item" href="miactividad.php"><span>⏱️</span> Mi actividad</a>
         <a class="nav-item" href="configuracion.php"><span>⚙️</span> Configuración</a>
+
+        <?php if ($rol_actual === 'gerente'): ?>
+            <div style="padding: 10px 16px; font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: 700; margin-top: 10px;">SCM & Logística</div>
+            <a class="nav-item" href="../scm/dashboard.php">
+                <span>📈</span> Dashboard SCM
+                <?php if($num_alertas_global > 0): ?>
+                    <span style="background: var(--color-danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700;">⚠️ <?= $num_alertas_global ?></span>
+                <?php endif; ?>
+            </a>
+        <?php endif; ?>
     </nav>
     <div class="sidebar-bottom">
-        <a class="logout-btn" href="logout.php">🚪 Cerrar sesión</a>
+        <a class="logout-btn" href="../config/logout.php">🚪 Cerrar sesión</a>
     </div>
 </aside>
 
@@ -416,7 +420,7 @@ foreach ($clientes_por_estado as $ce) {
         <div class="date-badge">📅 <?= date('d \d\e F \d\e Y') ?></div>
     </div>
 
-    <!-- 1. TARJETAS DE MÉTRICAS (RESUMEN CRM) -->
+    <!-- TARJETAS DE MÉTRICAS -->
     <div class="stats-grid">
         <div class="stat-card">
             <div class="stat-label">Total de clientes</div>
@@ -440,7 +444,7 @@ foreach ($clientes_por_estado as $ce) {
         </div>
     </div>
 
-    <!-- 2. FILA DE GRÁFICAS (Clientes Activos vs Inactivos & Clientes en Riesgo) -->
+    <!-- FILA DE GRÁFICAS -->
     <div class="charts-row">
         <!-- Clientes activos vs inactivos -->
         <div class="chart-card">
@@ -464,7 +468,7 @@ foreach ($clientes_por_estado as $ce) {
         <div class="chart-card">
             <div class="chart-title">
                 <span>Clientes en riesgo</span>
-                <a href="clientes.php" style="color:var(--color-primary); font-size:12px; text-decoration:none;">Ver todos →</a>
+                <a href="clientes.php" style="color: var(--color-primary); font-size:12px; text-decoration:none;">Ver todos →</a>
             </div>
             <div>
                 <?php if (empty($clientes_riesgo)): ?>
