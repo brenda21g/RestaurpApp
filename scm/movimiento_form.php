@@ -1,36 +1,40 @@
 <?php
 /**
  * Archivo: scm/movimiento_form.php
- * Descripción: Formulario para registrar entradas o salidas manuales en el inventario.
+ * Descripción: Formulario para registrar entradas o salidas manuales en el inventario con control de roles y Sidebar institucional.
  */
 require_once __DIR__ . '/../config/auth_check.php';
-verificarAcceso(['gerente', 'subgerente']);
+verificarAcceso(['gerente', 'subgerente', 'encargado']);
 $db = getDB();
+
+$rol_actual = $_SESSION['admin_rol'] ?? '';
 
 $db_sidebar = getDB();
 $num_alertas_global = $db_sidebar->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= stock_minimo")->fetchColumn();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $producto_id = intval($_POST['producto_id']);
-    $tipo = $_POST['tipo']; // 'Entrada' o 'Salida'
-    $cantidad = intval($_POST['cantidad']);
-    $motivo = trim($_POST['motivo']);
-    $fecha = $_POST['fecha'];
+    $producto_id = intval($_POST['producto_id'] ?? 0);
+    $tipo = $_POST['tipo'] ?? 'Entrada'; // 'Entrada' o 'Salida'
+    $cantidad = intval($_POST['cantidad'] ?? 0);
+    $motivo = trim($_POST['motivo'] ?? '');
+    $fecha = $_POST['fecha'] ?? date('Y-m-d');
     $usuario_id = $_SESSION['admin_id'] ?? null;
 
-    // Registrar el movimiento
-    $stmt = $db->prepare("INSERT INTO scm_movimientos (producto_id, tipo, cantidad, motivo, fecha, usuario_id) VALUES (?, ?, ?, ?, ?, ?)");
-    $stmt->execute([$producto_id, $tipo, $cantidad, $motivo, $fecha, $usuario_id]);
+    if ($producto_id > 0 && $cantidad > 0 && $motivo !== '') {
+        // Registrar el movimiento
+        $stmt = $db->prepare("INSERT INTO scm_movimientos (producto_id, tipo, cantidad, motivo, fecha, usuario_id) VALUES (?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$producto_id, $tipo, $cantidad, $motivo, $fecha, $usuario_id]);
 
-    // Actualizar stock actual en scm_productos automáticamente
-    if ($tipo === 'Entrada') {
-        $db->prepare("UPDATE scm_productos SET stock_actual = stock_actual + ? WHERE id = ?")->execute([$cantidad, $producto_id]);
-    } else {
-        $db->prepare("UPDATE scm_productos SET stock_actual = stock_actual - ? WHERE id = ?")->execute([$cantidad, $producto_id]);
+        // Actualizar stock actual en scm_productos automáticamente
+        if ($tipo === 'Entrada') {
+            $db->prepare("UPDATE scm_productos SET stock_actual = stock_actual + ? WHERE id = ?")->execute([$cantidad, $producto_id]);
+        } else {
+            $db->prepare("UPDATE scm_productos SET stock_actual = stock_actual - ? WHERE id = ?")->execute([$cantidad, $producto_id]);
+        }
+
+        header("Location: movimientos.php");
+        exit;
     }
-
-    header("Location: movimientos.php");
-    exit;
 }
 
 $productos = $db->query("SELECT id, nombre FROM scm_productos ORDER BY nombre ASC")->fetchAll(PDO::FETCH_ASSOC);
@@ -39,7 +43,7 @@ $productos = $db->query("SELECT id, nombre FROM scm_productos ORDER BY nombre AS
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Registrar Movimiento SCM</title>
+<title>Registrar Movimiento SCM – Restaurant App</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
     :root {
@@ -53,6 +57,7 @@ $productos = $db->query("SELECT id, nombre FROM scm_productos ORDER BY nombre AS
       --primary-hover: #0369a1;
       --danger: #ef4444;
       --success: #10b981;
+      --warning: #f59e0b;
     }
 
     * {
@@ -78,6 +83,7 @@ $productos = $db->query("SELECT id, nombre FROM scm_productos ORDER BY nombre AS
       flex-direction: column;
       position: fixed;
       height: 100vh;
+      z-index: 100;
     }
 
     .sidebar-brand {
@@ -86,6 +92,10 @@ $productos = $db->query("SELECT id, nombre FROM scm_productos ORDER BY nombre AS
       font-weight: 700;
       color: #ffffff;
       border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .sidebar-brand span {
+      color: var(--primary);
     }
 
     .sidebar-menu {
@@ -98,7 +108,7 @@ $productos = $db->query("SELECT id, nombre FROM scm_productos ORDER BY nombre AS
     .sidebar-item {
       padding: 12px 16px;
       border-radius: 8px;
-      color: #cbd5e1;
+      color: #94a3b8;
       text-decoration: none;
       font-weight: 500;
       display: flex;
@@ -108,8 +118,13 @@ $productos = $db->query("SELECT id, nombre FROM scm_productos ORDER BY nombre AS
     }
 
     .sidebar-item:hover, .sidebar-item.active {
-      background: #0369a1;
+      background: rgba(2, 132, 199, 0.15);
       color: #ffffff;
+    }
+
+    .sidebar-item.active {
+      color: var(--primary);
+      font-weight: 600;
     }
 
     .main-content {
@@ -129,6 +144,16 @@ $productos = $db->query("SELECT id, nombre FROM scm_productos ORDER BY nombre AS
       font-size: 22px;
       font-weight: 700;
       color: var(--text);
+    }
+
+    .role-badge {
+      background: rgba(2, 132, 199, 0.1);
+      color: var(--primary);
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
     }
 
     .btn {
@@ -224,37 +249,36 @@ $productos = $db->query("SELECT id, nombre FROM scm_productos ORDER BY nombre AS
 <body>
 
 <div class="sidebar">
-    <div class="sidebar-brand">Restaurant App SCM</div>
+    <div class="sidebar-brand">Restaurant <span>App SCM</span></div>
     <div class="sidebar-menu">
         <a href="dashboard.php" class="sidebar-item">📈 Dashboard SCM</a>
-        <a href="productos.php" class="sidebar-item">📦 Materias Primas</a>
+        <a href="productos.php" class="sidebar-item">📦 Productos SCM</a>
         <a href="proveedores.php" class="sidebar-item">🤝 Proveedores</a>
         
         <a href="inventario.php" class="sidebar-item">
             📊 Inventario / Alertas 
             <?php if($num_alertas_global > 0): ?>
-                <span style="background: var(--danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700; display: inline-flex; align-items: center; gap: 2px;">
-                    ⚠️ <?= $num_alertas_global ?>
-                </span>
+                <span style="background: var(--danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700;">⚠️ <?= $num_alertas_global ?></span>
             <?php endif; ?>
         </a>
 
         <a href="movimientos.php" class="sidebar-item active">🔄 Movimientos</a>
         <a href="pedidos.php" class="sidebar-item">🛒 Pedidos Internos</a>
         <a href="logistica.php" class="sidebar-item">⚙️ Logística Push/Pull</a>
-        <a href="../gerente/dashboard.php" class="sidebar-item" style="margin-top: 20px; color: #fca5a5;">← Salir al Panel</a>
+        <a href="../gerente/dashboard.php" class="sidebar-item" style="margin-top: 20px; color: var(--danger);">← Salir al Panel</a>
     </div>
 </div>
 
 <div class="main-content">
     <div class="header">
         <h1>🔄 Registrar Movimiento de Inventario</h1>
+        <div class="role-badge">Rol: <?= htmlspecialchars(ucfirst($rol_actual)) ?></div>
     </div>
 
     <div class="card">
         <form method="POST">
             <div class="field">
-                <label>Materia Prima / Insumo</label>
+                <label>Materia Prima / Insumo *</label>
                 <select name="producto_id" required>
                     <option value="">Seleccione un insumo...</option>
                     <?php foreach($productos as $p): ?>
@@ -264,7 +288,7 @@ $productos = $db->query("SELECT id, nombre FROM scm_productos ORDER BY nombre AS
             </div>
 
             <div class="field">
-                <label>Tipo de Movimiento</label>
+                <label>Tipo de Movimiento *</label>
                 <select name="tipo" required>
                     <option value="Entrada">Entrada (Suma Stock)</option>
                     <option value="Salida">Salida (Resta Stock)</option>
@@ -272,17 +296,17 @@ $productos = $db->query("SELECT id, nombre FROM scm_productos ORDER BY nombre AS
             </div>
 
             <div class="field">
-                <label>Cantidad</label>
+                <label>Cantidad *</label>
                 <input type="number" name="cantidad" min="1" placeholder="Ej. 10" required>
             </div>
 
             <div class="field">
-                <label>Motivo / Razón</label>
+                <label>Motivo / Razón *</label>
                 <textarea name="motivo" placeholder="Ej. Merma por caducidad, Ajuste de inventario, Recepción de lote, etc." required></textarea>
             </div>
 
             <div class="field">
-                <label>Fecha del Movimiento</label>
+                <label>Fecha del Movimiento *</label>
                 <input type="date" name="fecha" value="<?= date('Y-m-d') ?>" required>
             </div>
 

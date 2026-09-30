@@ -1,14 +1,15 @@
 <?php
 /**
  * Archivo: scm/pedidos.php
- * Descripción: Listado de pedidos internos diferenciando Push (automático) y Pull (manual).
+ * Descripción: Listado de pedidos internos diferenciando Push (automático) y Pull (manual) con control de roles y Sidebar institucional.
  */
 require_once __DIR__ . '/../config/auth_check.php';
-verificarAcceso(['gerente', 'subgerente']);
+verificarAcceso(['gerente', 'subgerente', 'encargado']);
 $db = getDB();
 
-// Simulación de actualización automática: si un pedido Push lleva más de 5 minutos (o se simula entrega), pasa a 'entregado' y suma al stock
-// (Para efectos prácticos del sistema web, permitimos cambiar estado o procesarlo)
+$rol_actual = $_SESSION['admin_rol'] ?? '';
+
+// Simulación de actualización automática: cambia estado a entregado, suma stock y registra movimiento
 if (isset($_GET['entregar'])) {
     $id_pedido = intval($_GET['entregar']);
     $stmt_p = $db->prepare("SELECT * FROM scm_pedidos WHERE id = ? AND estado != 'entregado'");
@@ -29,6 +30,10 @@ if (isset($_GET['entregar'])) {
     exit;
 }
 
+// Conteo global de stock crítico para la barra lateral
+$db_sidebar = getDB();
+$num_alertas_global = $db_sidebar->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= stock_minimo")->fetchColumn();
+
 $pedidos = $db->query("SELECT p.*, pr.nombre as proveedor_nombre, sp.nombre as producto_nombre FROM scm_pedidos p JOIN proveedores pr ON p.proveedor_id = pr.id JOIN scm_productos sp ON p.producto_id = sp.id ORDER BY p.id DESC")->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
@@ -41,6 +46,7 @@ $pedidos = $db->query("SELECT p.*, pr.nombre as proveedor_nombre, sp.nombre as p
     :root {
       --bg: #f8fafc;
       --surface: #ffffff;
+      --secondary: #000049;
       --text: #0f172a;
       --muted: #64748b;
       --border: #e2e8f0;
@@ -48,6 +54,7 @@ $pedidos = $db->query("SELECT p.*, pr.nombre as proveedor_nombre, sp.nombre as p
       --primary-hover: #0369a1;
       --danger: #ef4444;
       --success: #10b981;
+      --warning: #f59e0b;
     }
 
     * {
@@ -67,20 +74,25 @@ $pedidos = $db->query("SELECT p.*, pr.nombre as proveedor_nombre, sp.nombre as p
 
     .sidebar {
       width: 260px;
-      background: var(--surface);
+      background: var(--secondary);
       border-right: 1px solid var(--border);
       display: flex;
       flex-direction: column;
       position: fixed;
       height: 100vh;
+      z-index: 100;
     }
 
     .sidebar-brand {
       padding: 24px;
       font-size: 18px;
       font-weight: 700;
+      color: #ffffff;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .sidebar-brand span {
       color: var(--primary);
-      border-bottom: 1px solid var(--border);
     }
 
     .sidebar-menu {
@@ -93,7 +105,7 @@ $pedidos = $db->query("SELECT p.*, pr.nombre as proveedor_nombre, sp.nombre as p
     .sidebar-item {
       padding: 12px 16px;
       border-radius: 8px;
-      color: var(--muted);
+      color: #94a3b8;
       text-decoration: none;
       font-weight: 500;
       display: flex;
@@ -103,8 +115,13 @@ $pedidos = $db->query("SELECT p.*, pr.nombre as proveedor_nombre, sp.nombre as p
     }
 
     .sidebar-item:hover, .sidebar-item.active {
-      background: #e0f2fe;
+      background: rgba(2, 132, 199, 0.15);
+      color: #ffffff;
+    }
+
+    .sidebar-item.active {
       color: var(--primary);
+      font-weight: 600;
     }
 
     .main-content {
@@ -118,12 +135,24 @@ $pedidos = $db->query("SELECT p.*, pr.nombre as proveedor_nombre, sp.nombre as p
       justify-content: space-between;
       align-items: center;
       margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 16px;
     }
 
     .header h1 {
       font-size: 22px;
       font-weight: 700;
       color: var(--text);
+    }
+
+    .role-badge {
+      background: rgba(2, 132, 199, 0.1);
+      color: var(--primary);
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
     }
 
     .btn {
@@ -162,22 +191,28 @@ $pedidos = $db->query("SELECT p.*, pr.nombre as proveedor_nombre, sp.nombre as p
 
     th {
       background: #f1f5f9;
-      padding: 12px;
+      padding: 12px 16px;
       text-align: left;
       font-size: 11px;
       text-transform: uppercase;
       color: var(--muted);
       letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--border);
     }
 
     td {
-      padding: 14px 12px;
+      padding: 14px 16px;
       border-bottom: 1px solid var(--border);
       color: var(--text);
+      vertical-align: middle;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
     }
 
     tr:hover td {
-      background: #fdfdfd;
+      background: #f8fafc;
     }
 
     .badge-push {
@@ -211,25 +246,17 @@ $pedidos = $db->query("SELECT p.*, pr.nombre as proveedor_nombre, sp.nombre as p
 </head>
 <body>
 
-<?php
-// Conteo global de stock crítico para mostrar la alerta en cualquier ventana
-$db_sidebar = getDB();
-$num_alertas_global = $db_sidebar->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= stock_minimo")->fetchColumn();
-?>
 <div class="sidebar">
-    <div class="sidebar-brand">Restaurant App SCM</div>
+    <div class="sidebar-brand">Restaurant <span>App SCM</span></div>
     <div class="sidebar-menu">
         <a href="dashboard.php" class="sidebar-item">📈 Dashboard SCM</a>
-        <a href="productos.php" class="sidebar-item">📦 Materias Primas</a>
+        <a href="productos.php" class="sidebar-item">📦 Productos SCM</a>
         <a href="proveedores.php" class="sidebar-item">🤝 Proveedores</a>
         
-        <!-- Alerta visible globalmente en el menú lateral -->
         <a href="inventario.php" class="sidebar-item">
             📊 Inventario / Alertas 
             <?php if($num_alertas_global > 0): ?>
-                <span style="background: var(--danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700; display: inline-flex; align-items: center; gap: 2px;">
-                    ⚠️ <?= $num_alertas_global ?>
-                </span>
+                <span style="background: var(--danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700;">⚠️ <?= $num_alertas_global ?></span>
             <?php endif; ?>
         </a>
 
@@ -242,8 +269,13 @@ $num_alertas_global = $db_sidebar->query("SELECT COUNT(*) FROM scm_productos WHE
 
 <div class="main-content">
     <div class="header">
-        <h1>🛒 Pedidos Internos (Gestión Push vs Pull)</h1>
-        <a href="pedido_form.php" class="btn">+ Generar Pedido Pull Manual</a>
+        <div>
+            <h1>🛒 Pedidos Internos (Gestión Push vs Pull)</h1>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <div class="role-badge">Rol: <?= htmlspecialchars(ucfirst($rol_actual)) ?></div>
+            <a href="pedido_form.php" class="btn">+ Generar Pedido Pull Manual</a>
+        </div>
     </div>
 
     <div class="card">
@@ -256,20 +288,20 @@ $num_alertas_global = $db_sidebar->query("SELECT COUNT(*) FROM scm_productos WHE
                     <th>Cantidad</th>
                     <th>Estrategia / Tipo</th>
                     <th>Estado Actual</th>
-                    <th>Acción</th>
+                    <th style="text-align: right;">Acción</th>
                 </tr>
             </thead>
             <tbody>
                 <?php if(empty($pedidos)): ?>
-                    <tr><td colspan="7" style="text-align:center; color:var(--muted); padding:20px;">No hay pedidos internos registrados.</td></tr>
+                    <tr><td colspan="7" style="text-align:center; color:var(--muted); padding:30px;">No hay pedidos internos registrados en el sistema.</td></tr>
                 <?php else: foreach($pedidos as $pe): 
                     $es_push = (strpos($pe['tipo'], 'Push') !== false || strpos($pe['tipo'], 'Automática') !== false);
                 ?>
                     <tr>
-                        <td><b><?= $pe['numero_orden_scm'] ?></b></td>
+                        <td><b><?= htmlspecialchars($pe['numero_orden_scm']) ?></b></td>
                         <td><?= htmlspecialchars($pe['producto_nombre']) ?></td>
                         <td><?= htmlspecialchars($pe['proveedor_nombre']) ?></td>
-                        <td><?= $pe['cantidad'] ?></td>
+                        <td><b><?= $pe['cantidad'] ?></b></td>
                         <td>
                             <?php if($es_push): ?>
                                 <span class="badge-push">PUSH (Automático)</span>
@@ -284,9 +316,9 @@ $num_alertas_global = $db_sidebar->query("SELECT COUNT(*) FROM scm_productos WHE
                                 <span class="status-entregado">✔ Entregado (+ Stock)</span>
                             <?php endif; ?>
                         </td>
-                        <td>
+                        <td style="text-align: right;">
                             <?php if($pe['estado'] != 'entregado'): ?>
-                                <a href="pedidos.php?entregar=<?= $pe['id'] ?>" class="btn" style="padding: 6px 12px; font-size:11px; background:var(--success);">Simular Entrega (5m)</a>
+                                <a href="pedidos.php?entregar=<?= $pe['id'] ?>" class="btn" style="padding: 6px 12px; font-size:11px; background:var(--success);">Simular Entrega</a>
                             <?php else: ?>
                                 <span style="color:var(--muted); font-size:12px;">Completado</span>
                             <?php endif; ?>

@@ -1,11 +1,16 @@
 <?php
 /**
  * Archivo: scm/dashboard.php
- * Descripción: Panel de métricas globales y nivel de madurez con Sidebar.
+ * Descripción: Panel de métricas globales y nivel de madurez con control de roles (Gerencia vs Logística/Encargado).
  */
 require_once __DIR__ . '/../config/auth_check.php';
-verificarAcceso(['gerente', 'subgerente']);
+
+// Definir permisos: Gerentes, Subgerentes y Encargados de logística tienen acceso al SCM
+verificarAcceso(['gerente', 'subgerente', 'encargado']);
 $db = getDB();
+
+$rol_actual = $_SESSION['admin_rol'] ?? '';
+$es_gerente_o_subgerente = in_array($rol_actual, ['gerente', 'subgerente'], true);
 
 $total_prod = $db->query("SELECT COUNT(*) FROM scm_productos")->fetchColumn();
 $total_prov = $db->query("SELECT COUNT(*) FROM proveedores")->fetchColumn();
@@ -16,13 +21,13 @@ $alertas = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= 
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Dashboard SCM</title>
+<title>Dashboard SCM – Restaurant App</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
     :root {
       --bg: #f8fafc;
       --surface: #ffffff;
-      --seconfdary: #000049;
+      --secondary: #000049;
       --text: #0f172a;
       --muted: #64748b;
       --border: #e2e8f0;
@@ -30,6 +35,7 @@ $alertas = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= 
       --primary-hover: #0369a1;
       --danger: #ef4444;
       --success: #10b981;
+      --warning: #f59e0b;
     }
 
     * {
@@ -49,7 +55,7 @@ $alertas = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= 
 
     .sidebar {
       width: 260px;
-      background: var(--seconfdary);
+      background: var(--secondary);
       border-right: 1px solid var(--border);
       display: flex;
       flex-direction: column;
@@ -61,8 +67,12 @@ $alertas = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= 
       padding: 24px;
       font-size: 18px;
       font-weight: 700;
+      color: #ffffff;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .sidebar-brand span {
       color: var(--primary);
-      border-bottom: 1px solid var(--border);
     }
 
     .sidebar-menu {
@@ -75,7 +85,7 @@ $alertas = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= 
     .sidebar-item {
       padding: 12px 16px;
       border-radius: 8px;
-      color: var(--muted);
+      color: #94a3b8;
       text-decoration: none;
       font-weight: 500;
       display: flex;
@@ -85,8 +95,13 @@ $alertas = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= 
     }
 
     .sidebar-item:hover, .sidebar-item.active {
-      background: #e0f2fe;
+      background: rgba(2, 132, 199, 0.15);
+      color: #ffffff;
+    }
+
+    .sidebar-item.active {
       color: var(--primary);
+      font-weight: 600;
     }
 
     .main-content {
@@ -106,6 +121,16 @@ $alertas = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= 
       font-size: 22px;
       font-weight: 700;
       color: var(--text);
+    }
+
+    .role-badge {
+      background: rgba(2, 132, 199, 0.1);
+      color: var(--primary);
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
     }
 
     .metrics {
@@ -128,6 +153,7 @@ $alertas = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= 
       font-weight: 600;
       color: var(--muted);
       text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
 
     .metric-value {
@@ -149,7 +175,7 @@ $alertas = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= 
     .card h3 {
       font-size: 18px;
       font-weight: 700;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
       color: var(--text);
     }
 </style>
@@ -157,7 +183,7 @@ $alertas = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= 
 <body>
 
 <div class="sidebar">
-    <div class="sidebar-brand">Restaurant App SCM</div>
+    <div class="sidebar-brand">Restaurant <span>App SCM</span></div>
     <div class="sidebar-menu">
         <a href="dashboard.php" class="sidebar-item active">📈 Dashboard SCM</a>
         <a href="productos.php" class="sidebar-item">📦 Productos SCM</a>
@@ -172,6 +198,7 @@ $alertas = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= 
 <div class="main-content">
     <div class="header">
         <h1>📈 Dashboard y Métricas SCM</h1>
+        <div class="role-badge">Rol: <?= htmlspecialchars(ucfirst($rol_actual)) ?></div>
     </div>
 
     <div class="metrics">
@@ -194,8 +221,13 @@ $alertas = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= 
     </div>
 
     <div class="card">
-        <h3>Nivel de Madurez SCM</h3>
-        <p style="color:var(--muted); line-height:1.6;">Estado actual: <b>Optimizado / En Producción</b>. El sistema cuenta con control integrado de inventario, estrategias Push y Pull configuradas, trazabilidad de movimientos con motivo y gestión directa de órdenes de reposición a proveedores.</p>
+        <h3>Nivel de Madurez SCM y Permisos</h3>
+        <p style="color:var(--muted); line-height:1.6; margin-bottom: 10px;">Estado actual: <b>Optimizado / En Producción</b>. El sistema cuenta con control integrado de inventario, estrategias Push y Pull configuradas, trazabilidad de movimientos y gestión directa de órdenes de reposición a proveedores.</p>
+        <?php if ($rol_actual === 'encargado'): ?>
+            <p style="color: var(--warning); font-size: 13px; font-weight: 500;">⚠️ Estás ingresando con permisos de <b>Encargado de Logística</b>. Puedes consultar y registrar movimientos de stock, pero algunas configuraciones globales están reservadas para Gerencia.</p>
+        <?php else: ?>
+            <p style="color: var(--success); font-size: 13px; font-weight: 500;">✓ Acceso administrativo completo habilitado para la gestión de la cadena de suministro.</p>
+        <?php endif; ?>
     </div>
 </div>
 

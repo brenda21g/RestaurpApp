@@ -1,22 +1,41 @@
 <?php
 /**
  * Archivo: scm/logistica.php
- * Descripción: Configuración de la estrategia logística PUSH o PULL por insumo.
+ * Descripción: Configuración de la estrategia logística PUSH o PULL por insumo con control de roles.
  */
 require_once __DIR__ . '/../config/auth_check.php';
-verificarAcceso(['gerente', 'subgerente']);
+verificarAcceso(['gerente', 'subgerente', 'encargado']);
 $db = getDB();
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_SESSION['admin_rol'] === 'gerente') {
-    $producto_id = intval($_POST['producto_id']);
-    $estrategia = $_POST['estrategia'];
-    $db->prepare("UPDATE scm_productos SET estrategia_logistica = ? WHERE id = ?")->execute([$estrategia, $producto_id]);
-    header("Location: logistica.php?success=1");
-    exit;
+$rol_actual = $_SESSION['admin_rol'] ?? '';
+$es_gerente = ($rol_actual === 'gerente');
+
+$mensaje = '';
+$error = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!$es_gerente) {
+        $error = "Acceso denegado: Solo el Gerente puede modificar las estrategias logísticas.";
+    } else {
+        $producto_id = intval($_POST['producto_id'] ?? 0);
+        $estrategia = $_POST['estrategia'] ?? 'PUSH';
+        
+        if ($producto_id > 0 && in_array($estrategia, ['PUSH', 'PULL'], true)) {
+            $stmt = $db->prepare("UPDATE scm_productos SET estrategia_logistica = ? WHERE id = ?");
+            $stmt->execute([$estrategia, $producto_id]);
+            header("Location: logistica.php?success=1");
+            exit;
+        } else {
+            $error = "Por favor selecciona un producto y una estrategia válida.";
+        }
+    }
 }
 
+// Conteo global de stock crítico para la barra lateral
+$db_sidebar = getDB();
+$num_alertas_global = $db_sidebar->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= stock_minimo")->fetchColumn();
+
 $productos = $db->query("SELECT id, nombre, estrategia_logistica FROM scm_productos ORDER BY nombre ASC")->fetchAll(PDO::FETCH_ASSOC);
-$es_gerente = ($_SESSION['admin_rol'] === 'gerente');
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -36,6 +55,7 @@ $es_gerente = ($_SESSION['admin_rol'] === 'gerente');
       --primary-hover: #0369a1;
       --danger: #ef4444;
       --success: #10b981;
+      --warning: #f59e0b;
     }
 
     * {
@@ -61,14 +81,19 @@ $es_gerente = ($_SESSION['admin_rol'] === 'gerente');
       flex-direction: column;
       position: fixed;
       height: 100vh;
+      z-index: 100;
     }
 
     .sidebar-brand {
       padding: 24px;
       font-size: 18px;
       font-weight: 700;
+      color: #ffffff;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .sidebar-brand span {
       color: var(--primary);
-      border-bottom: 1px solid var(--border);
     }
 
     .sidebar-menu {
@@ -81,7 +106,7 @@ $es_gerente = ($_SESSION['admin_rol'] === 'gerente');
     .sidebar-item {
       padding: 12px 16px;
       border-radius: 8px;
-      color: var(--muted);
+      color: #94a3b8;
       text-decoration: none;
       font-weight: 500;
       display: flex;
@@ -91,8 +116,13 @@ $es_gerente = ($_SESSION['admin_rol'] === 'gerente');
     }
 
     .sidebar-item:hover, .sidebar-item.active {
-      background: #e0f2fe;
+      background: rgba(2, 132, 199, 0.15);
+      color: #ffffff;
+    }
+
+    .sidebar-item.active {
       color: var(--primary);
+      font-weight: 600;
     }
 
     .main-content {
@@ -114,18 +144,29 @@ $es_gerente = ($_SESSION['admin_rol'] === 'gerente');
       color: var(--text);
     }
 
+    .role-badge {
+      background: rgba(2, 132, 199, 0.1);
+      color: var(--primary);
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
     .card {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 12px;
       padding: 24px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      max-width: 650px;
     }
 
     h2 {
-      font-size: 20px;
+      font-size: 18px;
       font-weight: 700;
-      margin-bottom: 20px;
+      margin-bottom: 16px;
       color: var(--text);
     }
 
@@ -141,6 +182,7 @@ $es_gerente = ($_SESSION['admin_rol'] === 'gerente');
       font-size: 12px;
       color: var(--muted);
       text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
 
     select {
@@ -151,6 +193,7 @@ $es_gerente = ($_SESSION['admin_rol'] === 'gerente');
       outline: none;
       background: #fff;
       color: var(--text);
+      font-family: inherit;
     }
 
     select:focus {
@@ -162,12 +205,13 @@ $es_gerente = ($_SESSION['admin_rol'] === 'gerente');
       background: var(--primary);
       color: #fff;
       border: none;
-      padding: 12px;
+      padding: 11px 16px;
       border-radius: 8px;
       font-weight: 600;
       cursor: pointer;
       width: 100%;
       font-size: 14px;
+      font-family: inherit;
       transition: background 0.2s;
     }
 
@@ -178,35 +222,50 @@ $es_gerente = ($_SESSION['admin_rol'] === 'gerente');
     .info-box {
       background: #f0f9ff;
       border: 1px solid #bae6fd;
-      padding: 15px;
+      padding: 16px;
       border-radius: 8px;
-      margin-bottom: 20px;
+      margin-bottom: 24px;
       color: #0369a1;
-      line-height: 1.5;
+      line-height: 1.6;
+      max-width: 650px;
+    }
+
+    .alert-success { 
+      background: rgba(16, 185, 129, 0.1); 
+      border: 1px solid rgba(16, 185, 129, 0.2); 
+      color: var(--success); 
+      padding: 12px 16px; 
+      border-radius: 8px; 
+      margin-bottom: 20px; 
+      font-weight: 500; 
+      max-width: 650px;
+    }
+
+    .alert-error { 
+      background: rgba(239, 68, 68, 0.1); 
+      border: 1px solid rgba(239, 68, 68, 0.2); 
+      color: var(--danger); 
+      padding: 12px 16px; 
+      border-radius: 8px; 
+      margin-bottom: 20px; 
+      font-weight: 500; 
+      max-width: 650px;
     }
 </style>
 </head>
 <body>
 
-<?php
-// Conteo global de stock crítico para mostrar la alerta en cualquier ventana
-$db_sidebar = getDB();
-$num_alertas_global = $db_sidebar->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= stock_minimo")->fetchColumn();
-?>
 <div class="sidebar">
-    <div class="sidebar-brand">Restaurant App SCM</div>
+    <div class="sidebar-brand">Restaurant <span>App SCM</span></div>
     <div class="sidebar-menu">
         <a href="dashboard.php" class="sidebar-item">📈 Dashboard SCM</a>
-        <a href="productos.php" class="sidebar-item">📦 Materias Primas</a>
+        <a href="productos.php" class="sidebar-item">📦 Productos SCM</a>
         <a href="proveedores.php" class="sidebar-item">🤝 Proveedores</a>
         
-        <!-- Alerta visible globalmente en el menú lateral -->
         <a href="inventario.php" class="sidebar-item">
             📊 Inventario / Alertas 
             <?php if($num_alertas_global > 0): ?>
-                <span style="background: var(--danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700; display: inline-flex; align-items: center; gap: 2px;">
-                    ⚠️ <?= $num_alertas_global ?>
-                </span>
+                <span style="background: var(--danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700;">⚠️ <?= $num_alertas_global ?></span>
             <?php endif; ?>
         </a>
 
@@ -220,40 +279,49 @@ $num_alertas_global = $db_sidebar->query("SELECT COUNT(*) FROM scm_productos WHE
 <div class="main-content">
     <div class="header">
         <h1>⚙️ Logística - Estrategia de Reposición</h1>
+        <div class="role-badge">Rol: <?= htmlspecialchars(ucfirst($rol_actual)) ?></div>
     </div>
 
     <div class="info-box">
-        <b>PUSH:</b> Se genera pedido de forma automática cuando el stock alcanza el nivel mínimo establecido.<br>
-        <b>PULL:</b> Se repone exclusivamente bajo demanda o mediante orden manual por parte del administrador.
+        <b>Estrategia PUSH:</b> Se genera pedido de reposición de forma automática cuando el stock alcanza o desciende del nivel mínimo establecido.<br>
+        <b>Estrategia PULL:</b> El inventario se repone exclusivamente bajo demanda real o mediante orden manual registrada en el sistema.
     </div>
 
-    <div class="card" style="max-width: 600px;">
+    <?php if(isset($_GET['success'])): ?>
+        <div class="alert-success">✔ Estrategia logística actualizada correctamente en el sistema.</div>
+    <?php endif; ?>
+
+    <?php if($error): ?>
+        <div class="alert-error">⚠️ <?= htmlspecialchars($error) ?></div>
+    <?php endif; ?>
+
+    <div class="card">
         <h2>Configurar Estrategia por Insumo</h2>
-        <?php if(isset($_GET['success'])): ?>
-            <p style="color:var(--success); margin-bottom:15px; font-weight:600;">✔ Estrategia actualizada correctamente.</p>
-        <?php endif; ?>
 
         <?php if($es_gerente): ?>
-        <form method="POST">
-            <div class="field">
-                <label>Seleccionar Materia Prima</label>
-                <select name="producto_id" required>
-                    <?php foreach($productos as $p): ?>
-                        <option value="<?= $p['id'] ?>"><?= htmlspecialchars($p['nombre']) ?> (Actual: <?= $p['estrategia_logistica'] ?>)</option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="field">
-                <label>Estrategia Logística</label>
-                <select name="estrategia">
-                    <option value="PUSH">PUSH (Automática por stock mínimo)</option>
-                    <option value="PULL">PULL (Bajo demanda / Manual)</option>
-                </select>
-            </div>
-            <button type="submit">Guardar Configuración</button>
-        </form>
+            <form method="POST">
+                <div class="field">
+                    <label>Seleccionar Materia Prima / Insumo</label>
+                    <select name="producto_id" required>
+                        <option value="">-- Selecciona un insumo --</option>
+                        <?php foreach($productos as $p): ?>
+                            <option value="<?= $p['id'] ?>">
+                                <?= htmlspecialchars($p['nombre']) ?> (Actual: <?= htmlspecialchars($p['estrategia_logistica']) ?>)
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>Estrategia Logística</label>
+                    <select name="estrategia" required>
+                        <option value="PUSH">PUSH (Automática por stock mínimo)</option>
+                        <option value="PULL">PULL (Bajo demanda / Manual)</option>
+                    </select>
+                </div>
+                <button type="submit">Guardar Configuración de Estrategia</button>
+            </form>
         <?php else: ?>
-            <p style="color:var(--muted);">Modo consulta: Solo el Gerente puede modificar las estrategias logísticas.</p>
+            <p style="color:var(--muted); line-height: 1.5;">Estás accediendo en modo de consulta (Rol: <b><?= htmlspecialchars(ucfirst($rol_actual)) ?></b>). La modificación de estrategias logísticas Push/Pull está reservada exclusivamente para el perfil de <b>Gerente</b>.</p>
         <?php endif; ?>
     </div>
 </div>

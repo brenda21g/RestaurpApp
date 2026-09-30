@@ -1,11 +1,20 @@
 <?php
-
+/**
+ * Archivo: subgerente/mesas_qr.php
+ * Descripción: Gestión de mesas y códigos QR con control de acceso y definición segura de SITE_URL.
+ */
 require_once __DIR__ . '/../config/auth_check.php';
+verificarAcceso(['subgerente']);
+
+// Definir SITE_URL de forma segura si no existe en los archivos de configuración
+if (!defined('SITE_URL')) {
+    define('SITE_URL', 'http://localhost/restaurant_app');
+}
 
 $db = getDB();
 
 // Carga explicita con FETCH_ASSOC
-$mesas = $db->query("SELECT * FROM mesas ORDER BY numero ASC")->fetchAll(PDO::FETCH_ASSOC);
+$mesas =$db->query("SELECT * FROM mesas ORDER BY numero ASC")->fetchAll(PDO::FETCH_ASSOC);
 
 // Pre-generar la estructura para JavaScript en una sola pasada
 $mesasData = array_map(function($m) {
@@ -16,9 +25,7 @@ $mesasData = array_map(function($m) {
         'url' => SITE_URL . '/cliente/login.php?mesa=' . urlencode($m['qr_token'])
     ];
 }, $mesas);
-
 ?>
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -294,222 +301,143 @@ body {
     }
 }
 </style>
-
 </head>
-
 <body>
 
 <!-- SIDEBAR -->
-
 <aside class="sidebar">
-
     <div class="sidebar-logo">
-
         <div class="name">🍽️ RestaurApp</div>
-
         <div class="role">Subgerente</div>
-
     </div>
-
     <nav class="nav">
-
         <a class="nav-item" href="dashboard.php">
             <span class="icon">📊</span> Dashboard
         </a>
-
         <a class="nav-item" href="pedidos.php">
             <span class="icon">📋</span> Pedidos
         </a>
-
         <a class="nav-item active" href="mesas_qr.php">
             <span class="icon">🪑</span> Mesas & QR
         </a>
-
         <a class="nav-item" href="menu.php">
             <span class="icon">🍽️</span> Menú
         </a>
-
         <a class="nav-item" href="corte.php">
             <span>💵</span> Corte de Caja
         </a>
-
     </nav>
-
     <div class="sidebar-bottom">
-
         <a class="logout-btn" href="logout.php">
             🚪 Cerrar sesión
         </a>
-
     </div>
-
 </aside>
 
 <main class="main">
-
     <div class="page-title">
         🪑 Mesas & Códigos QR
     </div>
-
     <div class="subtitle">
         Cada mesa cuenta con su código de acceso directo para el cliente.
     </div>
 
     <div class="mesas-grid">
-
-        <?php foreach ($mesasData as $m): ?>
-
+        <?php foreach ($mesasData as$m): ?>
         <div class="mesa-card">
-
             <div class="mesa-num">
                 Mesa <?= htmlspecialchars($m['numero']) ?>
             </div>
-
             <div class="qr-box" id="qr-<?= $m['id'] ?>"></div>
-
             <span class="url-link">
                 <?= htmlspecialchars($m['url']) ?>
             </span>
-
             <button
                 class="print-mesa-btn"
-                onclick="printQR(<?= $m['id'] ?>, <?= $m['numero'] ?>)"
+                onclick="printQR(<?= $m['id'] ?>, <?=$m['numero'] ?>)"
             >
                 🖨️ Imprimir QR
             </button>
-
         </div>
-
         <?php endforeach; ?>
-
     </div>
-
 </main>
 
 <script>
-
 // Transmitir datos preparados a JavaScript
-
 const mesasData = <?= json_encode($mesasData) ?>;
 
 // Generar los códigos QR
-
 mesasData.forEach(m => {
-
     new QRCode(document.getElementById('qr-' + m.id), {
-
         text: m.url,
-
         width: 120,
-
         height: 120,
-
         colorDark: "#000000",
-
         colorLight: "#ffffff",
-
         correctLevel: QRCode.CorrectLevel.M
-
     });
-
 });
 
 // Función para impresión individual de QR
-
 function printQR(id, numero) {
-
     const container = document.getElementById('qr-' + id);
-
     const canvas = container.querySelector('canvas');
-
     const img = container.querySelector('img');
-
     const qrSrc = canvas ? canvas.toDataURL("image/png") : img.src;
 
     const w = window.open('', '_blank');
-
     w.document.write(`
-
         <!DOCTYPE html>
-
         <html>
-
             <head>
-
                 <title>Imprimir QR Mesa ${numero}</title>
-
                 <style>
-
                     body {
                         text-align: center;
                         font-family: sans-serif;
                         padding: 50px;
                     }
-
                     .card {
                         border: 2px solid #333;
                         padding: 40px;
                         display: inline-block;
                         border-radius: 15px;
                     }
-
                     h1 {
                         font-size: 48px;
                         margin-bottom: 10px;
                     }
-
                     img {
                         width: 300px;
                         margin: 20px 0;
                     }
-
                     p {
                         font-size: 20px;
                         color: #666;
                     }
-
                 </style>
-
             </head>
-
             <body>
-
                 <div class="card">
-
                     <h1>MESA ${numero}</h1>
-
                     <img src="${qrSrc}">
-
                     <p>Escanea para ver nuestro menú digital</p>
-
                 </div>
-
                 <script>
-
                     window.onload = function() {
-
                         window.print();
-
                         setTimeout(function() {
                             window.close();
                         }, 500);
-
                     }
-
                 <\/script>
-
             </body>
-
         </html>
-
     `);
-
     w.document.close();
-
 }
-
 </script>
 
 </body>
-
 </html>

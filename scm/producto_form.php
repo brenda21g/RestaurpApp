@@ -1,11 +1,20 @@
 <?php
 /**
  * Archivo: scm/producto_form.php
- * Descripción: Formulario para crear o editar materias primas e insumos.
+ * Descripción: Formulario para crear o editar materias primas e insumos con control de roles y Sidebar institucional.
  */
 require_once __DIR__ . '/../config/auth_check.php';
-verificarAcceso(['gerente']);
+verificarAcceso(['gerente', 'subgerente', 'encargado']);
 $db = getDB();
+
+$rol_actual = $_SESSION['admin_rol'] ?? '';
+$es_gerente = ($rol_actual === 'gerente');
+
+// Solo el gerente puede modificar o crear productos; los demás roles pueden tener acceso de lectura/consulta si se requiere
+if (!$es_gerente && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    header("Location: productos.php?error=sin_permisos");
+    exit;
+}
 
 $id = $_GET['id'] ?? null;
 $producto = ['nombre' => '', 'descripcion' => '', 'stock_actual' => 0, 'stock_minimo' => 5, 'estrategia_logistica' => 'PUSH', 'proveedor_id' => '', 'precio' => 0];
@@ -16,32 +25,39 @@ if ($id) {
     $producto = $stmt->fetch(PDO::FETCH_ASSOC) ?: $producto;
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $nombre = trim($_POST['nombre']);
-    $desc = trim($_POST['descripcion']);
-    $stock_actual = intval($_POST['stock_actual']);
-    $stock_minimo = intval($_POST['stock_minimo']);
-    $estrategia = $_POST['estrategia_logistica'];
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $es_gerente) {
+    $nombre = trim($_POST['nombre'] ?? '');
+    $desc = trim($_POST['descripcion'] ?? '');
+    $stock_actual = intval($_POST['stock_actual'] ?? 0);
+    $stock_minimo = intval($_POST['stock_minimo'] ?? 5);
+    $estrategia = $_POST['estrategia_logistica'] ?? 'PUSH';
     $proveedor_id = !empty($_POST['proveedor_id']) ? $_POST['proveedor_id'] : null;
-    $precio = floatval($_POST['precio']);
+    $precio = floatval($_POST['precio'] ?? 0);
 
-    if ($id) {
-        $stmt = $db->prepare("UPDATE scm_productos SET nombre=?, descripcion=?, stock_actual=?, stock_minimo=?, estrategia_logistica=?, proveedor_id=?, precio=? WHERE id=?");
-        $stmt->execute([$nombre, $desc, $stock_actual, $stock_minimo, $estrategia, $proveedor_id, $precio, $id]);
-    } else {
-        $stmt = $db->prepare("INSERT INTO scm_productos (nombre, descripcion, stock_actual, stock_minimo, estrategia_logistica, proveedor_id, precio) VALUES (?,?,?,?,?,?,?)");
-        $stmt->execute([$nombre, $desc, $stock_actual, $stock_minimo, $estrategia, $proveedor_id, $precio]);
+    if ($nombre !== '') {
+        if ($id) {
+            $stmt = $db->prepare("UPDATE scm_productos SET nombre=?, descripcion=?, stock_actual=?, stock_minimo=?, estrategia_logistica=?, proveedor_id=?, precio=? WHERE id=?");
+            $stmt->execute([$nombre, $desc, $stock_actual, $stock_minimo, $estrategia, $proveedor_id, $precio, $id]);
+        } else {
+            $stmt = $db->prepare("INSERT INTO scm_productos (nombre, descripcion, stock_actual, stock_minimo, estrategia_logistica, proveedor_id, precio) VALUES (?,?,?,?,?,?,?)");
+            $stmt->execute([$nombre, $desc, $stock_actual, $stock_minimo, $estrategia, $proveedor_id, $precio]);
+        }
+        header("Location: productos.php");
+        exit;
     }
-    header("Location: productos.php");
-    exit;
 }
-$proveedores = $db->query("SELECT id, nombre FROM proveedores")->fetchAll(PDO::FETCH_ASSOC);
+
+// Conteo global de stock crítico para la barra lateral
+$db_sidebar = getDB();
+$num_alertas_global = $db_sidebar->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= stock_minimo")->fetchColumn();
+
+$proveedores = $db->query("SELECT id, nombre FROM proveedores ORDER BY nombre ASC")->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Materia Prima Form</title>
+<title>Materia Prima Form – Restaurant App</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
     :root {
@@ -55,6 +71,7 @@ $proveedores = $db->query("SELECT id, nombre FROM proveedores")->fetchAll(PDO::F
       --primary-hover: #0369a1;
       --danger: #ef4444;
       --success: #10b981;
+      --warning: #f59e0b;
     }
 
     * {
@@ -80,14 +97,19 @@ $proveedores = $db->query("SELECT id, nombre FROM proveedores")->fetchAll(PDO::F
       flex-direction: column;
       position: fixed;
       height: 100vh;
+      z-index: 100;
     }
 
     .sidebar-brand {
       padding: 24px;
       font-size: 18px;
       font-weight: 700;
+      color: #ffffff;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .sidebar-brand span {
       color: var(--primary);
-      border-bottom: 1px solid var(--border);
     }
 
     .sidebar-menu {
@@ -100,7 +122,7 @@ $proveedores = $db->query("SELECT id, nombre FROM proveedores")->fetchAll(PDO::F
     .sidebar-item {
       padding: 12px 16px;
       border-radius: 8px;
-      color: var(--muted);
+      color: #94a3b8;
       text-decoration: none;
       font-weight: 500;
       display: flex;
@@ -110,14 +132,41 @@ $proveedores = $db->query("SELECT id, nombre FROM proveedores")->fetchAll(PDO::F
     }
 
     .sidebar-item:hover, .sidebar-item.active {
-      background: #e0f2fe;
+      background: rgba(2, 132, 199, 0.15);
+      color: #ffffff;
+    }
+
+    .sidebar-item.active {
       color: var(--primary);
+      font-weight: 600;
     }
 
     .main-content {
       margin-left: 260px;
       flex: 1;
       padding: 30px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 20px;
+    }
+
+    .role-badge {
+      background: rgba(2, 132, 199, 0.1);
+      color: var(--primary);
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .form-container-wrapper {
+      flex: 1;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -126,7 +175,7 @@ $proveedores = $db->query("SELECT id, nombre FROM proveedores")->fetchAll(PDO::F
     .card {
       background: var(--surface);
       width: 100%;
-      max-width: 500px;
+      max-width: 550px;
       border: 1px solid var(--border);
       border-radius: 12px;
       padding: 24px;
@@ -134,7 +183,7 @@ $proveedores = $db->query("SELECT id, nombre FROM proveedores")->fetchAll(PDO::F
     }
 
     h2 {
-      font-size: 20px;
+      font-size: 18px;
       font-weight: 700;
       margin-bottom: 20px;
       color: var(--text);
@@ -149,9 +198,10 @@ $proveedores = $db->query("SELECT id, nombre FROM proveedores")->fetchAll(PDO::F
 
     .field label {
       font-weight: 600;
-      font-size: 12px;
+      font-size: 11px;
       color: var(--muted);
       text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
 
     input, select, textarea {
@@ -162,6 +212,7 @@ $proveedores = $db->query("SELECT id, nombre FROM proveedores")->fetchAll(PDO::F
       outline: none;
       background: #fff;
       color: var(--text);
+      font-family: inherit;
     }
 
     input:focus, select:focus, textarea:focus {
@@ -169,17 +220,24 @@ $proveedores = $db->query("SELECT id, nombre FROM proveedores")->fetchAll(PDO::F
       box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.1);
     }
 
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
     button {
       background: var(--primary);
       color: #fff;
       border: none;
-      padding: 12px;
+      padding: 11px 12px;
       border-radius: 8px;
       font-weight: 600;
       cursor: pointer;
       width: 100%;
       font-size: 14px;
+      font-family: inherit;
       transition: background 0.2s;
+      margin-top: 6px;
     }
 
     button:hover {
@@ -189,25 +247,17 @@ $proveedores = $db->query("SELECT id, nombre FROM proveedores")->fetchAll(PDO::F
 </head>
 <body>
 
-<?php
-// Conteo global de stock crítico para mostrar la alerta en cualquier ventana
-$db_sidebar = getDB();
-$num_alertas_global = $db_sidebar->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= stock_minimo")->fetchColumn();
-?>
 <div class="sidebar">
-    <div class="sidebar-brand">Restaurant App SCM</div>
+    <div class="sidebar-brand">Restaurant <span>App SCM</span></div>
     <div class="sidebar-menu">
         <a href="dashboard.php" class="sidebar-item">📈 Dashboard SCM</a>
-        <a href="productos.php" class="sidebar-item active">📦 Materias Primas</a>
+        <a href="productos.php" class="sidebar-item active">📦 Productos SCM</a>
         <a href="proveedores.php" class="sidebar-item">🤝 Proveedores</a>
         
-        <!-- Alerta visible globalmente en el menú lateral -->
         <a href="inventario.php" class="sidebar-item">
             📊 Inventario / Alertas 
             <?php if($num_alertas_global > 0): ?>
-                <span style="background: var(--danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700; display: inline-flex; align-items: center; gap: 2px;">
-                    ⚠️ <?= $num_alertas_global ?>
-                </span>
+                <span style="background: var(--danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700;">⚠️ <?= $num_alertas_global ?></span>
             <?php endif; ?>
         </a>
 
@@ -219,47 +269,65 @@ $num_alertas_global = $db_sidebar->query("SELECT COUNT(*) FROM scm_productos WHE
 </div>
 
 <div class="main-content">
-    <div class="card">
-        <h2><?= $id ? 'Editar' : 'Nueva' ?> Materia Prima</h2>
-        <form method="POST">
-            <div class="field">
-                <label>Nombre del Insumo</label>
-                <input type="text" name="nombre" value="<?= htmlspecialchars($producto['nombre']) ?>" required>
-            </div>
-            <div class="field">
-                <label>Descripción</label>
-                <textarea name="descripcion"><?= htmlspecialchars($producto['descripcion']) ?></textarea>
-            </div>
-            <div class="field">
-                <label>Stock Actual</label>
-                <input type="number" name="stock_actual" value="<?= $producto['stock_actual'] ?>">
-            </div>
-            <div class="field">
-                <label>Stock Mínimo (Alerta)</label>
-                <input type="number" name="stock_minimo" value="<?= $producto['stock_minimo'] ?>">
-            </div>
-            <div class="field">
-                <label>Estrategia Logística</label>
-                <select name="estrategia_logistica">
-                    <option value="PUSH" <?= $producto['estrategia_logistica']=='PUSH'?'selected':'' ?>>PUSH (Automática)</option>
-                    <option value="PULL" <?= $producto['estrategia_logistica']=='PULL'?'selected':'' ?>>PULL (Bajo demanda)</option>
-                </select>
-            </div>
-            <div class="field">
-                <label>Proveedor Asignado</label>
-                <select name="proveedor_id">
-                    <option value="">-- Seleccionar --</option>
-                    <?php foreach($proveedores as $prov): ?>
-                        <option value="<?= $prov['id'] ?>" <?= $producto['proveedor_id']==$prov['id']?'selected':'' ?>><?= htmlspecialchars($prov['nombre']) ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="field">
-                <label>Costo / Precio Unitario</label>
-                <input type="number" step="0.01" name="precio" value="<?= $producto['precio'] ?>">
-            </div>
-            <button type="submit">Guardar Materia Prima</button>
-        </form>
+    <div class="header-top">
+        <div class="role-badge">Rol: <?= htmlspecialchars(ucfirst($rol_actual)) ?></div>
+    </div>
+
+    <div class="form-container-wrapper">
+        <div class="card">
+            <h2><?= $id ? 'Editar' : 'Nueva' ?> Materia Prima</h2>
+            
+            <?php if(!$es_gerente): ?>
+                <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.2); color: var(--warning); padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 13px;">
+                    ⚠️ Estás visualizando en modo lectura. Solo el Gerente puede guardar cambios en los insumos.
+                </div>
+            <?php endif; ?>
+
+            <form method="POST">
+                <div class="field">
+                    <label>Nombre del Insumo *</label>
+                    <input type="text" name="nombre" value="<?= htmlspecialchars($producto['nombre']) ?>" required <?= !$es_gerente ? 'disabled' : '' ?>>
+                </div>
+                <div class="field">
+                    <label>Descripción</label>
+                    <textarea name="descripcion" <?= !$es_gerente ? 'disabled' : '' ?>><?= htmlspecialchars($producto['descripcion']) ?></textarea>
+                </div>
+                <div class="field">
+                    <label>Stock Actual</label>
+                    <input type="number" name="stock_actual" value="<?= $producto['stock_actual'] ?>" <?= !$es_gerente ? 'disabled' : '' ?>>
+                </div>
+                <div class="field">
+                    <label>Stock Mínimo (Alerta)</label>
+                    <input type="number" name="stock_minimo" value="<?= $producto['stock_minimo'] ?>" <?= !$es_gerente ? 'disabled' : '' ?>>
+                </div>
+                <div class="field">
+                    <label>Estrategia Logística</label>
+                    <select name="estrategia_logistica" <?= !$es_gerente ? 'disabled' : '' ?>>
+                        <option value="PUSH" <?= $producto['estrategia_logistica']=='PUSH'?'selected':'' ?>>PUSH (Automática)</option>
+                        <option value="PULL" <?= $producto['estrategia_logistica']=='PULL'?'selected':'' ?>>PULL (Bajo demanda)</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>Proveedor Asignado</label>
+                    <select name="proveedor_id" <?= !$es_gerente ? 'disabled' : '' ?>>
+                        <option value="">-- Seleccionar --</option>
+                        <?php foreach($proveedores as $prov): ?>
+                            <option value="<?= $prov['id'] ?>" <?= $producto['proveedor_id']==$prov['id']?'selected':'' ?>><?= htmlspecialchars($prov['nombre']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>Costo / Precio Unitario</label>
+                    <input type="number" step="0.01" name="precio" value="<?= $producto['precio'] ?>" <?= !$es_gerente ? 'disabled' : '' ?>>
+                </div>
+                
+                <?php if($es_gerente): ?>
+                    <button type="submit">Guardar Materia Prima</button>
+                <?php else: ?>
+                    <a href="productos.php" style="display: block; text-align: center; background: #e2e8f0; color: #334155; padding: 11px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; margin-top: 6px;">Regresar al Listado</a>
+                <?php endif; ?>
+            </form>
+        </div>
     </div>
 </div>
 

@@ -1,8 +1,10 @@
 <?php
-// ==========================================================================
-// CONTROLADOR Y VISTA: Mi Actividad (Restaurant_app)
-// ==========================================================================
+/**
+ * Archivo: gerente/miactividad.php
+ * Descripción: Historial de actividad y operaciones con Sidebar institucional y control de roles.
+ */
 require_once __DIR__ . '/../config/auth_check.php';
+verificarAcceso(['gerente', 'subgerente']);
 $db = getDB();
 
 $admin_id = $_SESSION['admin_id'] ?? 0;
@@ -20,12 +22,6 @@ $sql = "
 ";
 $params = [];
 
-// Nota: Si la tabla interacciones registra al usuario responsable, se añade el filtro. 
-// Asumimos que existe un campo `admin_id` o similar, o listamos las interacciones generales del sistema/usuario.
-// Ajustaremos filtrando por el usuario en sesión si la tabla lo contempla, o mostrando las interacciones del CRM en general gestionadas.
-// Vamos a filtrar por un campo opcional o mostrar las interacciones recientes del sistema asociadas.
-// Consultemos las interacciones ordenadas por fecha descendente.
-
 $sql .= " ORDER BY i.fecha DESC, i.hora DESC";
 
 $stmt = $db->prepare($sql);
@@ -34,6 +30,11 @@ $actividades = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Totales para métricas de actividad
 $totalActividades = count($actividades);
+
+// Control de alertas de stock crítico para la barra lateral
+$db_sidebar = getDB();
+$num_alertas_global = $db_sidebar->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= stock_minimo")->fetchColumn();
+$rol_actual = $_SESSION['admin_rol'] ?? '';
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -44,20 +45,18 @@ $totalActividades = count($actividades);
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-    /* ==========================================================================
-        VARIABLES Y RESET GENERAL (TEMA AZUL Y BLANCO)
-        ========================================================================== */
     :root {
         --bg-body: #f8fafc;
         --bg-surface: #ffffff;
-        --sidebar-bg: #011139;
-        --sidebar-hover: #002056;
-        --sidebar-text: #94a3b8;
+        --sidebar-bg: #000049;
+        --sidebar-hover: #0369a1;
+        --sidebar-text: #cbd5e1;
         --text-main: #0f172a;
         --text-muted: #64748b;
         --border-color: #e2e8f0;
         --color-primary: #0284c7;
-        --sidebar-w: 250px;
+        --color-danger: #ef4444;
+        --sidebar-w: 260px;
         --radius: 10px;
         --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
     }
@@ -73,9 +72,7 @@ $totalActividades = count($actividades);
         font-size: 14px;
     }
 
-    /* ==========================================================================
-        SIDEBAR DE NAVEGACIÓN
-        ========================================================================== */
+    /* SIDEBAR INSTITUCIONAL AZUL */
     .sidebar {
         width: var(--sidebar-w);
         background-color: var(--sidebar-bg);
@@ -87,6 +84,7 @@ $totalActividades = count($actividades);
         left: 0;
         height: 100vh;
         z-index: 100;
+        overflow-y: auto;
     }
 
     .sidebar-logo {
@@ -102,7 +100,7 @@ $totalActividades = count($actividades);
 
     .sidebar-logo .role {
         font-size: 11px;
-        color: var(--sidebar-text);
+        color: #94a3b8;
         letter-spacing: 1px;
         text-transform: uppercase;
         margin-top: 2px;
@@ -153,13 +151,11 @@ $totalActividades = count($actividades);
     }
 
     .logout-btn:hover {
-        background-color: rgba(239, 68, 68, 0.15);
-        color: #fff;
+        background-color: rgba(239, 68, 68, 0.1);
+        color: #f87171;
     }
 
-    /* ==========================================================================
-        CONTENIDO PRINCIPAL
-        ========================================================================== */
+    /* CONTENIDO PRINCIPAL */
     .main {
         margin-left: var(--sidebar-w);
         flex: 1;
@@ -185,9 +181,6 @@ $totalActividades = count($actividades);
         margin-top: 2px;
     }
 
-    /* ==========================================================================
-        TARJETA CONTENEDORA DE ACTIVIDAD (ESTILO BLOQUE RECOPILATORIO)
-        ========================================================================== */
     .card {
         background: var(--bg-surface);
         border: 1px solid var(--border-color);
@@ -225,9 +218,6 @@ $totalActividades = count($actividades);
         gap: 8px;
     }
 
-    /* ==========================================================================
-        TABLA DE ACTIVIDADES
-        ========================================================================== */
     .table-responsive {
         width: 100%;
         overflow-x: auto;
@@ -297,7 +287,7 @@ $totalActividades = count($actividades);
 <aside class="sidebar">
     <div class="sidebar-logo">
         <div class="name">Restaurant App</div>
-        <div class="role">GERENTE</div>
+        <div class="role"><?= ucfirst(htmlspecialchars($rol_actual)) ?></div>
     </div>
     <nav class="nav">
         <a class="nav-item" href="dashboard.php"><span>📊</span> Dashboard</a>
@@ -307,9 +297,19 @@ $totalActividades = count($actividades);
         <a class="nav-item" href="usuarios.php"><span>🛡️</span> Usuarios</a>
         <a class="nav-item active" href="miactividad.php"><span>⏱️</span> Mi actividad</a>
         <a class="nav-item" href="configuracion.php"><span>⚙️</span> Configuración</a>
+
+        <?php if ($rol_actual === 'gerente'): ?>
+            <div style="padding: 10px 16px; font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: 700; margin-top: 10px;">SCM & Logística</div>
+            <a class="nav-item" href="../scm/dashboard.php">
+                <span>📈</span> Dashboard SCM
+                <?php if($num_alertas_global > 0): ?>
+                    <span style="background: var(--color-danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700;">⚠️ <?= $num_alertas_global ?></span>
+                <?php endif; ?>
+            </a>
+        <?php endif; ?>
     </nav>
     <div class="sidebar-bottom">
-        <a class="logout-btn" href="logout.php">🚪 Cerrar sesión</a>
+        <a class="logout-btn" href="../config/logout.php">🚪 Cerrar sesión</a>
     </div>
 </aside>
 

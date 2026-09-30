@@ -1,8 +1,10 @@
 <?php
-// ==========================================================================
-// CONTROLADOR Y VISTA: Módulo de Interacciones CRM 
-// ==========================================================================
+/**
+ * Archivo: gerente/interacciones.php
+ * Descripción: Módulo de Interacciones CRM con Sidebar azul institucional y control de roles.
+ */
 require_once __DIR__ . '/../config/auth_check.php';
+verificarAcceso(['gerente', 'subgerente']);
 $db = getDB();
 
 $error = '';
@@ -102,6 +104,11 @@ $totalInteracciones = $db->query("SELECT COUNT(*) FROM interacciones")->fetchCol
 $pendientes = $db->query("SELECT COUNT(*) FROM interacciones WHERE estado = 'pendiente'")->fetchColumn();
 $completadas = $db->query("SELECT COUNT(*) FROM interacciones WHERE estado = 'completada'")->fetchColumn();
 $reuniones = $db->query("SELECT COUNT(*) FROM interacciones WHERE tipo = 'reunion' AND estado = 'pendiente'")->fetchColumn();
+
+// Control de alertas de stock crítico para la barra lateral
+$db_sidebar = getDB();
+$num_alertas_global = $db_sidebar->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= stock_minimo")->fetchColumn();
+$rol_actual = $_SESSION['admin_rol'] ?? '';
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -112,24 +119,21 @@ $reuniones = $db->query("SELECT COUNT(*) FROM interacciones WHERE tipo = 'reunio
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-    /* ==========================================================================
-        VARIABLES Y RESET GENERAL (TEMA VERDE Y BLANCO - CONSISTENTE CON DASHBOARD)
-        ========================================================================== */
     :root {
         --bg-body: #f8fafc;
         --bg-surface: #ffffff;
-        --sidebar-bg: #011139;
-        --sidebar-hover: #002056;
-        --sidebar-text: #94a3b8;
+        --sidebar-bg: #000049;
+        --sidebar-hover: #0369a1;
+        --sidebar-text: #cbd5e1;
         --text-main: #0f172a;
         --text-muted: #64748b;
         --border-color: #e2e8f0;
-        --color-primary: #0d3b2c;
+        --color-primary: #0284c7;
         --color-success: #10b981;
         --color-danger: #ef4444;
         --color-warning: #f59e0b;
-        --color-info: #0284c7;
-        --sidebar-w: 250px;
+        --color-info: #0ea5e9;
+        --sidebar-w: 260px;
         --radius: 10px;
         --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
     }
@@ -145,9 +149,7 @@ $reuniones = $db->query("SELECT COUNT(*) FROM interacciones WHERE tipo = 'reunio
         font-size: 14px;
     }
 
-    /* ==========================================================================
-        SIDEBAR DE NAVEGACIÓN
-        ========================================================================== */
+    /* SIDEBAR INSTITUCIONAL AZUL */
     .sidebar {
         width: var(--sidebar-w);
         background-color: var(--sidebar-bg);
@@ -159,11 +161,12 @@ $reuniones = $db->query("SELECT COUNT(*) FROM interacciones WHERE tipo = 'reunio
         left: 0;
         height: 100vh;
         z-index: 100;
+        overflow-y: auto;
     }
 
     .sidebar-logo {
         padding: 24px 20px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     .sidebar-logo .name {
@@ -174,7 +177,7 @@ $reuniones = $db->query("SELECT COUNT(*) FROM interacciones WHERE tipo = 'reunio
 
     .sidebar-logo .role {
         font-size: 11px;
-        color: var(--sidebar-text);
+        color: #94a3b8;
         letter-spacing: 1px;
         text-transform: uppercase;
         margin-top: 2px;
@@ -208,7 +211,7 @@ $reuniones = $db->query("SELECT COUNT(*) FROM interacciones WHERE tipo = 'reunio
 
     .sidebar-bottom {
         padding: 16px 12px;
-        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     .logout-btn {
@@ -217,7 +220,7 @@ $reuniones = $db->query("SELECT COUNT(*) FROM interacciones WHERE tipo = 'reunio
         gap: 12px;
         padding: 12px 16px;
         border-radius: var(--radius);
-        color: #f87171;
+        color: #fca5a5;
         text-decoration: none;
         font-size: 13px;
         font-weight: 500;
@@ -226,12 +229,10 @@ $reuniones = $db->query("SELECT COUNT(*) FROM interacciones WHERE tipo = 'reunio
 
     .logout-btn:hover {
         background-color: rgba(239, 68, 68, 0.1);
-        color: #fca5a5;
+        color: #f87171;
     }
 
-    /* ==========================================================================
-        CONTENIDO PRINCIPAL
-        ========================================================================== */
+    /* CONTENIDO PRINCIPAL */
     .main {
         margin-left: var(--sidebar-w);
         flex: 1;
@@ -267,9 +268,7 @@ $reuniones = $db->query("SELECT COUNT(*) FROM interacciones WHERE tipo = 'reunio
         box-shadow: var(--shadow-sm);
     }
 
-    /* ==========================================================================
-        ESTADÍSTICAS (STATS GRID)
-        ========================================================================== */
+    /* ESTADÍSTICAS */
     .stats {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -301,9 +300,7 @@ $reuniones = $db->query("SELECT COUNT(*) FROM interacciones WHERE tipo = 'reunio
         line-height: 1.1;
     }
 
-    /* ==========================================================================
-        TOOLBAR Y FILTROS
-        ========================================================================== */
+    /* TOOLBAR Y FILTROS */
     .toolbar {
         background: var(--bg-surface);
         border: 1px solid var(--border-color);
@@ -391,9 +388,7 @@ $reuniones = $db->query("SELECT COUNT(*) FROM interacciones WHERE tipo = 'reunio
         font-weight: 500;
     }
 
-    /* ==========================================================================
-        LISTADO DE INTERACCIONES (GRID)
-        ========================================================================== */
+    /* GRID DE INTERACCIONES */
     .interactions {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
@@ -502,9 +497,7 @@ $reuniones = $db->query("SELECT COUNT(*) FROM interacciones WHERE tipo = 'reunio
         color: var(--text-muted);
     }
 
-    /* ==========================================================================
-        MODAL
-        ========================================================================== */
+    /* MODAL */
     .modal {
         display: none;
         position: fixed;
@@ -588,7 +581,7 @@ $reuniones = $db->query("SELECT COUNT(*) FROM interacciones WHERE tipo = 'reunio
 <aside class="sidebar">
     <div class="sidebar-logo">
         <div class="name">Restaurant App</div>
-        <div class="role">Gerente</div>
+        <div class="role"><?= ucfirst(htmlspecialchars($rol_actual)) ?></div>
     </div>
     <nav class="nav">
         <a class="nav-item" href="dashboard.php"><span>📊</span> Dashboard</a>
@@ -598,9 +591,19 @@ $reuniones = $db->query("SELECT COUNT(*) FROM interacciones WHERE tipo = 'reunio
         <a class="nav-item" href="usuarios.php"><span>🛡️</span> Usuarios</a>
         <a class="nav-item" href="miactividad.php"><span>⏱️</span> Mi actividad</a>
         <a class="nav-item" href="configuracion.php"><span>⚙️</span> Configuración</a>
+
+        <?php if ($rol_actual === 'gerente'): ?>
+            <div style="padding: 10px 16px; font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: 700; margin-top: 10px;">SCM & Logística</div>
+            <a class="nav-item" href="../scm/dashboard.php">
+                <span>📈</span> Dashboard SCM
+                <?php if($num_alertas_global > 0): ?>
+                    <span style="background: var(--color-danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700;">⚠️ <?= $num_alertas_global ?></span>
+                <?php endif; ?>
+            </a>
+        <?php endif; ?>
     </nav>
     <div class="sidebar-bottom">
-        <a class="logout-btn" href="logout.php">🚪 Cerrar sesión</a>
+        <a class="logout-btn" href="../config/logout.php">🚪 Cerrar sesión</a>
     </div>
 </aside>
 

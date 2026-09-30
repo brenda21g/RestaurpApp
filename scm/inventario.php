@@ -1,27 +1,58 @@
 <?php
 /**
  * Archivo: scm/inventario.php
- * Descripción: Control de stock actual y alertas de inventario bajo con Sidebar y banner global.
+ * Descripción: Control de stock actual y alertas de inventario bajo con Sidebar, banner global y buscador.
  */
 require_once __DIR__ . '/../config/auth_check.php';
-verificarAcceso(['gerente', 'subgerente']);
+verificarAcceso(['gerente', 'subgerente', 'encargado']);
 $db = getDB();
 
-$stmt_alertas = $db->query("SELECT * FROM scm_productos WHERE stock_actual <= stock_minimo");
-$num_alertas_global = count($stmt_alertas->fetchAll(PDO::FETCH_ASSOC));
+$rol_actual = $_SESSION['admin_rol'] ?? '';
 
-$productos = $db->query("SELECT p.*, pr.nombre as proveedor_nombre FROM scm_productos p LEFT JOIN proveedores pr ON p.proveedor_id = pr.id ORDER BY p.stock_actual ASC")->fetchAll(PDO::FETCH_ASSOC);
+// Conteo global de alertas para la barra lateral y banner
+$stmt_alertas = $db->query("SELECT * FROM scm_productos WHERE stock_actual <= stock_minimo");
+$productos_criticos = $stmt_alertas->fetchAll(PDO::FETCH_ASSOC);
+$num_alertas_global = count($productos_criticos);
+
+// Filtro de búsqueda y estado
+$busqueda = trim($_GET['q'] ?? '');
+$filtro_estado = $_GET['estado'] ?? '';
+
+$sql = "SELECT p.*, pr.nombre as proveedor_nombre 
+        FROM scm_productos p 
+        LEFT JOIN proveedores pr ON p.proveedor_id = pr.id 
+        WHERE 1=1";
+$params = [];
+
+if ($busqueda !== '') {
+    $sql .= " AND (p.nombre LIKE ? OR p.categoria LIKE ?)";
+    $params[] = "%$busqueda%";
+    $params[] = "%$busqueda%";
+}
+
+if ($filtro_estado === 'critico') {
+    $sql .= " AND p.stock_actual <= p.stock_minimo";
+} elseif ($filtro_estado === 'optimo') {
+    $sql .= " AND p.stock_actual > p.stock_minimo";
+}
+
+$sql .= " ORDER BY p.stock_actual ASC";
+
+$stmt = $db->prepare($sql);
+$stmt->execute($params);
+$productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Inventario SCM</title>
+<title>Inventario SCM – Restaurant App</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
     :root {
       --bg: #f8fafc;
       --surface: #ffffff;
+      --secondary: #000049;
       --text: #0f172a;
       --muted: #64748b;
       --border: #e2e8f0;
@@ -29,6 +60,7 @@ $productos = $db->query("SELECT p.*, pr.nombre as proveedor_nombre FROM scm_prod
       --primary-hover: #0369a1;
       --danger: #ef4444;
       --success: #10b981;
+      --warning: #f59e0b;
     }
 
     * {
@@ -48,20 +80,25 @@ $productos = $db->query("SELECT p.*, pr.nombre as proveedor_nombre FROM scm_prod
 
     .sidebar {
       width: 260px;
-      background: var(--surface);
+      background: var(--secondary);
       border-right: 1px solid var(--border);
       display: flex;
       flex-direction: column;
       position: fixed;
       height: 100vh;
+      z-index: 100;
     }
 
     .sidebar-brand {
       padding: 24px;
       font-size: 18px;
       font-weight: 700;
+      color: #ffffff;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .sidebar-brand span {
       color: var(--primary);
-      border-bottom: 1px solid var(--border);
     }
 
     .sidebar-menu {
@@ -74,7 +111,7 @@ $productos = $db->query("SELECT p.*, pr.nombre as proveedor_nombre FROM scm_prod
     .sidebar-item {
       padding: 12px 16px;
       border-radius: 8px;
-      color: var(--muted);
+      color: #94a3b8;
       text-decoration: none;
       font-weight: 500;
       display: flex;
@@ -84,8 +121,13 @@ $productos = $db->query("SELECT p.*, pr.nombre as proveedor_nombre FROM scm_prod
     }
 
     .sidebar-item:hover, .sidebar-item.active {
-      background: #e0f2fe;
+      background: rgba(2, 132, 199, 0.15);
+      color: #ffffff;
+    }
+
+    .sidebar-item.active {
       color: var(--primary);
+      font-weight: 600;
     }
 
     .main-content {
@@ -99,6 +141,8 @@ $productos = $db->query("SELECT p.*, pr.nombre as proveedor_nombre FROM scm_prod
       justify-content: space-between;
       align-items: center;
       margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 16px;
     }
 
     .header h1 {
@@ -128,10 +172,47 @@ $productos = $db->query("SELECT p.*, pr.nombre as proveedor_nombre FROM scm_prod
       font-weight: 500;
     }
 
+    .toolbar {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .filters {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    input, select {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 12px;
+      font-family: inherit;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--primary);
+    }
+
     .btn {
       background: var(--primary);
       color: #fff;
-      padding: 10px 16px;
+      padding: 9px 16px;
       border-radius: 8px;
       text-decoration: none;
       font-weight: 600;
@@ -148,6 +229,12 @@ $productos = $db->query("SELECT p.*, pr.nombre as proveedor_nombre FROM scm_prod
       background: var(--primary-hover);
     }
 
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
     .card {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -156,61 +243,51 @@ $productos = $db->query("SELECT p.*, pr.nombre as proveedor_nombre FROM scm_prod
       box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
 
-    h2 {
-      font-size: 20px;
-      font-weight: 700;
-      margin-bottom: 20px;
-      color: var(--text);
-    }
-
-    .field {
-      margin-bottom: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .field label {
-      font-weight: 600;
-      font-size: 12px;
-      color: var(--muted);
-      text-transform: uppercase;
-    }
-
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 15px;
+      text-align: left;
     }
 
     th {
       background: #f1f5f9;
-      padding: 12px;
-      text-align: left;
+      padding: 12px 16px;
       font-size: 11px;
       text-transform: uppercase;
       color: var(--muted);
       letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--border);
     }
 
     td {
-      padding: 14px 12px;
+      padding: 14px 16px;
       border-bottom: 1px solid var(--border);
       color: var(--text);
+      vertical-align: middle;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
     }
 
     tr:hover td {
-      background: #fdfdfd;
+      background: #f8fafc;
     }
 
     .status-ok {
       color: var(--success);
       font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
     }
 
     .status-low {
       color: var(--danger);
       font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
     }
 
     .badge {
@@ -218,18 +295,18 @@ $productos = $db->query("SELECT p.*, pr.nombre as proveedor_nombre FROM scm_prod
       border-radius: 20px;
       font-size: 11px;
       font-weight: 600;
-      background: #e0f2fe;
-      color: #0369a1;
+      background: rgba(2, 132, 199, 0.1);
+      color: var(--primary);
     }
 </style>
 </head>
 <body>
 
 <div class="sidebar">
-    <div class="sidebar-brand">Restaurant App SCM</div>
+    <div class="sidebar-brand">Restaurant <span>App SCM</span></div>
     <div class="sidebar-menu">
         <a href="dashboard.php" class="sidebar-item">📈 Dashboard SCM</a>
-        <a href="productos.php" class="sidebar-item">📦 Materias Primas</a>
+        <a href="productos.php" class="sidebar-item">📦 Productos SCM</a>
         <a href="proveedores.php" class="sidebar-item">🤝 Proveedores</a>
         <a href="inventario.php" class="sidebar-item active">
             📊 Inventario / Alertas 
@@ -239,7 +316,6 @@ $productos = $db->query("SELECT p.*, pr.nombre as proveedor_nombre FROM scm_prod
         </a>
         <a href="movimientos.php" class="sidebar-item">🔄 Movimientos</a>
         <a href="pedidos.php" class="sidebar-item">🛒 Pedidos Internos</a>
-        <a href="logistica.php" class="sidebar-item">⚙️ Logística Push/Pull</a>
         <a href="../gerente/dashboard.php" class="sidebar-item" style="margin-top: 20px; color:var(--danger);">← Salir al Panel</a>
     </div>
 </div>
@@ -250,7 +326,7 @@ $productos = $db->query("SELECT p.*, pr.nombre as proveedor_nombre FROM scm_prod
             <span class="icon">⚠️</span>
             <div class="content">
                 <b>¡Atención SCM!</b> Hay <b><?= $num_alertas_global ?></b> insumo(s) con stock crítico por debajo del mínimo permitido. 
-                <a href="inventario.php" style="color: #b91c1c; font-weight: 700; text-decoration: underline; margin-left: 5px;">Ver inventario y solicitar reposición</a>
+                <a href="inventario.php?estado=critico" style="color: #b91c1c; font-weight: 700; text-decoration: underline; margin-left: 5px;">Filtrar alertas críticas</a>
             </div>
         </div>
     <?php endif; ?>
@@ -258,8 +334,27 @@ $productos = $db->query("SELECT p.*, pr.nombre as proveedor_nombre FROM scm_prod
     <div class="header">
         <h1>📊 Control de Inventario y Alertas</h1>
         <div>
-            <a href="movimiento_form.php" class="btn">+ Registrar Movimiento</a>
-            <a href="pedido_form.php" class="btn" style="background:#0f172a;">Pedir a Proveedor</a>
+            <a href="movimientos.php" class="btn">+ Registrar Movimiento</a>
+            <a href="pedidos.php" class="btn" style="background:#0f172a;">Pedir a Proveedor</a>
+        </div>
+    </div>
+
+    <!-- TOOLBAR DE BÚSQUEDA Y FILTROS -->
+    <div class="toolbar">
+        <form method="GET" class="filters">
+            <input type="text" name="q" placeholder="Buscar por insumo o categoría..." value="<?= htmlspecialchars($busqueda) ?>" style="width: 260px;">
+            <select name="estado">
+                <option value="">Todos los estados</option>
+                <option value="critico" <?= $filtro_estado === 'critico' ? 'selected' : '' ?>>⚠️ Alerta Stock Bajo</option>
+                <option value="optimo" <?= $filtro_estado === 'optimo' ? 'selected' : '' ?>>✔ Óptimo</option>
+            </select>
+            <button class="btn btn-secondary" type="submit">🔎 Filtrar</button>
+            <?php if($busqueda !== '' || $filtro_estado !== ''): ?>
+                <a href="inventario.php" class="btn btn-secondary" style="color:var(--danger);">✕ Limpiar</a>
+            <?php endif; ?>
+        </form>
+        <div style="color: var(--muted); font-size: 13px;">
+            Total registros: <b><?= count($productos) ?></b>
         </div>
     </div>
 
@@ -268,24 +363,31 @@ $productos = $db->query("SELECT p.*, pr.nombre as proveedor_nombre FROM scm_prod
             <thead>
                 <tr>
                     <th>Materia Prima / Insumo</th>
+                    <th>Categoría</th>
                     <th>Proveedor Asignado</th>
                     <th>Stock Actual</th>
                     <th>Stock Mínimo</th>
                     <th>Estrategia</th>
                     <th>Estado</th>
+                    <th style="text-align: right;">Acciones</th>
                 </tr>
             </thead>
             <tbody>
                 <?php if(empty($productos)): ?>
-                    <tr><td colspan="6" style="text-align:center; color:var(--muted); padding:20px;">No hay registros de inventario.</td></tr>
+                    <tr><td colspan="8" style="text-align:center; color:var(--muted); padding:30px;">No se encontraron registros de inventario con los filtros seleccionados.</td></tr>
                 <?php else: foreach($productos as $p): $bajo = $p['stock_actual'] <= $p['stock_minimo']; ?>
                     <tr>
                         <td><b><?= htmlspecialchars($p['nombre']) ?></b></td>
+                        <td style="color: var(--muted);"><?= htmlspecialchars($p['categoria'] ?? 'General') ?></td>
                         <td style="color: var(--muted);"><?= htmlspecialchars($p['proveedor_nombre'] ?? 'Sin asignar') ?></td>
-                        <td><?= $p['stock_actual'] ?></td>
+                        <td><b><?= $p['stock_actual'] ?></b></td>
                         <td><?= $p['stock_minimo'] ?></td>
-                        <td><span class="badge"><?= $p['estrategia_logistica'] ?></span></td>
+                        <td><span class="badge"><?= htmlspecialchars($p['estrategia_logistica'] ?? 'PUSH') ?></span></td>
                         <td><?= $bajo ? '<span class="status-low">⚠️ Alerta Stock Bajo</span>' : '<span class="status-ok">✔ Óptimo</span>' ?></td>
+                        <td style="text-align: right;">
+                            <a href="productos.php?buscar=<?= urlencode($p['nombre']) ?>" title="Ver / Editar Producto" style="color: var(--primary); text-decoration: none; font-weight: 600; font-size: 16px; margin-right: 8px;">👁️</a>
+                            <a href="movimientos.php?producto_id=<?= $p['id'] ?>" title="Ver Movimientos" style="color: var(--muted); text-decoration: none; font-weight: 600; font-size: 16px;">🔄</a>
+                        </td>
                     </tr>
                 <?php endforeach; endif; ?>
             </tbody>

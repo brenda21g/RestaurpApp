@@ -1,56 +1,65 @@
 <?php
-// ==========================================================================
-// CONTROLADOR Y VISTA: Gestión de Administradores / Usuarios (Restaurant_App)
-// ==========================================================================
+/**
+ * Archivo: gerente/usuarios.php
+ * Descripción: Gestión de Administradores / Usuarios con soporte para los roles gerente, subgerente y encargado.
+ */
 require_once __DIR__ . '/../config/auth_check.php';
+verificarAcceso(['gerente', 'subgerente']);
 $db = getDB();
 
-// Restringir acceso exclusivo a gerentes
-if (!isset($_SESSION['admin_rol']) || $_SESSION['admin_rol'] !== 'gerente') {
-    header('Location: dashboard.php');
-    exit;
-}
+// Restringir acciones de creación/modificación de usuarios exclusivamente a gerentes
+$es_gerente = (isset($_SESSION['admin_rol']) && $_SESSION['admin_rol'] === 'gerente');
 
 $mensaje = '';
 $error = '';
 
 // Procesar formulario de creación / edición de admins
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $accion = $_POST['accion'] ?? '';
-    
-    if ($accion === 'crear') {
-        $username = trim($_POST['username'] ?? '');
-        $nombre = trim($_POST['nombre'] ?? '');
-        $email = trim($_POST['email'] ?? '');
-        $password = $_POST['password'] ?? '';
-        $rol = $_POST['rol'] ?? 'subgerente';
-        $pin = trim($_POST['pin'] ?? '');
+    if (!$es_gerente) {
+        $error = "No tienes permisos suficientes para realizar esta acción.";
+    } else {
+        $accion = $_POST['accion'] ?? '';
+        
+        if ($accion === 'crear') {
+            $username = trim($_POST['username'] ?? '');
+            $nombre = trim($_POST['nombre'] ?? '');
+            $email = trim($_POST['email'] ?? '');
+            $password = $_POST['password'] ?? '';
+            $rol = $_POST['rol'] ?? 'subgerente';
+            $pin = trim($_POST['pin'] ?? '');
 
-        if (!empty($username) && !empty($password) && !empty($email)) {
-            $password_hash = md5($password); // Manteniendo el estándar MD5 del proyecto
-            $pin_hash = !empty($pin) ? md5($pin) : null;
-
-            try {
-                $stmt = $db->prepare("INSERT INTO admins (username, password_hash, nombre, email, rol, pin, activo) VALUES (?, ?, ?, ?, ?, ?, 1)");
-                $stmt->execute([$username, $password_hash, $nombre, $email, $rol, $pin_hash]);
-                $mensaje = "Administrador creado exitosamente.";
-            } catch (PDOException $e) {
-                $error = "El nombre de usuario o correo ya existen en la base de datos.";
+            // Validar que el rol sea uno de los permitidos
+            $roles_permitidos = ['gerente', 'subgerente', 'encargado'];
+            if (!in_array($rol, $roles_permitidos, true)) {
+                $rol = 'subgerente';
             }
-        } else {
-            $error = "Usuario, correo y contraseña son obligatorios.";
-        }
-    } elseif ($accion === 'toggle_activo') {
-        $id_admin = intval($_POST['id'] ?? 0);
-        $nuevo_estado = intval($_POST['estado'] ?? 1);
-        $session_admin_id = intval($_SESSION['admin_id'] ?? 0);
 
-        if ($id_admin !== $session_admin_id) { // Evitar desactivarse a sí mismo
-            $stmt = $db->prepare("UPDATE admins SET activo = ? WHERE id = ?");
-            $stmt->execute([$nuevo_estado, $id_admin]);
-            $mensaje = "Estado del administrador actualizado.";
-        } else {
-            $error = "No puedes desactivar tu propia cuenta activa.";
+            if (!empty($username) && !empty($password) && !empty($email)) {
+                $password_hash = md5($password); // Manteniendo el estándar MD5 del proyecto
+                $pin_hash = !empty($pin) ? md5($pin) : null;
+
+                try {
+                    $stmt = $db->prepare("INSERT INTO admins (username, password_hash, nombre, email, rol, pin, activo) VALUES (?, ?, ?, ?, ?, ?, 1)");
+                    $stmt->execute([$username, $password_hash, $nombre, $email, $rol, $pin_hash]);
+                    $mensaje = "Usuario administrativo creado exitosamente.";
+                } catch (PDOException $e) {
+                    $error = "El nombre de usuario o correo ya existen en la base de datos.";
+                }
+            } else {
+                $error = "Usuario, correo y contraseña son obligatorios.";
+            }
+        } elseif ($accion === 'toggle_activo') {
+            $id_admin = intval($_POST['id'] ?? 0);
+            $nuevo_estado = intval($_POST['estado'] ?? 1);
+            $session_admin_id = intval($_SESSION['admin_id'] ?? 0);
+
+            if ($id_admin !== $session_admin_id) { // Evitar desactivarse a sí mismo
+                $stmt = $db->prepare("UPDATE admins SET activo = ? WHERE id = ?");
+                $stmt->execute([$nuevo_estado, $id_admin]);
+                $mensaje = "Estado del usuario actualizado.";
+            } else {
+                $error = "No puedes desactivar tu propia cuenta activa.";
+            }
         }
     }
 }
@@ -59,6 +68,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $stmt_admins = $db->query("SELECT id, username, nombre, email, rol, activo, ultimo_login FROM admins ORDER BY id ASC");
 $lista_admins = $stmt_admins->fetchAll(PDO::FETCH_ASSOC);
 $session_admin_id = intval($_SESSION['admin_id'] ?? 0);
+
+// Control de alertas de stock crítico para la barra lateral
+$db_sidebar = getDB();
+$num_alertas_global = $db_sidebar->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= stock_minimo")->fetchColumn();
+$rol_actual = $_SESSION['admin_rol'] ?? '';
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -72,9 +86,9 @@ $session_admin_id = intval($_SESSION['admin_id'] ?? 0);
     :root {
         --bg-body: #f8fafc;
         --bg-surface: #ffffff;
-        --sidebar-bg: #011139;
-        --sidebar-hover: #002056;
-        --sidebar-text: #94a3b8;
+        --sidebar-bg: #000049;
+        --sidebar-hover: #0369a1;
+        --sidebar-text: #cbd5e1;
         --text-main: #0f172a;
         --text-muted: #64748b;
         --border-color: #e2e8f0;
@@ -82,7 +96,8 @@ $session_admin_id = intval($_SESSION['admin_id'] ?? 0);
         --color-primary-hover: #0369a1;
         --color-success: #10b981;
         --color-danger: #ef4444;
-        --sidebar-w: 250px;
+        --color-warning: #f59e0b;
+        --sidebar-w: 260px;
         --radius: 10px;
         --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
     }
@@ -98,7 +113,7 @@ $session_admin_id = intval($_SESSION['admin_id'] ?? 0);
         font-size: 14px;
     }
 
-    /* SIDEBAR */
+    /* SIDEBAR INSTITUCIONAL AZUL */
     .sidebar {
         width: var(--sidebar-w);
         background-color: var(--sidebar-bg);
@@ -110,11 +125,12 @@ $session_admin_id = intval($_SESSION['admin_id'] ?? 0);
         left: 0;
         height: 100vh;
         z-index: 100;
+        overflow-y: auto;
     }
 
     .sidebar-logo {
         padding: 24px 20px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     .sidebar-logo .name {
@@ -125,7 +141,7 @@ $session_admin_id = intval($_SESSION['admin_id'] ?? 0);
 
     .sidebar-logo .role {
         font-size: 11px;
-        color: var(--sidebar-text);
+        color: #94a3b8;
         letter-spacing: 1px;
         text-transform: uppercase;
         margin-top: 2px;
@@ -159,7 +175,7 @@ $session_admin_id = intval($_SESSION['admin_id'] ?? 0);
 
     .sidebar-bottom {
         padding: 16px 12px;
-        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     .logout-btn {
@@ -168,7 +184,7 @@ $session_admin_id = intval($_SESSION['admin_id'] ?? 0);
         gap: 12px;
         padding: 12px 16px;
         border-radius: var(--radius);
-        color: #f87171;
+        color: #fca5a5;
         text-decoration: none;
         font-size: 13px;
         font-weight: 500;
@@ -177,7 +193,7 @@ $session_admin_id = intval($_SESSION['admin_id'] ?? 0);
 
     .logout-btn:hover {
         background-color: rgba(239, 68, 68, 0.1);
-        color: #fca5a5;
+        color: #f87171;
     }
 
     /* CONTENIDO PRINCIPAL */
@@ -314,6 +330,7 @@ $session_admin_id = intval($_SESSION['admin_id'] ?? 0);
 
     .badge.gerente { background: rgba(2, 132, 199, 0.1); color: var(--color-primary); }
     .badge.subgerente { background: rgba(100, 116, 139, 0.1); color: var(--text-muted); }
+    .badge.encargado { background: rgba(245, 158, 11, 0.1); color: var(--color-warning); }
     .badge.activo { background: rgba(16, 185, 129, 0.1); color: var(--color-success); }
     .badge.inactivo { background: rgba(239, 68, 68, 0.1); color: var(--color-danger); }
 
@@ -333,7 +350,7 @@ $session_admin_id = intval($_SESSION['admin_id'] ?? 0);
 <aside class="sidebar">
     <div class="sidebar-logo">
         <div class="name">Restaurant App</div>
-        <div class="role">Gerente</div>
+        <div class="role"><?= ucfirst(htmlspecialchars($rol_actual)) ?></div>
     </div>
     <nav class="nav">
         <a class="nav-item" href="dashboard.php"><span>📊</span> Dashboard</a>
@@ -343,9 +360,19 @@ $session_admin_id = intval($_SESSION['admin_id'] ?? 0);
         <a class="nav-item active" href="usuarios.php"><span>🛡️</span> Usuarios</a>
         <a class="nav-item" href="miactividad.php"><span>⏱️</span> Mi actividad</a>
         <a class="nav-item" href="configuracion.php"><span>⚙️</span> Configuración</a>
+
+        <?php if ($rol_actual === 'gerente'): ?>
+            <div style="padding: 10px 16px; font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: 700; margin-top: 10px;">SCM & Logística</div>
+            <a class="nav-item" href="../scm/dashboard.php">
+                <span>📈</span> Dashboard SCM
+                <?php if($num_alertas_global > 0): ?>
+                    <span style="background: var(--color-danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700;">⚠️ <?= $num_alertas_global ?></span>
+                <?php endif; ?>
+            </a>
+        <?php endif; ?>
     </nav>
     <div class="sidebar-bottom">
-        <a class="logout-btn" href="logout.php">🚪 Cerrar sesión</a>
+        <a class="logout-btn" href="../config/logout.php">🚪 Cerrar sesión</a>
     </div>
 </aside>
 
@@ -358,6 +385,7 @@ $session_admin_id = intval($_SESSION['admin_id'] ?? 0);
     <?php if ($mensaje): ?><div class="alert-success">✅ <?= htmlspecialchars($mensaje) ?></div><?php endif; ?>
     <?php if ($error): ?><div class="alert-error">⚠️ <?= htmlspecialchars($error) ?></div><?php endif; ?>
 
+    <?php if ($es_gerente): ?>
     <div class="card">
         <h3>Registrar nuevo usuario administrativo</h3>
         <form method="POST">
@@ -383,6 +411,7 @@ $session_admin_id = intval($_SESSION['admin_id'] ?? 0);
                     <label>Rol del Sistema</label>
                     <select name="rol" id="rolSelect" onchange="togglePinField()">
                         <option value="subgerente">Subgerente</option>
+                        <option value="encargado">Encargado</option>
                         <option value="gerente">Gerente</option>
                     </select>
                 </div>
@@ -395,6 +424,7 @@ $session_admin_id = intval($_SESSION['admin_id'] ?? 0);
             <button type="submit" class="btn" style="margin-top: 8px;">Crear Usuario →</button>
         </form>
     </div>
+    <?php endif; ?>
 
     <div class="card">
         <h3>Listado de cuentas con acceso al panel</h3>
@@ -427,7 +457,7 @@ $session_admin_id = intval($_SESSION['admin_id'] ?? 0);
                         </td>
                         <td style="color:var(--text-muted);"><?= $adm['ultimo_login'] ?? 'Nunca' ?></td>
                         <td>
-                            <?php if (intval($adm['id']) !== $session_admin_id): ?>
+                            <?php if ($es_gerente && intval($adm['id']) !== $session_admin_id): ?>
                                 <form method="POST" style="display:inline;">
                                     <input type="hidden" name="accion" value="toggle_activo">
                                     <input type="hidden" name="id" value="<?= $adm['id'] ?>">
@@ -437,7 +467,7 @@ $session_admin_id = intval($_SESSION['admin_id'] ?? 0);
                                     </button>
                                 </form>
                             <?php else: ?>
-                                <span style="color:var(--text-muted); font-size:12px;">(Cuenta actual)</span>
+                                <span style="color:var(--text-muted); font-size:12px;"><?= intval($adm['id']) === $session_admin_id ? '(Cuenta actual)' : 'Solo lectura' ?></span>
                             <?php endif; ?>
                         </td>
                     </tr>
