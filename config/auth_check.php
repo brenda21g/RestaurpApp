@@ -1,48 +1,55 @@
 <?php
 /**
  * Archivo: config/auth_check.php
- * Descripción: Verificación de sesión y control de acceso por roles.
+ * Descripción: Verificación de sesión y control de acceso por roles optimizado.
  */
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+/**
+ * Verifica si el usuario ha iniciado sesión y si cuenta con el rol permitido.
+ * 
+ * @param array $rolesPermitidos Lista de roles que pueden acceder a la vista.
+ */
 function verificarAcceso($rolesPermitidos = []) {
+    // Validar si existe una sesión activa
     if (!isset($_SESSION['admin_id']) || !isset($_SESSION['admin_rol'])) {
         header("Location: ../index.php");
         exit;
     }
 
-    // El gerente tiene acceso total a todo
-    if ($_SESSION['admin_rol'] === 'gerente') {
+    $rolActual = $_SESSION['admin_rol'];
+
+    // El gerente tiene acceso universal a todo el sistema
+    if ($rolActual === 'gerente') {
         return true;
     }
 
-    // Verificar si el rol actual está permitido en la página actual
-    if (!in_array($_SESSION['admin_rol'], $rolesPermitidos)) {
-        // Redirección inteligente según el rol del usuario
-        if ($_SESSION['admin_rol'] === 'subgerente') {
-            header("Location: ../gerente/dashboard.php");
-        } elseif ($_SESSION['admin_rol'] === 'logistica') {
-            header("Location: ../scm/dashboard.php");
-        } else {
-            header("Location: ../index.php");
+    // Si se especificaron roles permitidos y el usuario no está en la lista
+    if (!empty($rolesPermitidos) && !in_array($rolActual, $rolesPermitidos, true)) {
+        // Redirección inteligente basada en el rol corporativo/operativo
+        switch ($rolActual) {
+            case 'subgerente':
+                header("Location: ../subgerente/dashboard.php");
+                break;
+            case 'logistica':
+                header("Location: ../scm/dashboard.php");
+                break;
+            case 'cocina':
+                header("Location: ../cocina/dashboard.php");
+                break;
+            default:
+                header("Location: ../index.php");
+                break;
         }
         exit;
     }
 }
 
-function getDB() {
-    $host = 'localhost';
-    $db   = 'restaurante_db';
-    $user = 'root';
-    $pass = '';
-    try {
-        $pdo = new PDO("mysql:host=$host;dbname=$db;charset=utf8mb4", $user, $pass);
-        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        return $pdo;
-    } catch (PDOException $e) {
-        die("Error de conexión: " . $e->getMessage());
-    }
-}
+/**
+ * Nota: La función getDB() se ha migrado al archivo central de conexión 
+ * para mantener el principio de responsabilidad única (Single Responsibility Principle).
+ */
 ?>

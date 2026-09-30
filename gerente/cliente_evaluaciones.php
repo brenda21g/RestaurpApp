@@ -3,8 +3,9 @@
  * Archivo: gerente/cliente_evaluaciones.php
  * Descripción: Evaluaciones específicas de un cliente con Sidebar institucional y control de acceso.
  */
+require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
-verificarAcceso(['gerente', 'subgerente']);
+verificarAcceso(['gerente']);
 $db = getDB();
 
 $cliente_id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
@@ -39,7 +40,7 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Evaluaciones del Cliente – Restaurant_App</title>
+<title>Evaluaciones del Cliente – Panel Gerencial</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -316,8 +317,8 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
 <!-- SIDEBAR -->
 <aside class="sidebar">
   <div class="sidebar-logo">
-    <div class="name">Restaurant App</div>
-    <div class="role"><?= ucfirst(htmlspecialchars($rol_actual)) ?></div>
+    <div class="name">Panel Gerencial</div>
+    <div class="role"><?= ucfirst(htmlspecialchars($rol_actual, ENT_QUOTES, 'UTF-8')) ?></div>
   </div>
   <nav class="nav">
     <a class="nav-item" href="dashboard.php"><span>📊</span> Dashboard</a>
@@ -349,8 +350,8 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
 
   <div class="client-header-card">
     <div class="client-info">
-        <h1><?= htmlspecialchars($cliente['nombre']) ?> <span class="badge <?= htmlspecialchars($cliente['estado'] ?? 'Activo') ?>"><?= htmlspecialchars($cliente['estado'] ?? 'Activo') ?></span></h1>
-        <p><?= htmlspecialchars($cliente['email']) ?> &bull; <?= htmlspecialchars($cliente['telefono'] ?? 'Sin teléfono') ?></p>
+        <h1><?= htmlspecialchars($cliente['nombre'] ?? '', ENT_QUOTES, 'UTF-8') ?> <span class="badge <?= htmlspecialchars($cliente['estado'] ?? 'Activo', ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($cliente['estado'] ?? 'Activo', ENT_QUOTES, 'UTF-8') ?></span></h1>
+        <p><?= htmlspecialchars($cliente['email'] ?? '', ENT_QUOTES, 'UTF-8') ?> &bull; <?= htmlspecialchars($cliente['telefono'] ?? 'Sin teléfono', ENT_QUOTES, 'UTF-8') ?></p>
     </div>
   </div>
 
@@ -375,13 +376,13 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
           <div class="eval-card">
               <div class="eval-header">
                   <div class="eval-score">
-                      ⭐ <?= htmlspecialchars($ev['puntuacion'] ?? '5') ?> / 5 
-                      <span style="font-size: 12px; color: var(--text-muted); font-weight: normal; margin-left: 8px;">(<?= htmlspecialchars($ev['tipo'] ?? 'General') ?>)</span>
+                      ⭐ <?= htmlspecialchars($ev['puntuacion'] ?? '5', ENT_QUOTES, 'UTF-8') ?> / 5 
+                      <span style="font-size: 12px; color: var(--text-muted); font-weight: normal; margin-left: 8px;">(<?= htmlspecialchars($ev['tipo'] ?? 'General', ENT_QUOTES, 'UTF-8') ?>)</span>
                   </div>
-                  <div class="eval-date"><?= htmlspecialchars($ev['fecha']) ?></div>
+                  <div class="eval-date"><?= htmlspecialchars($ev['fecha'] ?? '', ENT_QUOTES, 'UTF-8') ?></div>
               </div>
               <div class="eval-comment">
-                  <?= nl2br(htmlspecialchars($ev['comentario'])) ?>
+                  <?= nl2br(htmlspecialchars($ev['comentario'] ?? '', ENT_QUOTES, 'UTF-8')) ?>
               </div>
           </div>
       <?php endforeach; ?>

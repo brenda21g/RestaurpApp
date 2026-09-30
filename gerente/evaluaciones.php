@@ -3,8 +3,9 @@
  * Archivo: gerente/evaluaciones.php
  * Descripción: Listado General de Evaluaciones con Sidebar azul institucional y control de roles.
  */
+require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
-verificarAcceso(['gerente', 'subgerente']);
+verificarAcceso(['gerente']);
 $db = getDB();
 
 // Obtener todas las evaluaciones con los datos del cliente correspondiente
@@ -25,7 +26,7 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Evaluaciones – Restaurant_App</title>
+<title>Evaluaciones – Panel Gerencial</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -207,8 +208,8 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
 <!-- SIDEBAR -->
 <aside class="sidebar">
   <div class="sidebar-logo">
-    <div class="name">Restaurant App</div>
-    <div class="role"><?= ucfirst(htmlspecialchars($rol_actual)) ?></div>
+    <div class="name">Panel Gerencial</div>
+    <div class="role"><?= ucfirst(htmlspecialchars($rol_actual, ENT_QUOTES, 'UTF-8')) ?></div>
   </div>
   <nav class="nav">
     <a class="nav-item" href="dashboard.php"><span>📊</span> Dashboard</a>
@@ -224,7 +225,7 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
         <a class="nav-item" href="../scm/dashboard.php">
             <span>📈</span> Dashboard SCM
             <?php if($num_alertas_global > 0): ?>
-                <span style="background: var(--color-danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700;">⚠️ <?= $num_alertas_global ?></span>
+                <span style="background: var(--color-danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700;">⚠️ <?= htmlspecialchars($num_alertas_global, ENT_QUOTES, 'UTF-8') ?></span>
             <?php endif; ?>
         </a>
     <?php endif; ?>
@@ -258,16 +259,16 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
             <?php else: ?>
                 <?php foreach ($evaluaciones as $ev): ?>
                 <tr>
-                    <td><?= $ev['id'] ?></td>
+                    <td><?= htmlspecialchars($ev['id'] ?? '', ENT_QUOTES, 'UTF-8') ?></td>
                     <td>
-                        <a href="cliente_ver.php?id=<?= $ev['cliente_id'] ?>" style="color: var(--color-primary); text-decoration: none; font-weight: 600;">
-                            <?= htmlspecialchars($ev['cliente_nombre']) ?>
+                        <a href="cliente_ver.php?id=<?= htmlspecialchars($ev['cliente_id'] ?? '', ENT_QUOTES, 'UTF-8') ?>" style="color: var(--color-primary); text-decoration: none; font-weight: 600;">
+                            <?= htmlspecialchars($ev['cliente_nombre'] ?? '', ENT_QUOTES, 'UTF-8') ?>
                         </a>
                     </td>
-                    <td><span class="eval-score">⭐ <?= htmlspecialchars($ev['puntuacion']) ?> / 5</span></td>
-                    <td><?= htmlspecialchars($ev['tipo'] ?? 'General') ?></td>
-                    <td><?= htmlspecialchars($ev['comentario']) ?></td>
-                    <td style="color: var(--text-muted); font-size: 13px;"><?= htmlspecialchars($ev['fecha']) ?></td>
+                    <td><span class="eval-score">⭐ <?= htmlspecialchars($ev['puntuacion'] ?? '5', ENT_QUOTES, 'UTF-8') ?> / 5</span></td>
+                    <td><?= htmlspecialchars($ev['tipo'] ?? 'General', ENT_QUOTES, 'UTF-8') ?></td>
+                    <td><?= htmlspecialchars($ev['comentario'] ?? '', ENT_QUOTES, 'UTF-8') ?></td>
+                    <td style="color: var(--text-muted); font-size: 13px;"><?= htmlspecialchars($ev['fecha'] ?? '', ENT_QUOTES, 'UTF-8') ?></td>
                 </tr>
                 <?php endforeach; ?>
             <?php endif; ?>

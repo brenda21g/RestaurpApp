@@ -3,8 +3,9 @@
  * Archivo: gerente/clientes.php
  * Descripción: Listado y filtrado de clientes (CRM) con Sidebar institucional y control de roles.
  */
+require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
-verificarAcceso(['gerente', 'subgerente']);
+verificarAcceso(['gerente']);
 $db = getDB();
 
 $busqueda = $_GET['q'] ?? '';
@@ -45,7 +46,7 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Clientes – Restaurant_App</title>
+<title>Clientes – Panel Gerencial</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -408,8 +409,8 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
 <!-- SIDEBAR -->
 <aside class="sidebar">
   <div class="sidebar-logo">
-    <div class="name">Restaurant App</div>
-    <div class="role"><?= ucfirst(htmlspecialchars($rol_actual)) ?></div>
+    <div class="name">Panel Gerencial</div>
+    <div class="role"><?= ucfirst(htmlspecialchars($rol_actual, ENT_QUOTES, 'UTF-8')) ?></div>
   </div>
   <nav class="nav">
     <a class="nav-item" href="dashboard.php"><span>📊</span> Dashboard</a>
@@ -443,7 +444,7 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
   </div>
 
   <form method="GET" class="filters-bar">
-    <input class="filter-input" type="text" name="q" placeholder="Buscar por nombre, correo..." value="<?= htmlspecialchars($busqueda) ?>">
+    <input class="filter-input" type="text" name="q" placeholder="Buscar por nombre, correo..." value="<?= htmlspecialchars($busqueda, ENT_QUOTES, 'UTF-8') ?>">
     <select class="filter-input" name="estado" onchange="this.form.submit()">
         <option value="">Todos (Excluyendo Bajas)</option>
         <option value="Todos" <?= $filtro_estado === 'Todos' ? 'selected' : '' ?>>Todos (Incluyendo Bajas)</option>
@@ -473,12 +474,12 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
             <?php else: ?>
                 <?php foreach ($clientes as $c): ?>
                 <tr>
-                    <td><?= $c['id'] ?></td>
-                    <td style="font-weight: 600;"><?= htmlspecialchars($c['nombre']) ?></td>
-                    <td><?= htmlspecialchars($c['email']) ?></td>
-                    <td><?= htmlspecialchars($c['telefono'] ?? 'N/D') ?></td>
-                    <td><?= htmlspecialchars($c['etapa_crm'] ?? 'Prospecto') ?></td>
-                    <td><span class="badge <?= htmlspecialchars($c['estado'] ?? 'Activo') ?>"><?= htmlspecialchars($c['estado'] ?? 'Activo') ?></span></td>
+                    <td><?= htmlspecialchars($c['id'] ?? '', ENT_QUOTES, 'UTF-8') ?></td>
+                    <td style="font-weight: 600;"><?= htmlspecialchars($c['nombre'] ?? '', ENT_QUOTES, 'UTF-8') ?></td>
+                    <td><?= htmlspecialchars($c['email'] ?? '', ENT_QUOTES, 'UTF-8') ?></td>
+                    <td><?= htmlspecialchars($c['telefono'] ?? 'N/D', ENT_QUOTES, 'UTF-8') ?></td>
+                    <td><?= htmlspecialchars($c['etapa_crm'] ?? 'Prospecto', ENT_QUOTES, 'UTF-8') ?></td>
+                    <td><span class="badge <?= htmlspecialchars($c['estado'] ?? 'Activo', ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($c['estado'] ?? 'Activo', ENT_QUOTES, 'UTF-8') ?></span></td>
                     <td class="actions-icons">
                         <a href="cliente_ver.php?id=<?= $c['id'] ?>" title="Ver detalle">👁️</a>
                         <a href="cliente_editar.php?id=<?= $c['id'] ?>" title="Editar">✏️</a>

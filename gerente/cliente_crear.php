@@ -1,7 +1,9 @@
 <?php
-// ==========================================================================
-// CONTROLADOR Y VISTA: Registrar Nuevo Cliente
-// ==========================================================================
+/**
+ * Archivo: gerente/cliente_crear.php
+ * Descripción: Controlador y vista para registrar un nuevo cliente o prospecto en el CRM.
+ */
+require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
 $db = getDB();
 
@@ -13,7 +15,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $telefono  = trim($_POST['telefono'] ?? '');
     $etapa_crm = $_POST['etapa_crm'] ?? 'Prospecto';
     $estado    = $_POST['estado'] ?? 'Activo';
-    $password  = md5('123456');
+    
+    // Contraseña predeterminada cifrada de forma segura con password_hash
+    $password  = password_hash('123456', PASSWORD_DEFAULT);
 
     if (!empty($nombre) && !empty($email)) {
         try {
@@ -22,10 +26,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header("Location: clientes.php");
             exit;
         } catch (PDOException $e) {
-            $mensaje_error = "El correo electrónico ya se encuentra registrado.";
+            $mensaje_error = "El correo electrónico ya se encuentra registrado en el sistema.";
         }
     } else {
-        $mensaje_error = "Los campos de nombre y correo son obligatorios.";
+        $mensaje_error = "Los campos de nombre y correo electrónico son obligatorios.";
     }
 }
 ?>
@@ -33,13 +37,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Nuevo Cliente – Restaurant App</title>
+    <title>Nuevo Cliente – Panel Gerencial</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* ==========================================================================
-           VARIABLES Y RESET GENERAL
-           ========================================================================== */
         :root {
             --bg-body: #011139;
             --bg-surface: #ffffff;
@@ -49,7 +50,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             --color-primary: #2563eb;
             --color-success: #10b981;
             --color-danger: #ef4444;
-            --sidebar-w: 250px;
             --radius: 10px;
             --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
@@ -68,9 +68,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-size: 14px;
         }
 
-        /* ==========================================================================
-           CONTENEDOR Y FORMULARIO
-           ========================================================================== */
         .form-card {
             background: var(--bg-surface);
             border: 1px solid var(--border-color);
@@ -165,7 +162,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <a href="clientes.php" class="back">← Volver a clientes</a>
     <h2>Registrar Nuevo Cliente / Prospecto</h2>
     
-    <?php if ($mensaje_error): ?><div class="alert-error"><?= $mensaje_error ?></div><?php endif; ?>
+    <?php if (!empty($mensaje_error)): ?>
+        <div class="alert-error"><?= htmlspecialchars($mensaje_error, ENT_QUOTES, 'UTF-8') ?></div>
+    <?php endif; ?>
 
     <form method="POST">
         <div class="field">

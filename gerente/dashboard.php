@@ -3,8 +3,9 @@
  * Archivo: gerente/dashboard.php
  * Descripción: Dashboard Principal (Resumen CRM) con Sidebar azul institucional y control de roles.
  */
+require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
-verificarAcceso(['gerente', 'subgerente']);
+verificarAcceso(['gerente']);
 $db = getDB();
 
 // Estadísticas del día / CRM
@@ -68,7 +69,7 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard – Restaurant App</title>
+    <title>Dashboard – Panel Gerencial</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -381,16 +382,16 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
 <!-- SIDEBAR -->
 <aside class="sidebar">
     <div class="sidebar-logo">
-        <div class="name">Restaurant App</div>
-        <div class="role"><?= ucfirst(htmlspecialchars($rol_actual)) ?></div>
+        <div class="name">Panel Gerencial</div>
+        <div class="role"><?= ucfirst(htmlspecialchars($rol_actual, ENT_QUOTES, 'UTF-8')) ?></div>
     </div>
     <nav class="nav">
         <a class="nav-item active" href="dashboard.php"><span>📊</span> Dashboard</a>
         <a class="nav-item" href="clientes.php"><span>👥</span> Clientes</a>
         <a class="nav-item" href="interacciones.php"><span>💬</span> Interacciones</a>
         <a class="nav-item" href="evaluaciones.php"><span>📋</span> Evaluaciones</a>
-        <a class="nav-item" href="usuarios.php"><span>🛡️</span> Usuarios</a>
-        <a class="nav-item" href="miactividad.php"><span>⏱️</span> Mi actividad</a>
+        <a class="nav-item" href="usuarios.php"><span>🛡️️</span> Usuarios</a>
+        <a class="nav-item" href="miactividad.php"><span>⏱️️</span> Mi actividad</a>
         <a class="nav-item" href="configuracion.php"><span>⚙️</span> Configuración</a>
 
         <?php if ($rol_actual === 'gerente'): ?>
@@ -398,7 +399,7 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
             <a class="nav-item" href="../scm/dashboard.php">
                 <span>📈</span> Dashboard SCM
                 <?php if($num_alertas_global > 0): ?>
-                    <span style="background: var(--color-danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700;">⚠️ <?= $num_alertas_global ?></span>
+                    <span style="background: var(--color-danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700;">⚠️ <?= htmlspecialchars($num_alertas_global, ENT_QUOTES, 'UTF-8') ?></span>
                 <?php endif; ?>
             </a>
         <?php endif; ?>
@@ -417,29 +418,29 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
                 <span class="live-dot"></span>Vista general de indicadores clave
             </div>
         </div>
-        <div class="date-badge">📅 <?= date('d \d\e F \d\e Y') ?></div>
+        <div class="date-badge">📅 <?= htmlspecialchars(date('d \d\e F \d\e Y'), ENT_QUOTES, 'UTF-8') ?></div>
     </div>
 
     <!-- TARJETAS DE MÉTRICAS -->
     <div class="stats-grid">
         <div class="stat-card">
             <div class="stat-label">Total de clientes</div>
-            <div class="stat-value"><?= $total_clientes ?></div>
+            <div class="stat-value"><?= htmlspecialchars($total_clientes, ENT_QUOTES, 'UTF-8') ?></div>
             <div class="stat-sub">Todos los clientes</div>
         </div>
         <div class="stat-card">
             <div class="stat-label">Clientes activos</div>
-            <div class="stat-value"><?= $clientes_activos ?></div>
+            <div class="stat-value"><?= htmlspecialchars($clientes_activos, ENT_QUOTES, 'UTF-8') ?></div>
             <div class="stat-sub"><?= ($total_clientes > 0) ? round(($clientes_activos / $total_clientes) * 100) : 0 ?>% del total</div>
         </div>
         <div class="stat-card">
             <div class="stat-label">Interacciones (este mes)</div>
-            <div class="stat-value"><?= $interacciones_mes ?></div>
+            <div class="stat-value"><?= htmlspecialchars($interacciones_mes, ENT_QUOTES, 'UTF-8') ?></div>
             <div class="stat-sub">+12% vs mes anterior</div>
         </div>
         <div class="stat-card">
             <div class="stat-label">Clientes sin interacción</div>
-            <div class="stat-value" style="color: var(--color-warning);"><?= $clientes_sin_interaccion ?></div>
+            <div class="stat-value" style="color: var(--color-warning);"><?= htmlspecialchars($clientes_sin_interaccion, ENT_QUOTES, 'UTF-8') ?></div>
             <div class="stat-sub">Últimos 30 días</div>
         </div>
     </div>
@@ -454,11 +455,11 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
                 <div class="donut-legend">
                     <div class="legend-item">
                         <span class="legend-dot" style="background: var(--color-success);"></span>
-                        <span>Activos: <strong><?= $conteo_estados['Activos'] ?></strong> (<?= ($total_clientes > 0) ? round(($conteo_estados['Activos'] / $total_clientes) * 100) : 0 ?>%)</span>
+                        <span>Activos: <strong><?= htmlspecialchars($conteo_estados['Activos'], ENT_QUOTES, 'UTF-8') ?></strong> (<?= ($total_clientes > 0) ? round(($conteo_estados['Activos'] / $total_clientes) * 100) : 0 ?>%)</span>
                     </div>
                     <div class="legend-item">
                         <span class="legend-dot" style="background: var(--color-warning);"></span>
-                        <span>Inactivos: <strong><?= $conteo_estados['Inactivos'] ?></strong> (<?= ($total_clientes > 0) ? round(($conteo_estados['Inactivos'] / $total_clientes) * 100) : 0 ?>%)</span>
+                        <span>Inactivos: <strong><?= htmlspecialchars($conteo_estados['Inactivos'], ENT_QUOTES, 'UTF-8') ?></strong> (<?= ($total_clientes > 0) ? round(($conteo_estados['Inactivos'] / $total_clientes) * 100) : 0 ?>%)</span>
                     </div>
                 </div>
             </div>
@@ -477,7 +478,7 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
                     <?php foreach ($clientes_riesgo as $cr): ?>
                         <div class="risk-item">
                             <div>
-                                <div class="risk-name"><?= htmlspecialchars($cr['nombre']) ?></div>
+                                <div class="risk-name"><?= htmlspecialchars($cr['nombre'] ?? '', ENT_QUOTES, 'UTF-8') ?></div>
                                 <div class="risk-desc">Sin interacción desde hace <?= $cr['ultima_fecha'] ? max(0, round((time() - strtotime($cr['ultima_fecha'])) / 86400)) : '35+' ?> días</div>
                             </div>
                             <a href="clientes.php" class="risk-link">›</a>

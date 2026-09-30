@@ -5,7 +5,7 @@
  */
 require_once __DIR__ . '/../config/auth_check.php';
 require_once __DIR__ . '/../config/mail.php';
-verificarAcceso(['gerente', 'subgerente']);
+verificarAcceso(['gerente']);
 $db = getDB();
 
 $admin_id = $_SESSION['admin_id'] ?? 0;
@@ -79,7 +79,7 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Configuración – Restaurant App</title>
+    <title>Configuración – Panel Gerencial</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -309,8 +309,8 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
 <!-- SIDEBAR -->
 <aside class="sidebar">
     <div class="sidebar-logo">
-        <div class="name">Restaurant App</div>
-        <div class="role"><?= ucfirst(htmlspecialchars($rol_actual)) ?></div>
+        <div class="name">Panel Gerencial</div>
+        <div class="role"><?= ucfirst(htmlspecialchars($rol_actual, ENT_QUOTES, 'UTF-8')) ?></div>
     </div>
     <nav class="nav">
         <a class="nav-item" href="dashboard.php"><span>📊</span> Dashboard</a>
@@ -343,8 +343,12 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
         <div class="page-subtitle">Administra tu cuenta, preferencias y opciones de seguridad del sistema.</div>
     </div>
 
-    <?php if ($mensaje_exito): ?><div class="alert alert-success"><?= $mensaje_exito ?></div><?php endif; ?>
-    <?php if ($mensaje_error): ?><div class="alert alert-error"><?= $mensaje_error ?></div><?php endif; ?>
+    <?php if (!empty($mensaje_exito)): ?>
+        <div class="alert alert-success"><?= htmlspecialchars($mensaje_exito, ENT_QUOTES, 'UTF-8') ?></div>
+    <?php endif; ?>
+    <?php if (!empty($mensaje_error)): ?>
+        <div class="alert alert-error"><?= htmlspecialchars($mensaje_error, ENT_QUOTES, 'UTF-8') ?></div>
+    <?php endif; ?>
 
     <div class="config-grid">
         <!-- TARJETA 1: PERFIL DE USUARIO -->
@@ -356,19 +360,19 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
                 <input type="hidden" name="actualizar_perfil" value="1">
                 <div class="field">
                     <label>Nombre de usuario (Login)</label>
-                    <input type="text" name="username" value="<?= htmlspecialchars($admin['username']) ?>" required>
+                    <input type="text" name="username" value="<?= htmlspecialchars($admin['username'] ?? '', ENT_QUOTES, 'UTF-8') ?>" required>
                 </div>
                 <div class="field">
                     <label>Nombre completo</label>
-                    <input type="text" name="nombre" value="<?= htmlspecialchars($admin['nombre']) ?>" required>
+                    <input type="text" name="nombre" value="<?= htmlspecialchars($admin['nombre'] ?? '', ENT_QUOTES, 'UTF-8') ?>" required>
                 </div>
                 <div class="field">
                     <label>Correo electrónico</label>
-                    <input type="email" name="email" value="<?= htmlspecialchars($admin['email']) ?>" required>
+                    <input type="email" name="email" value="<?= htmlspecialchars($admin['email'] ?? '', ENT_QUOTES, 'UTF-8') ?>" required>
                 </div>
                 <div class="field">
                     <label>Rol de acceso</label>
-                    <input type="text" value="<?= ucfirst($admin['rol']) ?>" disabled style="background:#f1f5f9; color:#64748b; cursor:not-allowed;">
+                    <input type="text" value="<?= ucfirst(htmlspecialchars($admin['rol'] ?? '', ENT_QUOTES, 'UTF-8')) ?>" disabled style="background:#f1f5f9; color:#64748b; cursor:not-allowed;">
                 </div>
                 <button type="submit" class="btn-primary">Guardar cambios</button>
             </form>
@@ -382,7 +386,7 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
             <form method="POST" style="margin-top: 20px;">
                 <input type="hidden" name="solicitar_cambio_pass" value="1">
                 <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.5;">
-                    Al hacer clic en el botón inferior, enviaremos un código de verificación de 6 dígitos a tu correo electrónico registrado (<b><?= htmlspecialchars($admin['email']) ?></b>) para autorizar el cambio de contraseña.
+                    Al hacer clic en el botón inferior, enviaremos un código de verificación de 6 dígitos a tu correo electrónico registrado (<b><?= htmlspecialchars($admin['email'] ?? '', ENT_QUOTES, 'UTF-8') ?></b>) para autorizar el cambio de contraseña.
                 </p>
                 <button type="submit" class="btn-primary" style="background: var(--sidebar-bg);">Solicitar código de cambio</button>
             </form>

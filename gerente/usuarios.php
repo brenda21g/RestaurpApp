@@ -3,8 +3,9 @@
  * Archivo: gerente/usuarios.php
  * Descripción: Gestión de Administradores / Usuarios con soporte para los roles gerente, subgerente y encargado.
  */
+require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
-verificarAcceso(['gerente', 'subgerente']);
+verificarAcceso(['gerente']);
 $db = getDB();
 
 // Restringir acciones de creación/modificación de usuarios exclusivamente a gerentes
@@ -79,10 +80,13 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Gestión de Administradores – Restaurant_App</title>
+<title>Gestión de Administradores – Panel Gerencial</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
+    /* ==========================================================================
+       1. VARIABLES Y CONFIGURACIÓN GLOBAL
+       ========================================================================== */
     :root {
         --bg-body: #f8fafc;
         --bg-surface: #ffffff;
@@ -102,7 +106,14 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
         --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    /* ==========================================================================
+       2. RESET Y ESTILOS BASE
+       ========================================================================== */
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+    }
 
     body {
         background-color: var(--bg-body);
@@ -113,7 +124,9 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
         font-size: 14px;
     }
 
-    /* SIDEBAR INSTITUCIONAL AZUL */
+    /* ==========================================================================
+       3. SIDEBAR INSTITUCIONAL AZUL
+       ========================================================================== */
     .sidebar {
         width: var(--sidebar-w);
         background-color: var(--sidebar-bg);
@@ -196,7 +209,9 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
         color: #f87171;
     }
 
-    /* CONTENIDO PRINCIPAL */
+    /* ==========================================================================
+       4. CONTENIDO PRINCIPAL Y TOPBAR
+       ========================================================================== */
     .main {
         margin-left: var(--sidebar-w);
         flex: 1;
@@ -216,6 +231,9 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
         color: var(--text-main);
     }
 
+    /* ==========================================================================
+       5. TARJETAS, FORMULARIOS Y TABLAS
+       ========================================================================== */
     .card {
         background: var(--bg-surface);
         border: 1px solid var(--border-color);
@@ -318,6 +336,9 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
     tr:last-child td { border-bottom: none; }
     tr:hover td { background-color: #f8fafc; }
 
+    /* ==========================================================================
+       6. ETIQUETAS, BADGES Y ALERTAS
+       ========================================================================== */
     .badge {
         padding: 4px 10px;
         border-radius: 20px;
@@ -337,6 +358,9 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
     .alert-success { background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); color: var(--color-success); padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-weight: 500; }
     .alert-error { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: var(--color-danger); padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-weight: 500; }
 
+    /* ==========================================================================
+       7. DISEÑO RESPONSIVO
+       ========================================================================== */
     @media (max-width: 768px) {
         .main { margin-left: 0; padding: 20px; }
         .sidebar { display: none; }
@@ -349,8 +373,8 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
 <!-- SIDEBAR -->
 <aside class="sidebar">
     <div class="sidebar-logo">
-        <div class="name">Restaurant App</div>
-        <div class="role"><?= ucfirst(htmlspecialchars($rol_actual)) ?></div>
+        <div class="name">Panel Gerencial</div>
+        <div class="role"><?= ucfirst(htmlspecialchars($rol_actual, ENT_QUOTES, 'UTF-8')) ?></div>
     </div>
     <nav class="nav">
         <a class="nav-item" href="dashboard.php"><span>📊</span> Dashboard</a>
@@ -366,7 +390,7 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
             <a class="nav-item" href="../scm/dashboard.php">
                 <span>📈</span> Dashboard SCM
                 <?php if($num_alertas_global > 0): ?>
-                    <span style="background: var(--color-danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700;">⚠️ <?= $num_alertas_global ?></span>
+                    <span style="background: var(--color-danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700;">⚠️ <?= htmlspecialchars($num_alertas_global, ENT_QUOTES, 'UTF-8') ?></span>
                 <?php endif; ?>
             </a>
         <?php endif; ?>
@@ -382,8 +406,13 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
         <div class="page-title">Gestión de Administradores / Usuarios</div>
     </div>
 
-    <?php if ($mensaje): ?><div class="alert-success">✅ <?= htmlspecialchars($mensaje) ?></div><?php endif; ?>
-    <?php if ($error): ?><div class="alert-error">⚠️ <?= htmlspecialchars($error) ?></div><?php endif; ?>
+    <?php if (!empty($mensaje)): ?>
+        <div class="alert-success">✅ <?= htmlspecialchars($mensaje, ENT_QUOTES, 'UTF-8') ?></div>
+    <?php endif; ?>
+
+    <?php if (!empty($error)): ?>
+        <div class="alert-error">⚠️ <?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></div>
+    <?php endif; ?>
 
     <?php if ($es_gerente): ?>
     <div class="card">
@@ -393,19 +422,19 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
             <div class="form-grid">
                 <div class="field">
                     <label>Nombre de Usuario</label>
-                    <input type="text" name="username" required placeholder="Ingresa el usuario">
+                    <input type="text" name="username" required placeholder="Ingresa el usuario" autocomplete="username">
                 </div>
                 <div class="field">
                     <label>Nombre Completo</label>
-                    <input type="text" name="nombre" placeholder="Ingresa el nombre completo">
+                    <input type="text" name="nombre" placeholder="Ingresa el nombre completo" autocomplete="name">
                 </div>
                 <div class="field">
                     <label>Correo Electrónico</label>
-                    <input type="email" name="email" required placeholder="correo@ejemplo.com">
+                    <input type="email" name="email" required placeholder="correo@ejemplo.com" autocomplete="email">
                 </div>
                 <div class="field">
                     <label>Contraseña</label>
-                    <input type="password" name="password" required placeholder="••••••••">
+                    <input type="password" name="password" required placeholder="••••••••" autocomplete="new-password">
                 </div>
                 <div class="field">
                     <label>Rol del Sistema</label>
@@ -417,7 +446,7 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
                 </div>
                 <div class="field" id="pinField" style="display: none; grid-column: span 2;">
                     <label>PIN de Seguridad (2FA)</label>
-                    <input type="password" name="pin" maxlength="6" placeholder="••••••">
+                    <input type="password" name="pin" maxlength="6" placeholder="••••••" autocomplete="off">
                     <small style="color: var(--text-muted); font-size: 12px; margin-top: 4px; display: block;">Se solicitará como segundo paso de autenticación al iniciar sesión.</small>
                 </div>
             </div>
@@ -445,22 +474,22 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
                 <tbody>
                     <?php foreach ($lista_admins as $adm): ?>
                     <tr>
-                        <td><?= $adm['id'] ?></td>
-                        <td style="font-weight: 600;"><?= htmlspecialchars($adm['username']) ?></td>
-                        <td><?= htmlspecialchars($adm['nombre'] ?? 'Sin nombre') ?></td>
-                        <td><?= htmlspecialchars($adm['email'] ?? 'N/D') ?></td>
-                        <td><span class="badge <?= htmlspecialchars($adm['rol']) ?>"><?= ucfirst($adm['rol']) ?></span></td>
+                        <td><?= htmlspecialchars($adm['id'], ENT_QUOTES, 'UTF-8') ?></td>
+                        <td style="font-weight: 600;"><?= htmlspecialchars($adm['username'], ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><?= htmlspecialchars($adm['nombre'] ?? 'Sin nombre', ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><?= htmlspecialchars($adm['email'] ?? 'N/D', ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><span class="badge <?= htmlspecialchars($adm['rol'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(ucfirst($adm['rol']), ENT_QUOTES, 'UTF-8') ?></span></td>
                         <td>
                             <span class="badge <?= $adm['activo'] ? 'activo' : 'inactivo' ?>">
                                 <?= $adm['activo'] ? 'Activo' : 'Inactivo' ?>
                             </span>
                         </td>
-                        <td style="color:var(--text-muted);"><?= $adm['ultimo_login'] ?? 'Nunca' ?></td>
+                        <td style="color:var(--text-muted);"><?= htmlspecialchars($adm['ultimo_login'] ?? 'Nunca', ENT_QUOTES, 'UTF-8') ?></td>
                         <td>
                             <?php if ($es_gerente && intval($adm['id']) !== $session_admin_id): ?>
                                 <form method="POST" style="display:inline;">
                                     <input type="hidden" name="accion" value="toggle_activo">
-                                    <input type="hidden" name="id" value="<?= $adm['id'] ?>">
+                                    <input type="hidden" name="id" value="<?= htmlspecialchars($adm['id'], ENT_QUOTES, 'UTF-8') ?>">
                                     <input type="hidden" name="estado" value="<?= $adm['activo'] ? 0 : 1 ?>">
                                     <button type="submit" style="background:none; border:none; color: <?= $adm['activo'] ? 'var(--color-danger)' : 'var(--color-success)' ?>; cursor:pointer; font-weight:600; font-size:13px;">
                                         <?= $adm['activo'] ? 'Desactivar' : 'Activar' ?>

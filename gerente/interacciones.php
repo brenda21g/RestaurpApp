@@ -3,8 +3,9 @@
  * Archivo: gerente/interacciones.php
  * Descripción: Módulo de Interacciones CRM con Sidebar azul institucional y control de roles.
  */
+require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
-verificarAcceso(['gerente', 'subgerente']);
+verificarAcceso(['gerente']);
 $db = getDB();
 
 $error = '';
@@ -115,7 +116,7 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Interacciones – Restaurant App</title>
+<title>Interacciones – Panel Gerencial</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -580,8 +581,8 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
 <!-- SIDEBAR -->
 <aside class="sidebar">
     <div class="sidebar-logo">
-        <div class="name">Restaurant App</div>
-        <div class="role"><?= ucfirst(htmlspecialchars($rol_actual)) ?></div>
+        <div class="name">Panel Gerencial</div>
+        <div class="role"><?= ucfirst(htmlspecialchars($rol_actual, ENT_QUOTES, 'UTF-8')) ?></div>
     </div>
     <nav class="nav">
         <a class="nav-item" href="dashboard.php"><span>📊</span> Dashboard</a>
@@ -597,7 +598,7 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
             <a class="nav-item" href="../scm/dashboard.php">
                 <span>📈</span> Dashboard SCM
                 <?php if($num_alertas_global > 0): ?>
-                    <span style="background: var(--color-danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700;">⚠️ <?= $num_alertas_global ?></span>
+                    <span style="background: var(--color-danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700;">⚠️ <?= htmlspecialchars($num_alertas_global, ENT_QUOTES, 'UTF-8') ?></span>
                 <?php endif; ?>
             </a>
         <?php endif; ?>
@@ -614,34 +615,34 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
             <div class="page-title">Interacciones</div>
             <div class="subtitle">Programa y administra las interacciones y seguimientos con tus clientes</div>
         </div>
-        <div class="date-badge">📅 <?= date('d \d\e F \d\e Y') ?></div>
+        <div class="date-badge">📅 <?= htmlspecialchars(date('d \d\e F \d\e Y'), ENT_QUOTES, 'UTF-8') ?></div>
     </div>
 
     <?php if ($mensaje): ?>
-        <div class="alert">✅ <?= htmlspecialchars($mensaje) ?></div>
+        <div class="alert">✅ <?= htmlspecialchars($mensaje, ENT_QUOTES, 'UTF-8') ?></div>
     <?php endif; ?>
 
     <?php if (!empty($error)): ?>
-        <div class="alert" style="background:rgba(239,68,68,0.1);border-color:rgba(239,68,68,0.2);color:var(--color-danger);">⚠️ <?= htmlspecialchars($error) ?></div>
+        <div class="alert" style="background:rgba(239,68,68,0.1);border-color:rgba(239,68,68,0.2);color:var(--color-danger);">⚠️ <?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></div>
     <?php endif; ?>
 
     <!-- TARJETAS DE MÉTRICAS -->
     <div class="stats">
         <div class="stat">
             <div class="stat-label">Total</div>
-            <div class="stat-value"><?= $totalInteracciones ?></div>
+            <div class="stat-value"><?= htmlspecialchars($totalInteracciones, ENT_QUOTES, 'UTF-8') ?></div>
         </div>
         <div class="stat">
             <div class="stat-label">Pendientes</div>
-            <div class="stat-value" style="color:var(--color-warning);"><?= $pendientes ?></div>
+            <div class="stat-value" style="color:var(--color-warning);"><?= htmlspecialchars($pendientes, ENT_QUOTES, 'UTF-8') ?></div>
         </div>
         <div class="stat">
             <div class="stat-label">Completadas</div>
-            <div class="stat-value" style="color:var(--color-success);"><?= $completadas ?></div>
+            <div class="stat-value" style="color:var(--color-success);"><?= htmlspecialchars($completadas, ENT_QUOTES, 'UTF-8') ?></div>
         </div>
         <div class="stat">
             <div class="stat-label">Reuniones pendientes</div>
-            <div class="stat-value" style="color:var(--color-info);"><?= $reuniones ?></div>
+            <div class="stat-value" style="color:var(--color-info);"><?= htmlspecialchars($reuniones, ENT_QUOTES, 'UTF-8') ?></div>
         </div>
     </div>
 
@@ -699,37 +700,37 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
                     <div>
                         <div class="interaction-top">
                             <div class="type">
-                                <div class="type-icon"><?= $icono ?></div>
-                                <div><?= $tipoTexto ?></div>
+                                <div class="type-icon"><?= htmlspecialchars($icono, ENT_QUOTES, 'UTF-8') ?></div>
+                                <div><?= htmlspecialchars($tipoTexto, ENT_QUOTES, 'UTF-8') ?></div>
                             </div>
-                            <span class="status status-<?= htmlspecialchars($i['estado']) ?>"><?= $estadoTexto ?></span>
+                            <span class="status status-<?= htmlspecialchars($i['estado'] ?? '', ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($estadoTexto, ENT_QUOTES, 'UTF-8') ?></span>
                         </div>
 
-                        <h3><?= htmlspecialchars($i['asunto']) ?></h3>
-                        <div class="client">👤 <?= htmlspecialchars($i['cliente_nombre'] ?? 'Sin cliente específico') ?></div>
+                        <h3><?= htmlspecialchars($i['asunto'] ?? '', ENT_QUOTES, 'UTF-8') ?></h3>
+                        <div class="client">👤 <?= htmlspecialchars($i['cliente_nombre'] ?? 'Sin cliente específico', ENT_QUOTES, 'UTF-8') ?></div>
 
                         <?php if (!empty($i['descripcion'])): ?>
-                            <div class="description"><?= nl2br(htmlspecialchars($i['descripcion'])) ?></div>
+                            <div class="description"><?= nl2br(htmlspecialchars($i['descripcion'], ENT_QUOTES, 'UTF-8')) ?></div>
                         <?php endif; ?>
                     </div>
 
                     <div>
                         <div class="info">
-                            <span>📅 <?= date('d/m/Y', strtotime($i['fecha'])) ?></span>
-                            <span>🕐 <?= date('H:i', strtotime($i['hora'])) ?></span>
+                            <span>📅 <?= htmlspecialchars(date('d/m/Y', strtotime($i['fecha'])), ENT_QUOTES, 'UTF-8') ?></span>
+                            <span>🕐 <?= htmlspecialchars(date('H:i', strtotime($i['hora'])), ENT_QUOTES, 'UTF-8') ?></span>
                         </div>
 
                         <div class="actions">
                             <?php if ($i['estado'] === 'pendiente'): ?>
                                 <form method="POST">
                                     <input type="hidden" name="accion" value="estado">
-                                    <input type="hidden" name="id" value="<?= $i['id'] ?>">
+                                    <input type="hidden" name="id" value="<?= htmlspecialchars($i['id'], ENT_QUOTES, 'UTF-8') ?>">
                                     <input type="hidden" name="estado" value="completada">
                                     <button class="btn btn-secondary" type="submit" style="padding:6px 12px;font-size:12px;">✅ Completar</button>
                                 </form>
                                 <form method="POST">
                                     <input type="hidden" name="accion" value="estado">
-                                    <input type="hidden" name="id" value="<?= $i['id'] ?>">
+                                    <input type="hidden" name="id" value="<?= htmlspecialchars($i['id'], ENT_QUOTES, 'UTF-8') ?>">
                                     <input type="hidden" name="estado" value="cancelada">
                                     <button class="btn btn-danger" type="submit" style="padding:6px 12px;font-size:12px;">✕ Cancelar</button>
                                 </form>
@@ -737,7 +738,7 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
 
                             <form method="POST" onsubmit="return confirm('¿Estás seguro de eliminar esta interacción?');">
                                 <input type="hidden" name="accion" value="eliminar">
-                                <input type="hidden" name="id" value="<?= $i['id'] ?>">
+                                <input type="hidden" name="id" value="<?= htmlspecialchars($i['id'], ENT_QUOTES, 'UTF-8') ?>">
                                 <button class="btn btn-danger" type="submit" style="padding:6px 10px;font-size:12px;" title="Eliminar">🗑️</button>
                             </form>
                         </div>
@@ -765,7 +766,7 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
                     <select name="cliente_id" style="width:100%;">
                         <option value="">Sin cliente específico</option>
                         <?php foreach ($clientes as $cliente): ?>
-                            <option value="<?= $cliente['id'] ?>"><?= htmlspecialchars($cliente['nombre']) ?></option>
+                            <option value="<?= htmlspecialchars($cliente['id'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($cliente['nombre'], ENT_QUOTES, 'UTF-8') ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
@@ -786,7 +787,7 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
 
                 <div class="form-group">
                     <label>Fecha *</label>
-                    <input type="date" name="fecha" min="<?= date('Y-m-d') ?>" required>
+                    <input type="date" name="fecha" min="<?= htmlspecialchars(date('Y-m-d'), ENT_QUOTES, 'UTF-8') ?>" required>
                 </div>
 
                 <div class="form-group">

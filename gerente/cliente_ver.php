@@ -1,10 +1,18 @@
 <?php
-// ==========================================================================
-// VISTA: Detalle Completo de Cliente
-// ==========================================================================
+/**
+ * Archivo: gerente/cliente_ver.php
+ * Descripción: Vista para mostrar el detalle completo de un cliente o prospecto en el CRM.
+ */
+require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
 $db = getDB();
-$id = $_GET['id'] ?? null;
+
+$id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
+
+if (!$id) {
+    header("Location: clientes.php");
+    exit;
+}
 
 $stmt = $db->prepare("SELECT * FROM usuarios_cliente WHERE id = ?");
 $stmt->execute([$id]);
@@ -19,13 +27,10 @@ if (!$cliente) {
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Detalle de Cliente – Restaurant App</title>
+    <title>Detalle de Cliente – Panel Gerencial</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* ==========================================================================
-           VARIABLES Y RESET GENERAL
-           ========================================================================== */
         :root {
             --bg-body: #f8fafc;
             --bg-surface: #ffffff;
@@ -57,9 +62,6 @@ if (!$cliente) {
             font-size: 14px;
         }
 
-        /* ==========================================================================
-           TARJETA DE DETALLE
-           ========================================================================== */
         .card {
             background: var(--bg-surface);
             border: 1px solid var(--border-color);
@@ -115,28 +117,28 @@ if (!$cliente) {
 <body>
 <div class="card">
     <a href="clientes.php" class="back">← Volver a clientes</a>
-    <h2><?= htmlspecialchars($cliente['nombre']) ?></h2>
+    <h2><?= htmlspecialchars($cliente['nombre'] ?? '', ENT_QUOTES, 'UTF-8') ?></h2>
     <hr style="border-color: var(--border-color); margin: 16px 0; border-width: 0.5px;">
     
     <div class="info-group">
         <label>Correo Electrónico</label>
-        <span><?= htmlspecialchars($cliente['email']) ?></span>
+        <span><?= htmlspecialchars($cliente['email'] ?? '', ENT_QUOTES, 'UTF-8') ?></span>
     </div>
     <div class="info-group">
         <label>Teléfono</label>
-        <span><?= htmlspecialchars($cliente['telefono'] ?? 'No registrado') ?></span>
+        <span><?= htmlspecialchars($cliente['telefono'] ?? 'No registrado', ENT_QUOTES, 'UTF-8') ?></span>
     </div>
     <div class="info-group">
         <label>Etapa CRM</label>
-        <span><?= htmlspecialchars($cliente['etapa_crm'] ?? 'Prospecto') ?></span>
+        <span><?= htmlspecialchars($cliente['etapa_crm'] ?? 'Prospecto', ENT_QUOTES, 'UTF-8') ?></span>
     </div>
     <div class="info-group">
         <label>Estado</label>
-        <span><?= htmlspecialchars($cliente['estado'] ?? 'Activo') ?></span>
+        <span><?= htmlspecialchars($cliente['estado'] ?? 'Activo', ENT_QUOTES, 'UTF-8') ?></span>
     </div>
     <div class="info-group">
         <label>Fecha de Registro</label>
-        <span><?= htmlspecialchars($cliente['creado_en']) ?></span>
+        <span><?= htmlspecialchars($cliente['creado_en'] ?? '', ENT_QUOTES, 'UTF-8') ?></span>
     </div>
 </div>
 </body>

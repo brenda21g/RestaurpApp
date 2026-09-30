@@ -1,7 +1,8 @@
 <?php
-// ==========================================================================
-// VISTA Y CONTROLADOR: Verificación de PIN de Super Admin – Restaurant_app
-// ==========================================================================
+/**
+ * Archivo: gerente/verificar_pin.php
+ * Descripción: Vista y controlador para la verificación del PIN de 2FA de Super Admin.
+ */
 require_once __DIR__ . '/../config/config.php';
 
 // Si no hay un proceso de PIN pendiente, regresar al login
@@ -56,13 +57,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Verificación PIN – Restaurant_app</title>
+<title>Verificación PIN – Panel Gerencial</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
     /* ==========================================================================
-        VARIABLES Y RESET GENERAL (TEMA AZUL Y BLANCO - RESTAURANT_APP)
-        ========================================================================== */
+       1. VARIABLES Y CONFIGURACIÓN GLOBAL
+       ========================================================================== */
     :root {
         --bg-body: #011139;
         --bg-surface: #ffffff;
@@ -76,7 +77,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    /* ==========================================================================
+       2. RESET Y ESTILOS BASE
+       ========================================================================== */
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+    }
 
     body {
         background-color: var(--bg-body);
@@ -88,6 +96,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         justify-content: center;
     }
 
+    /* ==========================================================================
+       3. CONTENEDOR Y TARJETA
+       ========================================================================== */
     .wrap {
         width: 100%;
         max-width: 400px;
@@ -123,6 +134,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         line-height: 1.4;
     }
 
+    /* ==========================================================================
+       4. FORMULARIO Y CAMPOS
+       ========================================================================== */
     .field {
         margin-bottom: 20px;
         text-align: left;
@@ -158,6 +172,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.1);
     }
 
+    /* ==========================================================================
+       5. BOTONES Y ENLACES
+       ========================================================================== */
     .btn {
         width: 100%;
         background: var(--color-primary);
@@ -176,18 +193,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         background: var(--color-primary-hover);
     }
 
-    .error-msg {
-        background: rgba(239, 68, 68, 0.1);
-        border: 1px solid rgba(239, 68, 68, 0.2);
-        border-radius: 8px;
-        padding: 12px;
-        color: var(--color-danger);
-        font-size: 13px;
-        font-weight: 500;
-        margin-bottom: 20px;
-        text-align: left;
-    }
-
     .back {
         display: inline-block;
         margin-top: 20px;
@@ -201,6 +206,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     .back:hover {
         color: var(--color-primary);
     }
+
+    /* ==========================================================================
+       6. ALERTAS Y MENSAJES
+       ========================================================================== */
+    .error-msg {
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.2);
+        border-radius: 8px;
+        padding: 12px;
+        color: var(--color-danger);
+        font-size: 13px;
+        font-weight: 500;
+        margin-bottom: 20px;
+        text-align: left;
+    }
 </style>
 </head>
 <body>
@@ -210,8 +230,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <h2>Seguridad de Super Admin</h2>
     <p>Ingresa tu PIN numérico de seguridad para completar el acceso</p>
 
-    <?php if ($error): ?>
-      <div class="error-msg">⚠️ <?= htmlspecialchars($error) ?></div>
+    <?php if (!empty($error)): ?>
+      <div class="error-msg">⚠️ <?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></div>
     <?php endif; ?>
 
     <form method="POST">

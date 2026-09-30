@@ -3,8 +3,9 @@
  * Archivo: gerente/miactividad.php
  * Descripción: Historial de actividad y operaciones con Sidebar institucional y control de roles.
  */
+require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
-verificarAcceso(['gerente', 'subgerente']);
+verificarAcceso(['gerente']);
 $db = getDB();
 
 $admin_id = $_SESSION['admin_id'] ?? 0;
@@ -41,10 +42,13 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mi actividad – Restaurant_app CRM</title>
+<title>Mi actividad – Panel Gerencial</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
+    /* ==========================================================================
+       1. VARIABLES Y CONFIGURACIÓN GLOBAL
+       ========================================================================== */
     :root {
         --bg-body: #f8fafc;
         --bg-surface: #ffffff;
@@ -61,7 +65,14 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
         --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    /* ==========================================================================
+       2. RESET Y ESTILOS BASE
+       ========================================================================== */
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+    }
 
     body {
         background-color: var(--bg-body);
@@ -72,7 +83,9 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
         font-size: 14px;
     }
 
-    /* SIDEBAR INSTITUCIONAL AZUL */
+    /* ==========================================================================
+       3. SIDEBAR INSTITUCIONAL AZUL
+       ========================================================================== */
     .sidebar {
         width: var(--sidebar-w);
         background-color: var(--sidebar-bg);
@@ -155,7 +168,9 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
         color: #f87171;
     }
 
-    /* CONTENIDO PRINCIPAL */
+    /* ==========================================================================
+       4. CONTENIDO PRINCIPAL Y TOPBAR
+       ========================================================================== */
     .main {
         margin-left: var(--sidebar-w);
         flex: 1;
@@ -181,6 +196,9 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
         margin-top: 2px;
     }
 
+    /* ==========================================================================
+       5. TARJETAS Y TABLAS DE DATOS
+       ========================================================================== */
     .card {
         background: var(--bg-surface);
         border: 1px solid var(--border-color);
@@ -275,6 +293,9 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
         align-items: center;
     }
 
+    /* ==========================================================================
+       6. DISEÑO RESPONSIVO
+       ========================================================================== */
     @media (max-width: 768px) {
         .main { margin-left: 0; padding: 20px; }
         .sidebar { display: none; }
@@ -286,8 +307,8 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
 <!-- SIDEBAR -->
 <aside class="sidebar">
     <div class="sidebar-logo">
-        <div class="name">Restaurant App</div>
-        <div class="role"><?= ucfirst(htmlspecialchars($rol_actual)) ?></div>
+        <div class="name">Panel Gerencial</div>
+        <div class="role"><?= ucfirst(htmlspecialchars($rol_actual, ENT_QUOTES, 'UTF-8')) ?></div>
     </div>
     <nav class="nav">
         <a class="nav-item" href="dashboard.php"><span>📊</span> Dashboard</a>
@@ -303,7 +324,7 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
             <a class="nav-item" href="../scm/dashboard.php">
                 <span>📈</span> Dashboard SCM
                 <?php if($num_alertas_global > 0): ?>
-                    <span style="background: var(--color-danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700;">⚠️ <?= $num_alertas_global ?></span>
+                    <span style="background: var(--color-danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700;">⚠️ <?= htmlspecialchars($num_alertas_global, ENT_QUOTES, 'UTF-8') ?></span>
                 <?php endif; ?>
             </a>
         <?php endif; ?>
@@ -326,7 +347,7 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
         <div class="card-header">
             <div class="card-title">Registro de operaciones</div>
             <div class="date-filter-badge">
-                <span>📅</span> <?= date('01/m/Y') ?> – <?= date('d/m/Y') ?>
+                <span>📅</span> <?= htmlspecialchars(date('01/m/Y'), ENT_QUOTES, 'UTF-8') ?> – <?= htmlspecialchars(date('d/m/Y'), ENT_QUOTES, 'UTF-8') ?>
             </div>
         </div>
 
@@ -362,15 +383,15 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
                             };
                             ?>
                             <tr>
-                                <td><?= date('d/m/Y', strtotime($act['fecha'])) ?></td>
-                                <td style="font-weight:500;"><?= htmlspecialchars($act['cliente_nombre'] ?? 'Sin cliente específico') ?></td>
+                                <td><?= htmlspecialchars(date('d/m/Y', strtotime($act['fecha'])), ENT_QUOTES, 'UTF-8') ?></td>
+                                <td style="font-weight:500;"><?= htmlspecialchars($act['cliente_nombre'] ?? 'Sin cliente específico', ENT_QUOTES, 'UTF-8') ?></td>
                                 <td>
                                     <span class="badge-tipo">
-                                        <span><?= $iconoTipo ?></span>
-                                        <?= htmlspecialchars(ucfirst($act['tipo'] ?? 'Acción')) ?>
+                                        <span><?= htmlspecialchars($iconoTipo, ENT_QUOTES, 'UTF-8') ?></span>
+                                        <?= htmlspecialchars(ucfirst($act['tipo'] ?? 'Acción'), ENT_QUOTES, 'UTF-8') ?>
                                     </span>
                                 </td>
-                                <td style="color: var(--text-muted);"><?= htmlspecialchars($act['descripcion'] ?? $act['asunto'] ?? 'Sin detalles') ?></td>
+                                <td style="color: var(--text-muted);"><?= htmlspecialchars($act['descripcion'] ?? $act['asunto'] ?? 'Sin detalles', ENT_QUOTES, 'UTF-8') ?></td>
                             </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>
@@ -379,7 +400,7 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
         </div>
 
         <div class="table-footer">
-            <div>Mostrando <?= $totalActividades ?> de <?= $totalActividades ?> actividades</div>
+            <div>Mostrando <?= htmlspecialchars($totalActividades, ENT_QUOTES, 'UTF-8') ?> de <?= htmlspecialchars($totalActividades, ENT_QUOTES, 'UTF-8') ?> actividades</div>
         </div>
     </div>
 </main>

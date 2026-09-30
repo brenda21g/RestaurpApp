@@ -1,7 +1,9 @@
 <?php
-// ==========================================================================
-// CONTROLADOR Y VISTA: Editar Información del Cliente
-// ==========================================================================
+/**
+ * Archivo: gerente/cliente_editar.php
+ * Descripción: Controlador y vista para editar la información de un cliente o prospecto existente en el CRM.
+ */
+require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
 $db = getDB();
 $id = $_GET['id'] ?? null;
@@ -22,13 +24,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header("Location: clientes.php");
             exit;
         } catch (PDOException $e) {
-            $mensaje_error = "El correo ya pertenece a otro cliente.";
+            $mensaje_error = "El correo electrónico ya pertenece a otro cliente registrado.";
         }
     } else {
         $mensaje_error = "Todos los campos obligatorios deben llenarse.";
     }
 }
 
+// Obtener datos actuales del cliente
 $stmt = $db->prepare("SELECT * FROM usuarios_cliente WHERE id = ?");
 $stmt->execute([$id]);
 $cliente = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -42,13 +45,10 @@ if (!$cliente) {
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Editar Cliente – Restaurant App</title>
+    <title>Editar Cliente – Panel Gerencial</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* ==========================================================================
-           VARIABLES Y RESET GENERAL
-           ========================================================================== */
         :root {
             --bg-body: #011139;
             --bg-surface: #ffffff;
@@ -58,7 +58,6 @@ if (!$cliente) {
             --color-primary: #2563eb;
             --color-success: #10b981;
             --color-danger: #ef4444;
-            --sidebar-w: 250px;
             --radius: 10px;
             --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
@@ -77,20 +76,36 @@ if (!$cliente) {
             font-size: 14px;
         }
 
-        /* ==========================================================================
-           FORMULARIO DE EDICIÓN
-           ========================================================================== */
-        form {
+        .form-card {
             background: var(--bg-surface);
             border: 1px solid var(--border-color);
             padding: 32px;
             border-radius: var(--radius);
             width: 100%;
             max-width: 450px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        h2 {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: var(--text-main);
+        }
+
+        .field {
+            margin-bottom: 16px;
             display: flex;
             flex-direction: column;
-            gap: 16px;
-            box-shadow: var(--shadow-sm);
+            gap: 6px;
+        }
+
+        label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
         }
 
         input, select {
@@ -109,6 +124,7 @@ if (!$cliente) {
         }
 
         button {
+            width: 100%;
             background: var(--color-primary);
             color: #fff;
             padding: 12px;
@@ -116,7 +132,7 @@ if (!$cliente) {
             border-radius: var(--radius);
             font-weight: 600;
             cursor: pointer;
-            margin-top: 5px;
+            margin-top: 10px;
             transition: background 0.2s;
         }
 
@@ -125,6 +141,8 @@ if (!$cliente) {
         }
 
         .back {
+            display: inline-block;
+            margin-bottom: 16px;
             color: var(--text-muted);
             text-decoration: none;
             font-size: 13px;
@@ -136,12 +154,6 @@ if (!$cliente) {
             color: var(--color-primary);
         }
 
-        h2 {
-            font-size: 18px;
-            font-weight: 700;
-            color: var(--text-main);
-        }
-
         .alert-error {
             background: #fee2e2;
             color: #b91c1c;
@@ -149,32 +161,49 @@ if (!$cliente) {
             padding: 10px;
             border-radius: var(--radius);
             font-size: 13px;
+            margin-bottom: 16px;
         }
     </style>
 </head>
 <body>
-<form method="POST">
+<div class="form-card">
     <a href="clientes.php" class="back">← Volver a clientes</a>
     <h2>Editar Cliente / Prospecto</h2>
     
-    <?php if ($mensaje_error): ?><div class="alert-error"><?= $mensaje_error ?></div><?php endif; ?>
+    <?php if (!empty($mensaje_error)): ?>
+        <div class="alert-error"><?= htmlspecialchars($mensaje_error, ENT_QUOTES, 'UTF-8') ?></div>
+    <?php endif; ?>
 
-    <input type="text" name="nombre" value="<?= htmlspecialchars($cliente['nombre']) ?>" required placeholder="Nombre">
-    <input type="email" name="email" value="<?= htmlspecialchars($cliente['email']) ?>" required placeholder="Correo">
-    <input type="text" name="telefono" value="<?= htmlspecialchars($cliente['telefono'] ?? '') ?>" placeholder="Teléfono">
-    
-    <select name="etapa_crm">
-        <option value="Prospecto" <?= ($cliente['etapa_crm'] ?? '') === 'Prospecto' ? 'selected' : '' ?>>Prospecto</option>
-        <option value="Cliente" <?= ($cliente['etapa_crm'] ?? '') === 'Cliente' ? 'selected' : '' ?>>Cliente</option>
-    </select>
-    
-    <select name="estado">
-        <option value="Activo" <?= ($cliente['estado'] ?? '') === 'Activo' ? 'selected' : '' ?>>Activo</option>
-        <option value="Inactivo" <?= ($cliente['estado'] ?? '') === 'Inactivo' ? 'selected' : '' ?>>Inactivo</option>
-        <option value="Baja" <?= ($cliente['estado'] ?? '') === 'Baja' ? 'selected' : '' ?>>Baja</option>
-    </select>
-    
-    <button type="submit">Actualizar Cambios</button>
-</form>
+    <form method="POST">
+        <div class="field">
+            <label>Nombre completo</label>
+            <input type="text" name="nombre" value="<?= htmlspecialchars($cliente['nombre'] ?? '', ENT_QUOTES, 'UTF-8') ?>" required placeholder="Nombre">
+        </div>
+        <div class="field">
+            <label>Correo electrónico</label>
+            <input type="email" name="email" value="<?= htmlspecialchars($cliente['email'] ?? '', ENT_QUOTES, 'UTF-8') ?>" required placeholder="Correo">
+        </div>
+        <div class="field">
+            <label>Teléfono</label>
+            <input type="text" name="telefono" value="<?= htmlspecialchars($cliente['telefono'] ?? '', ENT_QUOTES, 'UTF-8') ?>" placeholder="Teléfono">
+        </div>
+        <div class="field">
+            <label>Etapa CRM</label>
+            <select name="etapa_crm">
+                <option value="Prospecto" <?= ($cliente['etapa_crm'] ?? '') === 'Prospecto' ? 'selected' : '' ?>>Prospecto</option>
+                <option value="Cliente" <?= ($cliente['etapa_crm'] ?? '') === 'Cliente' ? 'selected' : '' ?>>Cliente</option>
+            </select>
+        </div>
+        <div class="field">
+            <label>Estado</label>
+            <select name="estado">
+                <option value="Activo" <?= ($cliente['estado'] ?? '') === 'Activo' ? 'selected' : '' ?>>Activo</option>
+                <option value="Inactivo" <?= ($cliente['estado'] ?? '') === 'Inactivo' ? 'selected' : '' ?>>Inactivo</option>
+                <option value="Baja" <?= ($cliente['estado'] ?? '') === 'Baja' ? 'selected' : '' ?>>Baja</option>
+            </select>
+        </div>
+        <button type="submit">Actualizar Cambios</button>
+    </form>
+</div>
 </body>
 </html>

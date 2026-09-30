@@ -1,7 +1,8 @@
 <?php
-// ==========================================================================
-// CONTROLADOR Y VISTA: Login de Administradores (Restaurant_App)
-// ==========================================================================
+/**
+ * Archivo: login.php
+ * Descripción: Controlador y vista de inicio de sesión para administradores con rol de gerente.
+ */
 require_once __DIR__ . '/../config/config.php';
 
 // Redirigir si ya existe una sesión activa
@@ -11,6 +12,7 @@ if (isset($_SESSION['admin_id'])) {
 }
 
 $error = '';
+$exito_msg = '';
 
 // Mensaje opcional si viene de restablecer contraseña exitosamente
 if (isset($_GET['exito']) && $_GET['exito'] === 'password_actualizado') {
@@ -75,10 +77,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Iniciar sesión – Restaurant_App</title>
+<title>Iniciar sesión – Panel Gerencial</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
+    /* ==========================================================================
+       1. VARIABLES Y CONFIGURACIÓN GLOBAL
+       ========================================================================== */
     :root {
         --bg-body: #011139;
         --bg-surface: #ffffff;
@@ -92,7 +97,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         --radius: 10px;
         --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ==========================================================================
+       2. RESET Y ESTILOS BASE
+       ========================================================================== */
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+    }
+
     body {
         background-color: var(--bg-body);
         color: var(--text-main);
@@ -102,24 +116,159 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         align-items: center;
         justify-content: center;
     }
-    .login-wrap { width: 100%; max-width: 400px; padding: 20px; }
-    .logo-area { text-align: center; margin-bottom: 28px; }
-    .logo-icon { font-size: 40px; display: block; margin-bottom: 10px; }
-    .logo-title { font-size: 22px; font-weight: 700; color: #ffffff; }
-    .logo-sub { color: var(--text-muted); font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; margin-top: 4px; }
-    .card { background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 12px; padding: 32px; box-shadow: var(--shadow-lg); }
-    .card h2 { font-size: 16px; font-weight: 600; margin-bottom: 20px; color: var(--text-main); }
-    .field { margin-bottom: 16px; }
-    label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
-    input { width: 100%; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 11px 14px; color: var(--text-main); font-family: inherit; font-size: 14px; transition: border-color .2s, box-shadow .2s; outline: none; }
-    input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.1); }
-    .btn { width: 100%; background: var(--color-primary); color: #ffffff; border: none; border-radius: 8px; padding: 12px; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 8px; transition: background-color .2s; }
-    .btn:hover { background: var(--color-primary-hover); }
-    .error-msg { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 8px; padding: 10px 14px; color: var(--color-danger); font-size: 13px; font-weight: 500; margin-bottom: 16px; }
-    .success-msg { background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 8px; padding: 10px 14px; color: var(--color-success); font-size: 13px; font-weight: 500; margin-bottom: 16px; }
-    .forgot-link { display: block; text-align: right; font-size: 12px; color: var(--color-primary); text-decoration: none; margin-top: -8px; margin-bottom: 16px; font-weight: 500; }
-    .forgot-link:hover { text-decoration: underline; }
-    .hint { text-align: center; color: var(--text-muted); font-size: 11px; margin-top: 24px; line-height: 1.4; }
+
+    /* ==========================================================================
+       3. CONTENEDOR Y ÁREA DE LOGOTIPO
+       ========================================================================== */
+    .login-wrap {
+        width: 100%;
+        max-width: 400px;
+        padding: 20px;
+    }
+
+    .logo-area {
+        text-align: center;
+        margin-bottom: 28px;
+    }
+
+    .logo-icon {
+        font-size: 40px;
+        display: block;
+        margin-bottom: 10px;
+    }
+
+    .logo-title {
+        font-size: 22px;
+        font-weight: 700;
+        color: #ffffff;
+    }
+
+    .logo-sub {
+        color: var(--text-muted);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin-top: 4px;
+    }
+
+    /* ==========================================================================
+       4. TARJETA Y FORMULARIO
+       ========================================================================== */
+    .card {
+        background: var(--bg-surface);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 32px;
+        box-shadow: var(--shadow-lg);
+    }
+
+    .card h2 {
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 20px;
+        color: var(--text-main);
+    }
+
+    .field {
+        margin-bottom: 16px;
+    }
+
+    label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-muted);
+        margin-bottom: 6px;
+    }
+
+    input {
+        width: 100%;
+        background: var(--bg-surface);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 11px 14px;
+        color: var(--text-main);
+        font-family: inherit;
+        font-size: 14px;
+        transition: border-color .2s, box-shadow .2s;
+        outline: none;
+    }
+
+    input:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.1);
+    }
+
+    /* ==========================================================================
+       5. BOTONES Y ENLACES
+       ========================================================================== */
+    .btn {
+        width: 100%;
+        background: var(--color-primary);
+        color: #ffffff;
+        border: none;
+        border-radius: 8px;
+        padding: 12px;
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        margin-top: 8px;
+        transition: background-color .2s;
+    }
+
+    .btn:hover {
+        background: var(--color-primary-hover);
+    }
+
+    .forgot-link {
+        display: block;
+        text-align: right;
+        font-size: 12px;
+        color: var(--color-primary);
+        text-decoration: none;
+        margin-top: -8px;
+        margin-bottom: 16px;
+        font-weight: 500;
+    }
+
+    .forgot-link:hover {
+        text-decoration: underline;
+    }
+
+    /* ==========================================================================
+       6. ALERTAS Y MENSAJES
+       ========================================================================== */
+    .error-msg {
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.2);
+        border-radius: 8px;
+        padding: 10px 14px;
+        color: var(--color-danger);
+        font-size: 13px;
+        font-weight: 500;
+        margin-bottom: 16px;
+    }
+
+    .success-msg {
+        background: rgba(16, 185, 129, 0.1);
+        border: 1px solid rgba(16, 185, 129, 0.2);
+        border-radius: 8px;
+        padding: 10px 14px;
+        color: var(--color-success);
+        font-size: 13px;
+        font-weight: 500;
+        margin-bottom: 16px;
+    }
+
+    .hint {
+        text-align: center;
+        color: var(--text-muted);
+        font-size: 11px;
+        margin-top: 24px;
+        line-height: 1.4;
+    }
 </style>
 </head>
 <body>
@@ -134,11 +283,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <h2>Iniciar sesión</h2>
 
         <?php if (!empty($exito_msg)): ?>
-            <div class="success-msg">✅ <?= htmlspecialchars($exito_msg) ?></div>
+            <div class="success-msg">✅ <?= htmlspecialchars($exito_msg, ENT_QUOTES, 'UTF-8') ?></div>
         <?php endif; ?>
 
-        <?php if ($error): ?>
-            <div class="error-msg">⚠️ <?= htmlspecialchars($error) ?></div>
+        <?php if (!empty($error)): ?>
+            <div class="error-msg">⚠️ <?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></div>
         <?php endif; ?>
 
         <form method="POST">

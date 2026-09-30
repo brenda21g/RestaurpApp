@@ -1,11 +1,12 @@
 <?php
-// ==========================================================================
-// CONTROLADOR: Cierre de Sesión (Restaurant_app)
-// ==========================================================================
+/**
+ * Archivo: gerente/logout.php
+ * Descripción: Controlador de cierre de sesión seguro para el panel gerencial.
+ */
 require_once __DIR__ . '/../config/config.php';
 
 // 1. Vaciar todas las variables de sesión
-$_SESSION = array();
+$_SESSION = [];
 
 // 2. Si se desea destruir la sesión completamente, también se debe borrar la cookie de sesión
 if (ini_get("session.use_cookies")) {
@@ -25,7 +26,7 @@ if (ini_get("session.use_cookies")) {
 session_destroy();
 
 // 4. Redirigir al formulario de login con opción de razón opcional si viene por inactividad
-$redirect = 'login.php';
+$redirect = '../login.php';
 if (isset($_GET['reason']) && $_GET['reason'] === 'inactividad') {
     $redirect .= '?inactivo=1';
 }
