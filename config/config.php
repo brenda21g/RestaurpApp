@@ -26,7 +26,7 @@ define('DB_NAME', 'restaurante_db');
 define('DB_PORT', 3306);
 
 // Parámetros del Sitio (Modificables según tu entorno local o producción)
-define('SITE_URL', 'http://192.168.1.35/restaurant_app');
+define('SITE_URL', 'http://173.16.18.95/restaurant_app');
 define('SITE_NAME', 'RestaurApp');
 
 // Zona horaria configurada para México

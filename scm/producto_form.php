@@ -52,6 +52,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $es_gerente) {
 $num_alertas_global = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= stock_minimo")->fetchColumn();
 
 $proveedores = $db->query("SELECT id, nombre FROM proveedores ORDER BY nombre ASC")->fetchAll(PDO::FETCH_ASSOC);
+
+// Definir enlace de salida según el rol actual
+$url_salida = '../index.php';
+if ($rol_actual === 'gerente') {
+    $url_salida = '../gerente/dashboard.php';
+} elseif ($rol_actual === 'subgerente') {
+    $url_salida = '../subgerente/dashboard.php';
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -61,9 +69,6 @@ $proveedores = $db->query("SELECT id, nombre FROM proveedores ORDER BY nombre AS
 <title>Materia Prima Form – Restaurant App</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-    /* ==========================================================================
-       1. VARIABLES Y CONFIGURACIÓN GLOBAL
-       ========================================================================== */
     :root {
       --bg: #f8fafc;
       --surface: #ffffff;
@@ -82,9 +87,6 @@ $proveedores = $db->query("SELECT id, nombre FROM proveedores ORDER BY nombre AS
       --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
     }
 
-    /* ==========================================================================
-       2. RESET Y ESTILOS BASE
-       ========================================================================== */
     * {
       box-sizing: border-box;
       margin: 0;
@@ -100,9 +102,6 @@ $proveedores = $db->query("SELECT id, nombre FROM proveedores ORDER BY nombre AS
       font-size: 14px;
     }
 
-    /* ==========================================================================
-       3. SIDEBAR INSTITUCIONAL AZUL
-       ========================================================================== */
     .sidebar {
       width: var(--sidebar-w);
       background: var(--secondary);
@@ -159,9 +158,6 @@ $proveedores = $db->query("SELECT id, nombre FROM proveedores ORDER BY nombre AS
       font-weight: 600;
     }
 
-    /* ==========================================================================
-       4. CONTENIDO PRINCIPAL Y BANNER DE ALERTA
-       ========================================================================== */
     .main-content {
       margin-left: var(--sidebar-w);
       flex: 1;
@@ -312,7 +308,13 @@ $proveedores = $db->query("SELECT id, nombre FROM proveedores ORDER BY nombre AS
         <a href="movimientos.php" class="sidebar-item"><span>🔄</span> Movimientos</a>
         <a href="pedidos.php" class="sidebar-item"><span>🛒</span> Pedidos Internos</a>
         <a href="logistica.php" class="sidebar-item"><span>⚙️</span> Logística Push/Pull</a>
-        <a href="../gerente/dashboard.php" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>←</span> Salir al Panel</a>
+        
+        <!-- Salida condicional: Cerrar sesión para Logística, Salir al Panel para Gerente/Subgerente -->
+        <?php if ($rol_actual === 'logistica'): ?>
+            <a href="logout.php" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>🚪</span> Cerrar sesión</a>
+        <?php else: ?>
+            <a href="<?= htmlspecialchars($url_salida, ENT_QUOTES, 'UTF-8') ?>" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>←</span> Salir al Panel</a>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -337,7 +339,7 @@ $proveedores = $db->query("SELECT id, nombre FROM proveedores ORDER BY nombre AS
             
             <?php if(!$es_gerente): ?>
                 <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.2); color: var(--warning); padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 13px;">
-                    ⚠️ Estás visualizando en modo lectura. Solo el Gerente puede guardar cambios en los insumos.
+                    ⚠️️ Estás visualizando en modo lectura. Solo el Gerente puede guardar cambios en los insumos.
                 </div>
             <?php endif; ?>
 

@@ -5,7 +5,7 @@
  */
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
-verificarAcceso(['gerente', 'subgerente', 'encargado']);
+verificarAcceso(['gerente', 'subgerente', 'logistica']);
 $db = getDB();
 
 $rol_actual = $_SESSION['admin_rol'] ?? '';
@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Conteo global de stock crítico para la barra lateral y alerta de pantalla
 $num_alertas_global = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= stock_minimo")->fetchColumn();
 
-// Obtener productos (sin la columna categoria que causaba el error)
+// Obtener productos
 $productos = $db->query("SELECT id, nombre, estrategia_logistica, stock_actual, stock_minimo FROM scm_productos ORDER BY nombre ASC")->fetchAll(PDO::FETCH_ASSOC);
 
 $total_push = 0;
@@ -50,6 +50,14 @@ foreach ($productos as $p) {
 $total_prod_count = count($productos);
 $porcentaje_push = $total_prod_count > 0 ? round(($total_push / $total_prod_count) * 100) : 0;
 $porcentaje_pull = $total_prod_count > 0 ? round(($total_pull / $total_prod_count) * 100) : 0;
+
+// Definir enlace de salida según el rol actual
+$url_salida = '../index.php';
+if ($rol_actual === 'gerente') {
+    $url_salida = '../gerente/dashboard.php';
+} elseif ($rol_actual === 'subgerente') {
+    $url_salida = '../subgerente/dashboard.php';
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -59,9 +67,6 @@ $porcentaje_pull = $total_prod_count > 0 ? round(($total_pull / $total_prod_coun
 <title>Logística SCM – Estrategia Push/Pull</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-    /* ==========================================================================
-       1. VARIABLES Y CONFIGURACIÓN GLOBAL
-       ========================================================================== */
     :root {
       --bg: #f8fafc;
       --surface: #ffffff;
@@ -80,9 +85,6 @@ $porcentaje_pull = $total_prod_count > 0 ? round(($total_pull / $total_prod_coun
       --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
     }
 
-    /* ==========================================================================
-       2. RESET Y ESTILOS BASE
-       ========================================================================== */
     * {
       box-sizing: border-box;
       margin: 0;
@@ -98,9 +100,6 @@ $porcentaje_pull = $total_prod_count > 0 ? round(($total_pull / $total_prod_coun
       font-size: 14px;
     }
 
-    /* ==========================================================================
-       3. SIDEBAR INSTITUCIONAL AZUL
-       ========================================================================== */
     .sidebar {
       width: var(--sidebar-w);
       background: var(--secondary);
@@ -157,9 +156,6 @@ $porcentaje_pull = $total_prod_count > 0 ? round(($total_pull / $total_prod_coun
       font-weight: 600;
     }
 
-    /* ==========================================================================
-       4. CONTENIDO PRINCIPAL Y BANNER DE ALERTA
-       ========================================================================== */
     .main-content {
       margin-left: var(--sidebar-w);
       flex: 1;
@@ -222,9 +218,6 @@ $porcentaje_pull = $total_prod_count > 0 ? round(($total_pull / $total_prod_coun
       line-height: 1.6;
     }
 
-    /* ==========================================================================
-       5. COMPONENTES Y SWITCH DE VISTA (TABLA / GRÁFICA)
-       ========================================================================== */
     .grid-container {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -290,7 +283,6 @@ $porcentaje_pull = $total_prod_count > 0 ? round(($total_pull / $total_prod_coun
       display: block;
     }
 
-    /* Estilos Formulario */
     .field {
       margin-bottom: 16px;
       display: flex;
@@ -340,7 +332,6 @@ $porcentaje_pull = $total_prod_count > 0 ? round(($total_pull / $total_prod_coun
       background: var(--primary-hover);
     }
 
-    /* Tabla y Gráfica visual */
     table {
       width: 100%;
       border-collapse: collapse;
@@ -386,7 +377,6 @@ $porcentaje_pull = $total_prod_count > 0 ? round(($total_pull / $total_prod_coun
       font-weight: 700;
     }
 
-    /* Gráfica de barras CSS Proporcional */
     .chart-container {
       display: flex;
       flex-direction: column;
@@ -468,7 +458,13 @@ $porcentaje_pull = $total_prod_count > 0 ? round(($total_pull / $total_prod_coun
         <a href="movimientos.php" class="sidebar-item"><span>🔄</span> Movimientos</a>
         <a href="pedidos.php" class="sidebar-item"><span>🛒</span> Pedidos Internos</a>
         <a href="logistica.php" class="sidebar-item active"><span>⚙️</span> Logística Push/Pull</a>
-        <a href="../gerente/dashboard.php" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>←</span> Salir al Panel</a>
+        
+        <!-- Salida condicional: Cerrar sesión para Logística, Salir al Panel para Gerente/Subgerente -->
+        <?php if ($rol_actual === 'logistica'): ?>
+            <a href="logout.php" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>🚪</span> Cerrar sesión</a>
+        <?php else: ?>
+            <a href="<?= htmlspecialchars($url_salida, ENT_QUOTES, 'UTF-8') ?>" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>←</span> Salir al Panel</a>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -485,7 +481,7 @@ $porcentaje_pull = $total_prod_count > 0 ? round(($total_pull / $total_prod_coun
     <?php endif; ?>
 
     <div class="header">
-        <h1>⚙️️ Logística - Estrategia de Reposición Push / Pull</h1>
+        <h1>⚙ Logística - Estrategia de Reposición Push / Pull</h1>
         <div class="role-badge">Rol: <?= htmlspecialchars(ucfirst($rol_actual), ENT_QUOTES, 'UTF-8') ?></div>
     </div>
 
@@ -606,12 +602,10 @@ $porcentaje_pull = $total_prod_count > 0 ? round(($total_pull / $total_prod_coun
 
 <script>
 function switchView(tipo, evt) {
-    // Cambiar clases de las secciones
     document.getElementById('view-tabla').classList.remove('active');
     document.getElementById('view-grafica').classList.remove('active');
     document.getElementById('view-' + tipo).classList.add('active');
 
-    // Cambiar clases de los botones del switch
     const buttons = document.querySelectorAll('.switch-btn');
     buttons.forEach(btn => btn.classList.remove('active'));
     evt.currentTarget.classList.add('active');

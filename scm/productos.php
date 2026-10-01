@@ -1,24 +1,49 @@
 <?php
 /**
  * Archivo: scm/productos.php
- * Descripción: Catálogo de materias primas e insumos con control de roles, buscador, banner global y Sidebar institucional.
+ * Descripción: Catálogo de materias primas e insumos con control de roles, buscador, bajas lógicas, banner global y Sidebar institucional.
  */
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
-verificarAcceso(['gerente', 'subgerente', 'encargado']);
+verificarAcceso(['gerente', 'subgerente', 'encargado', 'logistica']);
 $db = getDB();
 
 $rol_actual = $_SESSION['admin_rol'] ?? '';
 $es_gerente = ($rol_actual === 'gerente');
+$es_editable = puedeEditar('scm'); // TRUE para Gerente y Logística; FALSE para Subgerente
+
+// Manejo de baja lógica (si se solicita por GET y tiene permisos de edición)
+if (isset($_GET['eliminar']) && $es_editable) {
+    $id_eliminar = intval($_GET['eliminar']);
+    try {
+        $stmt_del = $db->prepare("UPDATE scm_productos SET activo = 0 WHERE id = ?");
+        $stmt_del->execute([$id_eliminar]);
+    } catch (Exception $e) {
+        // Si la columna activo no existe en la BD, eliminamos físicamente de forma segura
+        try {
+            $db->prepare("DELETE FROM scm_productos WHERE id = ?")->execute([$id_eliminar]);
+        } catch (Exception $ex) {}
+    }
+    header("Location: productos.php?success=baja");
+    exit;
+}
 
 // Conteo global de stock crítico para la barra lateral y banner global
 $num_alertas_global = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= stock_minimo")->fetchColumn();
 
-// Filtro de búsqueda por nombre o descripción
+// Filtro de búsqueda por nombre o descripción (filtrando también los activos si aplica)
 $buscar = trim($_GET['buscar'] ?? '');
 
 $sql = "SELECT p.*, pr.nombre as proveedor_nombre FROM scm_productos p LEFT JOIN proveedores pr ON p.proveedor_id = pr.id WHERE 1=1";
 $params = [];
+
+// Si la tabla cuenta con el campo activo, filtramos solo los activos
+try {
+    $check_col = $db->query("SHOW COLUMNS FROM scm_productos LIKE 'activo'")->fetch();
+    if ($check_col) {
+        $sql .= " AND (p.activo = 1 OR p.activo IS NULL)";
+    }
+} catch (Exception $e) {}
 
 if ($buscar !== '') {
     $sql .= " AND (p.nombre LIKE ? OR p.descripcion LIKE ?)";
@@ -31,6 +56,14 @@ $sql .= " ORDER BY p.id DESC";
 $stmt = $db->prepare($sql);
 $stmt->execute($params);
 $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Definir enlace de salida según el rol actual
+$url_salida = '../index.php';
+if ($rol_actual === 'gerente') {
+    $url_salida = '../gerente/dashboard.php';
+} elseif ($rol_actual === 'subgerente') {
+    $url_salida = '../subgerente/dashboard.php';
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -40,9 +73,6 @@ $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <title>Materias Primas SCM – Restaurant App</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-    /* ==========================================================================
-       1. VARIABLES Y CONFIGURACIÓN GLOBAL
-       ========================================================================== */
     :root {
       --bg: #f8fafc;
       --surface: #ffffff;
@@ -61,9 +91,6 @@ $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
       --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
     }
 
-    /* ==========================================================================
-       2. RESET Y ESTILOS BASE
-       ========================================================================== */
     * {
       box-sizing: border-box;
       margin: 0;
@@ -79,9 +106,6 @@ $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
       font-size: 14px;
     }
 
-    /* ==========================================================================
-       3. SIDEBAR INSTITUCIONAL AZUL
-       ========================================================================== */
     .sidebar {
       width: var(--sidebar-w);
       background: var(--secondary);
@@ -138,9 +162,6 @@ $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
       font-weight: 600;
     }
 
-    /* ==========================================================================
-       4. CONTENIDO PRINCIPAL Y BANNER DE ALERTA
-       ========================================================================== */
     .main-content {
       margin-left: var(--sidebar-w);
       flex: 1;
@@ -193,9 +214,16 @@ $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
       font-weight: 500;
     }
 
-    /* ==========================================================================
-       5. TOOLBAR, FILTROS Y TABLA
-       ========================================================================== */
+    .alert-success { 
+      background: rgba(16, 185, 129, 0.1); 
+      border: 1px solid rgba(16, 185, 129, 0.2); 
+      color: var(--success); 
+      padding: 12px 16px; 
+      border-radius: 8px; 
+      margin-bottom: 20px; 
+      font-weight: 500; 
+    }
+
     .toolbar {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -256,6 +284,17 @@ $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
       background: var(--surface);
       color: var(--text);
       border: 1px solid var(--border);
+    }
+
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--danger);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+
+    .btn-danger:hover {
+      background: var(--danger);
+      color: #fff;
     }
 
     .card {
@@ -334,7 +373,13 @@ $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <a href="movimientos.php" class="sidebar-item"><span>🔄</span> Movimientos</a>
         <a href="pedidos.php" class="sidebar-item"><span>🛒</span> Pedidos Internos</a>
         <a href="logistica.php" class="sidebar-item"><span>⚙️</span> Logística Push/Pull</a>
-        <a href="../gerente/dashboard.php" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>←</span> Salir al Panel</a>
+        
+        <!-- Salida condicional: Cerrar sesión para Logística, Salir al Panel para Gerente/Subgerente -->
+        <?php if ($rol_actual === 'logistica'): ?>
+            <a href="logout.php" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>🚪</span> Cerrar sesión</a>
+        <?php else: ?>
+            <a href="<?= htmlspecialchars($url_salida, ENT_QUOTES, 'UTF-8') ?>" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>←</span> Salir al Panel</a>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -349,13 +394,17 @@ $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
         </div>
     <?php endif; ?>
 
+    <?php if (isset($_GET['success']) && $_GET['success'] === 'baja'): ?>
+        <div class="alert-success">✔ Materia prima dada de baja lógicamente con éxito del sistema.</div>
+    <?php endif; ?>
+
     <div class="header">
         <div>
             <h1>📦 Catálogo de Materias Primas e Insumos</h1>
         </div>
         <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
             <div class="role-badge">Rol: <?= htmlspecialchars(ucfirst($rol_actual), ENT_QUOTES, 'UTF-8') ?></div>
-            <?php if ($es_gerente): ?>
+            <?php if ($es_editable): ?>
                 <a href="producto_form.php" class="btn">+ Nueva Materia Prima</a>
             <?php endif; ?>
         </div>
@@ -371,7 +420,7 @@ $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <?php endif; ?>
         </form>
         <div style="color: var(--muted); font-size: 13px;">
-            Total insumos: <b><?= htmlspecialchars(count($productos), ENT_QUOTES, 'UTF-8') ?></b>
+            Total insumos activos: <b><?= htmlspecialchars(count($productos), ENT_QUOTES, 'UTF-8') ?></b>
         </div>
     </div>
 
@@ -400,8 +449,9 @@ $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         <td><?= htmlspecialchars($p['stock_minimo'], ENT_QUOTES, 'UTF-8') ?></td>
                         <td><span class="badge"><?= htmlspecialchars($p['estrategia_logistica'] ?? 'PUSH', ENT_QUOTES, 'UTF-8') ?></span></td>
                         <td style="text-align: right;">
-                            <?php if($es_gerente): ?>
+                            <?php if($es_editable): ?>
                                 <a href="producto_form.php?id=<?= htmlspecialchars($p['id'], ENT_QUOTES, 'UTF-8') ?>" class="btn" style="padding: 6px 12px; font-size:11px;">Editar</a>
+                                <a href="productos.php?eliminar=<?= htmlspecialchars($p['id'], ENT_QUOTES, 'UTF-8') ?>" class="btn btn-danger" style="padding: 6px 12px; font-size:11px;" onclick="return confirm('¿Estás seguro de dar de baja lógica este insumo del catálogo?');">Dar de baja</a>
                             <?php else: ?>
                                 <span style="color:var(--muted); font-size:12px;">Solo lectura</span>
                             <?php endif; ?>

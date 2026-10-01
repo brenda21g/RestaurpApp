@@ -1,14 +1,37 @@
 <?php
 /**
  * Archivo: scm/inventario.php
- * Descripción: Control de stock actual y alertas de inventario bajo con Sidebar, banner global y buscador.
+ * Descripción: Control de stock actual y alertas de inventario bajo, incluyendo soporte para manejo de inventario y logout dinámico para logística.
  */
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
-verificarAcceso(['gerente', 'subgerente', 'encargado']);
+verificarAcceso(['gerente', 'subgerente', 'logistica']);
 $db = getDB();
 
 $rol_actual = $_SESSION['admin_rol'] ?? '';
+$es_editable = puedeEditar('scm'); // TRUE para Gerente y Logística; FALSE para Subgerente
+
+$mensaje = '';
+$error = '';
+
+// Procesar acción de registro o actualización si se solicita
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion']) && $_POST['accion'] === 'baja_logica') {
+    if (!$es_editable) {
+        $error = "No tienes permisos de modificación en este módulo.";
+    } else {
+        $id_producto = (int)($_POST['producto_id'] ?? 0);
+        if ($id_producto > 0) {
+            try {
+                // Como la tabla no cuenta con columna activo por defecto, simulamos o ajustamos la acción
+                $stmt_baja = $db->prepare("DELETE FROM scm_productos WHERE id = ?");
+                $stmt_baja->execute([$id_producto]);
+                $mensaje = "El insumo ha sido eliminado correctamente del inventario.";
+            } catch (Exception $e) {
+                $error = "Error al procesar la eliminación del producto.";
+            }
+        }
+    }
+}
 
 // Conteo global de alertas para la barra lateral y banner
 $stmt_alertas = $db->query("SELECT * FROM scm_productos WHERE stock_actual <= stock_minimo");
@@ -26,7 +49,7 @@ $sql = "SELECT p.*, pr.nombre as proveedor_nombre
 $params = [];
 
 if ($busqueda !== '') {
-    $sql .= " AND (p.nombre LIKE ? OR p.categoria LIKE ?)";
+    $sql .= " AND (p.nombre LIKE ? OR p.descripcion LIKE ?)";
     $params[] = "%$busqueda%";
     $params[] = "%$busqueda%";
 }
@@ -42,6 +65,14 @@ $sql .= " ORDER BY p.stock_actual ASC";
 $stmt = $db->prepare($sql);
 $stmt->execute($params);
 $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Definir enlace de salida en la barra lateral según el rol
+$url_salida = '../index.php';
+if ($rol_actual === 'gerente') {
+    $url_salida = '../gerente/dashboard.php';
+} elseif ($rol_actual === 'subgerente') {
+    $url_salida = '../subgerente/dashboard.php';
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -51,9 +82,6 @@ $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <title>Inventario SCM – Panel de Logística</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-    /* ==========================================================================
-       1. VARIABLES Y CONFIGURACIÓN GLOBAL
-       ========================================================================== */
     :root {
       --bg: #f8fafc;
       --surface: #ffffff;
@@ -72,9 +100,6 @@ $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
       --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
     }
 
-    /* ==========================================================================
-       2. RESET Y ESTILOS BASE
-       ========================================================================== */
     * {
       box-sizing: border-box;
       margin: 0;
@@ -90,9 +115,6 @@ $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
       font-size: 14px;
     }
 
-    /* ==========================================================================
-       3. SIDEBAR INSTITUCIONAL AZUL
-       ========================================================================== */
     .sidebar {
       width: var(--sidebar-w);
       background: var(--secondary);
@@ -149,9 +171,6 @@ $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
       font-weight: 600;
     }
 
-    /* ==========================================================================
-       4. CONTENIDO PRINCIPAL Y BANNER DE ALERTA
-       ========================================================================== */
     .main-content {
       margin-left: var(--sidebar-w);
       flex: 1;
@@ -194,9 +213,9 @@ $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
       font-weight: 500;
     }
 
-    /* ==========================================================================
-       5. TOOLBAR, FILTROS Y TABLA
-       ========================================================================== */
+    .alert-success { background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); color: var(--success); padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-weight: 500; }
+    .alert-error { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: var(--danger); padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-weight: 500; }
+
     .toolbar {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -325,9 +344,6 @@ $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
       color: var(--primary);
     }
 
-    /* ==========================================================================
-       6. DISEÑO RESPONSIVO
-       ========================================================================== */
     @media (max-width: 768px) {
       .main-content { margin-left: 0; padding: 20px; }
       .sidebar { display: none; }
@@ -351,13 +367,27 @@ $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
         </a>
         <a href="movimientos.php" class="sidebar-item"><span>🔄</span> Movimientos</a>
         <a href="pedidos.php" class="sidebar-item"><span>🛒</span> Pedidos Internos</a>
-        <a href="logistica.php" class="sidebar-item"><span>⚙️</span> Logística Push/Pull</a>
-        <a href="../gerente/dashboard.php" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>←</span> Salir al Panel</a>
+        <a href="logistica.php" class="sidebar-item"><span>⚙️️</span> Logística Push/Pull</a>
+        
+        <!-- Salida condicional -->
+        <?php if ($rol_actual === 'logistica'): ?>
+            <a href="logout.php" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>🚪</span> Cerrar sesión</a>
+        <?php else: ?>
+            <a href="<?= htmlspecialchars($url_salida, ENT_QUOTES, 'UTF-8') ?>" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>←</span> Salir al Panel</a>
+        <?php endif; ?>
     </div>
 </div>
 
 <!-- CONTENIDO PRINCIPAL -->
 <div class="main-content">
+    <?php if (!empty($mensaje)): ?>
+        <div class="alert-success">✅ <?= htmlspecialchars($mensaje, ENT_QUOTES, 'UTF-8') ?></div>
+    <?php endif; ?>
+
+    <?php if (!empty($error)): ?>
+        <div class="alert-error">⚠️ <?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></div>
+    <?php endif; ?>
+
     <?php if ($num_alertas_global > 0): ?>
         <div class="alert-banner">
             <span class="icon">⚠️</span>
@@ -370,16 +400,22 @@ $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     <div class="header">
         <h1>📊 Control de Inventario y Alertas</h1>
-        <div style="display: flex; gap: 10px;">
-            <a href="movimientos.php" class="btn">+ Registrar Movimiento</a>
-            <a href="pedidos.php" class="btn" style="background:#0f172a;">Pedir a Proveedor</a>
-        </div>
+        <?php if ($es_editable): ?>
+            <div style="display: flex; gap: 10px;">
+                <a href="movimientos.php" class="btn">+ Registrar Movimiento</a>
+                <a href="pedidos.php" class="btn" style="background:#0f172a;">Pedir a Proveedor</a>
+            </div>
+        <?php else: ?>
+            <div style="color: var(--muted); font-size: 13px; font-style: italic;">
+                🔒 Modo consulta (Solo lectura para Subgerente)
+            </div>
+        <?php endif; ?>
     </div>
 
     <!-- TOOLBAR DE BÚSQUEDA Y FILTROS -->
     <div class="toolbar">
         <form method="GET" class="filters">
-            <input type="text" name="q" placeholder="Buscar por insumo o categoría..." value="<?= htmlspecialchars($busqueda, ENT_QUOTES, 'UTF-8') ?>" style="width: 260px;" autocomplete="off">
+            <input type="text" name="q" placeholder="Buscar por insumo o descripción..." value="<?= htmlspecialchars($busqueda, ENT_QUOTES, 'UTF-8') ?>" style="width: 260px;" autocomplete="off">
             <select name="estado">
                 <option value="">Todos los estados</option>
                 <option value="critico" <?= $filtro_estado === 'critico' ? 'selected' : '' ?>>⚠️ Alerta Stock Bajo</option>
@@ -400,7 +436,7 @@ $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <thead>
                 <tr>
                     <th>Materia Prima / Insumo</th>
-                    <th>Categoría</th>
+                    <th>Categoría / Descripción</th>
                     <th>Proveedor Asignado</th>
                     <th>Stock Actual</th>
                     <th>Stock Mínimo</th>
@@ -415,15 +451,23 @@ $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <?php else: foreach($productos as $p): $bajo = $p['stock_actual'] <= $p['stock_minimo']; ?>
                     <tr>
                         <td><b><?= htmlspecialchars($p['nombre'], ENT_QUOTES, 'UTF-8') ?></b></td>
-                        <td style="color: var(--muted);"><?= htmlspecialchars($p['categoria'] ?? 'General', ENT_QUOTES, 'UTF-8') ?></td>
+                        <td style="color: var(--muted);"><?= htmlspecialchars($p['descripcion'] ?? 'General', ENT_QUOTES, 'UTF-8') ?></td>
                         <td style="color: var(--muted);"><?= htmlspecialchars($p['proveedor_nombre'] ?? 'Sin asignar', ENT_QUOTES, 'UTF-8') ?></td>
                         <td><b><?= htmlspecialchars($p['stock_actual'], ENT_QUOTES, 'UTF-8') ?></b></td>
                         <td><?= htmlspecialchars($p['stock_minimo'], ENT_QUOTES, 'UTF-8') ?></td>
                         <td><span class="badge"><?= htmlspecialchars($p['estrategia_logistica'] ?? 'PUSH', ENT_QUOTES, 'UTF-8') ?></span></td>
                         <td><?= $bajo ? '<span class="status-low">⚠️ Alerta Stock Bajo</span>' : '<span class="status-ok">✔ Óptimo</span>' ?></td>
                         <td style="text-align: right;">
-                            <a href="productos.php?buscar=<?= urlencode($p['nombre']) ?>" title="Ver / Editar Producto" style="color: var(--primary); text-decoration: none; font-weight: 600; font-size: 16px; margin-right: 8px;">👁️</a>
-                            <a href="movimientos.php?producto_id=<?= htmlspecialchars($p['id'], ENT_QUOTES, 'UTF-8') ?>" title="Ver Movimientos" style="color: var(--muted); text-decoration: none; font-weight: 600; font-size: 16px;">🔄</a>
+                            <a href="productos.php?buscar=<?= urlencode($p['nombre']) ?>" title="Ver Producto" style="color: var(--primary); text-decoration: none; font-weight: 600; font-size: 16px; margin-right: 8px;">👁️</a>
+                            <a href="movimientos.php?producto_id=<?= htmlspecialchars($p['id'], ENT_QUOTES, 'UTF-8') ?>" title="Ver Movimientos" style="color: var(--muted); text-decoration: none; font-weight: 600; font-size: 16px; margin-right: 8px;">🔄</a>
+                            
+                            <?php if ($es_editable): ?>
+                                <form method="POST" style="display:inline;" onsubmit="return confirm('¿Estás seguro de eliminar este insumo del inventario?');">
+                                    <input type="hidden" name="accion" value="baja_logica">
+                                    <input type="hidden" name="producto_id" value="<?= htmlspecialchars($p['id'], ENT_QUOTES, 'UTF-8') ?>">
+                                    <button type="submit" title="Eliminar insumo" style="background:none; border:none; color: var(--danger); cursor:pointer; font-size: 16px;">🗑️</button>
+                                </form>
+                            <?php endif; ?>
                         </td>
                     </tr>
                 <?php endforeach; endif; ?>

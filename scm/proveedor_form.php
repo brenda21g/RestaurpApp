@@ -50,6 +50,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Conteo global de stock crítico para la barra lateral y banner global
 $num_alertas_global = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= stock_minimo")->fetchColumn();
+
+// Definir enlace de salida según el rol actual
+$url_salida = '../index.php';
+if ($rol_actual === 'gerente') {
+    $url_salida = '../gerente/dashboard.php';
+} elseif ($rol_actual === 'subgerente') {
+    $url_salida = '../subgerente/dashboard.php';
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -59,9 +67,6 @@ $num_alertas_global = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock
 <title>Proveedor Form – Restaurant App</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-    /* ==========================================================================
-       1. VARIABLES Y CONFIGURACIÓN GLOBAL
-       ========================================================================== */
     :root {
       --bg: #f8fafc;
       --surface: #ffffff;
@@ -80,9 +85,6 @@ $num_alertas_global = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock
       --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
     }
 
-    /* ==========================================================================
-       2. RESET Y ESTILOS BASE
-       ========================================================================== */
     * {
       box-sizing: border-box;
       margin: 0;
@@ -98,9 +100,6 @@ $num_alertas_global = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock
       font-size: 14px;
     }
 
-    /* ==========================================================================
-       3. SIDEBAR INSTITUCIONAL AZUL
-       ========================================================================== */
     .sidebar {
       width: var(--sidebar-w);
       background: var(--secondary);
@@ -157,9 +156,6 @@ $num_alertas_global = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock
       font-weight: 600;
     }
 
-    /* ==========================================================================
-       4. CONTENIDO PRINCIPAL Y BANNER DE ALERTA
-       ========================================================================== */
     .main-content {
       margin-left: var(--sidebar-w);
       flex: 1;
@@ -310,7 +306,13 @@ $num_alertas_global = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock
         <a href="movimientos.php" class="sidebar-item"><span>🔄</span> Movimientos</a>
         <a href="pedidos.php" class="sidebar-item"><span>🛒</span> Pedidos Internos</a>
         <a href="logistica.php" class="sidebar-item"><span>⚙️</span> Logística Push/Pull</a>
-        <a href="../gerente/dashboard.php" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>←</span> Salir al Panel</a>
+        
+        <!-- Salida condicional: Cerrar sesión para Logística, Salir al Panel para Gerente/Subgerente -->
+        <?php if ($rol_actual === 'logistica'): ?>
+            <a href="logout.php" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>🚪</span> Cerrar sesión</a>
+        <?php else: ?>
+            <a href="<?= htmlspecialchars($url_salida, ENT_QUOTES, 'UTF-8') ?>" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>←</span> Salir al Panel</a>
+        <?php endif; ?>
     </div>
 </div>
 

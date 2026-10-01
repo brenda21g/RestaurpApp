@@ -5,10 +5,11 @@
  */
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
-verificarAcceso(['gerente', 'subgerente', 'encargado']);
+verificarAcceso(['gerente', 'subgerente', 'logistica']);
 $db = getDB();
 
 $rol_actual = $_SESSION['admin_rol'] ?? '';
+$es_editable = puedeEditar('scm'); // TRUE para Gerente y Logística; FALSE para Subgerente
 
 // 1. Detección automática de insumos con stock crítico para generar órdenes PUSH si no existen
 $stmt_criticos = $db->query("SELECT * FROM scm_productos WHERE stock_actual <= stock_minimo AND estrategia_logistica = 'PUSH'");
@@ -61,6 +62,11 @@ if (isset($_POST['ajax_accion']) && isset($_POST['pedido_id'])) {
 
 // Control manual para PULL (por si se usa el botón de avance manual)
 if (isset($_GET['accion']) && isset($_GET['id'])) {
+    if (!$es_editable) {
+        header("Location: pedidos.php?error=no_permisos");
+        exit;
+    }
+
     $id_pedido = intval($_GET['id']);
     $accion = $_GET['accion'];
     $stmt_check = $db->prepare("SELECT p.*, sp.estrategia_logistica FROM scm_pedidos p JOIN scm_productos sp ON p.producto_id = sp.id WHERE p.id = ?");
@@ -83,6 +89,14 @@ if (isset($_GET['accion']) && isset($_GET['id'])) {
 
 $num_alertas_global = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= stock_minimo")->fetchColumn();
 $pedidos = $db->query("SELECT p.*, pr.nombre as proveedor_nombre, sp.nombre as producto_nombre, sp.estrategia_logistica FROM scm_pedidos p JOIN proveedores pr ON p.proveedor_id = pr.id JOIN scm_productos sp ON p.producto_id = sp.id ORDER BY p.id DESC")->fetchAll(PDO::FETCH_ASSOC);
+
+// Definir enlace de salida según el rol actual
+$url_salida = '../index.php';
+if ($rol_actual === 'gerente') {
+    $url_salida = '../gerente/dashboard.php';
+} elseif ($rol_actual === 'subgerente') {
+    $url_salida = '../subgerente/dashboard.php';
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -130,6 +144,8 @@ $pedidos = $db->query("SELECT p.*, pr.nombre as proveedor_nombre, sp.nombre as p
     .alert-banner span.icon { font-size: 20px; }
     .alert-banner .content { color: #991b1b; font-weight: 500; }
 
+    .alert-error { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: var(--danger); padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-weight: 500; }
+
     .btn { background: var(--primary); color: #fff; padding: 10px 16px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; border: none; cursor: pointer; transition: background 0.2s; }
     .btn:hover { background: var(--primary-hover); }
 
@@ -172,7 +188,13 @@ $pedidos = $db->query("SELECT p.*, pr.nombre as proveedor_nombre, sp.nombre as p
         <a href="movimientos.php" class="sidebar-item"><span>🔄</span> Movimientos</a>
         <a href="pedidos.php" class="sidebar-item active"><span>🛒</span> Pedidos Internos</a>
         <a href="logistica.php" class="sidebar-item"><span>⚙️</span> Logística Push/Pull</a>
-        <a href="../gerente/dashboard.php" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>←</span> Salir al Panel</a>
+        
+        <!-- Salida condicional: Cerrar sesión para Logística, Salir al Panel para Gerente/Subgerente -->
+        <?php if ($rol_actual === 'logistica'): ?>
+            <a href="logout.php" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>🚪</span> Cerrar sesión</a>
+        <?php else: ?>
+            <a href="<?= htmlspecialchars($url_salida, ENT_QUOTES, 'UTF-8') ?>" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>←</span> Salir al Panel</a>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -187,13 +209,21 @@ $pedidos = $db->query("SELECT p.*, pr.nombre as proveedor_nombre, sp.nombre as p
         </div>
     <?php endif; ?>
 
+    <?php if (isset($_GET['error']) && $_GET['error'] === 'no_permisos'): ?>
+        <div class="alert-error">⚠️ Acceso denegado: No tienes permisos de modificación en este módulo.</div>
+    <?php endif; ?>
+
     <div class="header">
         <div>
             <h1>🛒 Pedidos Internos (Simulación Push Automática vs Pull)</h1>
         </div>
         <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
             <div class="role-badge">Rol: <?= htmlspecialchars(ucfirst($rol_actual), ENT_QUOTES, 'UTF-8') ?></div>
-            <a href="pedido_form.php" class="btn">+ Generar Pedido Pull Manual</a>
+            <?php if ($es_editable): ?>
+                <a href="pedido_form.php" class="btn">+ Generar Pedido Pull Manual</a>
+            <?php else: ?>
+                <span style="color: var(--muted); font-size: 13px; font-style: italic;">Modo consulta (Lectura)</span>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -248,12 +278,16 @@ $pedidos = $db->query("SELECT p.*, pr.nombre as proveedor_nombre, sp.nombre as p
                                     <span style="color:var(--success); font-size:12px; font-weight:600;">Completado en Movimientos</span>
                                 <?php endif; ?>
                             <?php else: ?>
-                                <?php if($estado === 'pendiente' || $estado === ''): ?>
-                                    <a href="pedidos.php?accion=avanzar&id=<?= $pe['id'] ?>" class="btn" style="padding: 6px 12px; font-size:11px; background:var(--warning); color:#fff;">Pasar a En Proceso</a>
-                                <?php elseif($estado === 'en_proceso'): ?>
-                                    <a href="pedidos.php?accion=entregar&id=<?= $pe['id'] ?>" class="btn" style="padding: 6px 12px; font-size:11px; background:var(--success);">Recibir / Sumar Stock</a>
+                                <?php if($es_editable): ?>
+                                    <?php if($estado === 'pendiente' || $estado === ''): ?>
+                                        <a href="pedidos.php?accion=avanzar&id=<?= $pe['id'] ?>" class="btn" style="padding: 6px 12px; font-size:11px; background:var(--warning); color:#fff;">Pasar a En Proceso</a>
+                                    <?php elseif($estado === 'en_proceso'): ?>
+                                        <a href="pedidos.php?accion=entregar&id=<?= $pe['id'] ?>" class="btn" style="padding: 6px 12px; font-size:11px; background:var(--success);">Recibir / Sumar Stock</a>
+                                    <?php else: ?>
+                                        <span style="color:var(--muted); font-size:12px; font-weight:600;">Completado</span>
+                                    <?php endif; ?>
                                 <?php else: ?>
-                                    <span style="color:var(--muted); font-size:12px; font-weight:600;">Completado</span>
+                                    <span style="color:var(--muted); font-size:12px; font-style:italic;">Solo lectura</span>
                                 <?php endif; ?>
                             <?php endif; ?>
                         </td>

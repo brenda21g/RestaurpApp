@@ -1,14 +1,15 @@
 <?php
 /**
  * Archivo: scm/movimiento_form.php
- * Descripción: Formulario para registrar entradas o salidas manuales en el inventario con control de roles y Sidebar institucional.
+ * Descripción: Formulario para registrar entradas o salidas manuales en el inventario con control de roles, permisos y logout dinámico.
  */
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
-verificarAcceso(['gerente', 'subgerente', 'encargado']);
+verificarAcceso(['gerente', 'subgerente', 'logistica']);
 $db = getDB();
 
 $rol_actual = $_SESSION['admin_rol'] ?? '';
+$es_editable = puedeEditar('scm'); // TRUE para Gerente y Logística; FALSE para Subgerente
 
 $db_sidebar = getDB();
 $num_alertas_global = $db_sidebar->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= stock_minimo")->fetchColumn();
@@ -16,46 +17,58 @@ $num_alertas_global = $db_sidebar->query("SELECT COUNT(*) FROM scm_productos WHE
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $producto_id = intval($_POST['producto_id'] ?? 0);
-    $tipo = $_POST['tipo'] ?? 'Entrada'; // 'Entrada' o 'Salida'
-    $cantidad = intval($_POST['cantidad'] ?? 0);
-    $motivo = trim($_POST['motivo'] ?? '');
-    $fecha = $_POST['fecha'] ?? date('Y-m-d');
-    $usuario_id = $_SESSION['admin_id'] ?? null;
-
-    if ($producto_id > 0 && $cantidad > 0 && $motivo !== '') {
-        // Validar si hay suficiente stock en caso de una salida
-        if ($tipo === 'Salida') {
-            $stmt_stock = $db->prepare("SELECT stock_actual, nombre FROM scm_productos WHERE id = ?");
-            $stmt_stock->execute([$producto_id]);
-            $prod_info = $stmt_stock->fetch(PDO::FETCH_ASSOC);
-            
-            if ($prod_info && $cantidad > intval($prod_info['stock_actual'])) {
-                $error = "Stock insuficiente para el insumo <b>" . htmlspecialchars($prod_info['nombre'], ENT_QUOTES, 'UTF-8') . "</b>. Stock actual disponible: <b>" . $prod_info['stock_actual'] . "</b>.";
-            }
-        }
-
-        if ($error === '') {
-            // Registrar el movimiento
-            $stmt = $db->prepare("INSERT INTO scm_movimientos (producto_id, tipo, cantidad, motivo, fecha, usuario_id) VALUES (?, ?, ?, ?, ?, ?)");
-            $stmt->execute([$producto_id, $tipo, $cantidad, $motivo, $fecha, $usuario_id]);
-
-            // Actualizar stock actual en scm_productos automáticamente
-            if ($tipo === 'Entrada') {
-                $db->prepare("UPDATE scm_productos SET stock_actual = stock_actual + ? WHERE id = ?")->execute([$cantidad, $producto_id]);
-            } else {
-                $db->prepare("UPDATE scm_productos SET stock_actual = stock_actual - ? WHERE id = ?")->execute([$cantidad, $producto_id]);
-            }
-
-            header("Location: movimientos.php");
-            exit;
-        }
+    if (!$es_editable) {
+        $error = "Acceso denegado: No tienes permisos de modificación en este módulo.";
     } else {
-        $error = "Por favor completa todos los campos requeridos correctamente.";
+        $producto_id = intval($_POST['producto_id'] ?? 0);
+        $tipo = $_POST['tipo'] ?? 'Entrada'; // 'Entrada' o 'Salida'
+        $cantidad = intval($_POST['cantidad'] ?? 0);
+        $motivo = trim($_POST['motivo'] ?? '');
+        $fecha = $_POST['fecha'] ?? date('Y-m-d');
+        $usuario_id = $_SESSION['admin_id'] ?? null;
+
+        if ($producto_id > 0 && $cantidad > 0 && $motivo !== '') {
+            // Validar si hay suficiente stock en caso de una salida
+            if ($tipo === 'Salida') {
+                $stmt_stock = $db->prepare("SELECT stock_actual, nombre FROM scm_productos WHERE id = ?");
+                $stmt_stock->execute([$producto_id]);
+                $prod_info = $stmt_stock->fetch(PDO::FETCH_ASSOC);
+                
+                if ($prod_info && $cantidad > intval($prod_info['stock_actual'])) {
+                    $error = "Stock insuficiente para el insumo <b>" . htmlspecialchars($prod_info['nombre'], ENT_QUOTES, 'UTF-8') . "</b>. Stock actual disponible: <b>" . $prod_info['stock_actual'] . "</b>.";
+                }
+            }
+
+            if ($error === '') {
+                // Registrar el movimiento
+                $stmt = $db->prepare("INSERT INTO scm_movimientos (producto_id, tipo, cantidad, motivo, fecha, usuario_id) VALUES (?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$producto_id, $tipo, $cantidad, $motivo, $fecha, $usuario_id]);
+
+                // Actualizar stock actual en scm_productos automáticamente
+                if ($tipo === 'Entrada') {
+                    $db->prepare("UPDATE scm_productos SET stock_actual = stock_actual + ? WHERE id = ?")->execute([$cantidad, $producto_id]);
+                } else {
+                    $db->prepare("UPDATE scm_productos SET stock_actual = stock_actual - ? WHERE id = ?")->execute([$cantidad, $producto_id]);
+                }
+
+                header("Location: movimientos.php");
+                exit;
+            }
+        } else {
+            $error = "Por favor completa todos los campos requeridos correctamente.";
+        }
     }
 }
 
 $productos = $db->query("SELECT id, nombre, stock_actual FROM scm_productos ORDER BY nombre ASC")->fetchAll(PDO::FETCH_ASSOC);
+
+// Definir enlace de salida según el rol actual
+$url_salida = '../index.php';
+if ($rol_actual === 'gerente') {
+    $url_salida = '../gerente/dashboard.php';
+} elseif ($rol_actual === 'subgerente') {
+    $url_salida = '../subgerente/dashboard.php';
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -65,9 +78,6 @@ $productos = $db->query("SELECT id, nombre, stock_actual FROM scm_productos ORDE
 <title>Registrar Movimiento SCM – Restaurant App</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-    /* ==========================================================================
-       1. VARIABLES Y CONFIGURACIÓN GLOBAL
-       ========================================================================== */
     :root {
       --bg: #f8fafc;
       --surface: #ffffff;
@@ -86,9 +96,6 @@ $productos = $db->query("SELECT id, nombre, stock_actual FROM scm_productos ORDE
       --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
     }
 
-    /* ==========================================================================
-       2. RESET Y ESTILOS BASE
-       ========================================================================== */
     * {
       box-sizing: border-box;
       margin: 0;
@@ -104,9 +111,6 @@ $productos = $db->query("SELECT id, nombre, stock_actual FROM scm_productos ORDE
       font-size: 14px;
     }
 
-    /* ==========================================================================
-       3. SIDEBAR INSTITUCIONAL AZUL
-       ========================================================================== */
     .sidebar {
       width: var(--sidebar-w);
       background: var(--secondary);
@@ -163,9 +167,6 @@ $productos = $db->query("SELECT id, nombre, stock_actual FROM scm_productos ORDE
       font-weight: 600;
     }
 
-    /* ==========================================================================
-       4. CONTENIDO PRINCIPAL Y ALERTAS
-       ========================================================================== */
     .main-content {
       margin-left: var(--sidebar-w);
       flex: 1;
@@ -228,9 +229,6 @@ $productos = $db->query("SELECT id, nombre, stock_actual FROM scm_productos ORDE
       font-weight: 500; 
     }
 
-    /* ==========================================================================
-       5. FORMULARIO Y CONTENEDORES
-       ========================================================================== */
     .btn {
       background: var(--primary);
       color: #fff;
@@ -346,7 +344,13 @@ $productos = $db->query("SELECT id, nombre, stock_actual FROM scm_productos ORDE
         <a href="movimientos.php" class="sidebar-item active"><span>🔄</span> Movimientos</a>
         <a href="pedidos.php" class="sidebar-item"><span>🛒</span> Pedidos Internos</a>
         <a href="logistica.php" class="sidebar-item"><span>⚙️</span> Logística Push/Pull</a>
-        <a href="../gerente/dashboard.php" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>←</span> Salir al Panel</a>
+        
+        <!-- Salida condicional: Cerrar sesión para Logística, Salir al Panel para Gerente/Subgerente -->
+        <?php if ($rol_actual === 'logistica'): ?>
+            <a href="logout.php" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>🚪</span> Cerrar sesión</a>
+        <?php else: ?>
+            <a href="<?= htmlspecialchars($url_salida, ENT_QUOTES, 'UTF-8') ?>" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>←</span> Salir al Panel</a>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -367,51 +371,59 @@ $productos = $db->query("SELECT id, nombre, stock_actual FROM scm_productos ORDE
     </div>
 
     <?php if($error): ?>
-        <div class="alert-error">⚠️ <?= $error ?></div>
+        <div class="alert-error">⚠️️ <?= $error ?></div>
     <?php endif; ?>
 
     <div class="card">
-        <form method="POST">
-            <div class="field">
-                <label>Materia Prima / Insumo *</label>
-                <select name="producto_id" required>
-                    <option value="">Seleccione un insumo...</option>
-                    <?php foreach($productos as $p): ?>
-                        <option value="<?= htmlspecialchars($p['id'], ENT_QUOTES, 'UTF-8') ?>">
-                            <?= htmlspecialchars($p['nombre'], ENT_QUOTES, 'UTF-8') ?> (Stock actual: <?= htmlspecialchars($p['stock_actual'], ENT_QUOTES, 'UTF-8') ?>)
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
+        <?php if ($es_editable): ?>
+            <form method="POST">
+                <div class="field">
+                    <label>Materia Prima / Insumo *</label>
+                    <select name="producto_id" required>
+                        <option value="">Seleccione un insumo...</option>
+                        <?php foreach($productos as $p): ?>
+                            <option value="<?= htmlspecialchars($p['id'], ENT_QUOTES, 'UTF-8') ?>">
+                                <?= htmlspecialchars($p['nombre'], ENT_QUOTES, 'UTF-8') ?> (Stock actual: <?= htmlspecialchars($p['stock_actual'], ENT_QUOTES, 'UTF-8') ?>)
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
 
-            <div class="field">
-                <label>Tipo de Movimiento *</label>
-                <select name="tipo" required>
-                    <option value="Entrada">Entrada (Suma Stock)</option>
-                    <option value="Salida">Salida (Resta Stock)</option>
-                </select>
-            </div>
+                <div class="field">
+                    <label>Tipo de Movimiento *</label>
+                    <select name="tipo" required>
+                        <option value="Entrada">Entrada (Suma Stock)</option>
+                        <option value="Salida">Salida (Resta Stock)</option>
+                    </select>
+                </div>
 
-            <div class="field">
-                <label>Cantidad *</label>
-                <input type="number" name="cantidad" min="1" placeholder="Ej. 10" required>
-            </div>
+                <div class="field">
+                    <label>Cantidad *</label>
+                    <input type="number" name="cantidad" min="1" placeholder="Ej. 10" required>
+                </div>
 
-            <div class="field">
-                <label>Motivo / Razón *</label>
-                <textarea name="motivo" placeholder="Ej. Merma por caducidad, Ajuste de inventario, Recepción de lote, etc." required></textarea>
-            </div>
+                <div class="field">
+                    <label>Motivo / Razón *</label>
+                    <textarea name="motivo" placeholder="Ej. Merma por caducidad, Ajuste de inventario, Recepción de lote, etc." required></textarea>
+                </div>
 
-            <div class="field">
-                <label>Fecha del Movimiento *</label>
-                <input type="date" name="fecha" value="<?= date('Y-m-d') ?>" required>
-            </div>
+                <div class="field">
+                    <label>Fecha del Movimiento *</label>
+                    <input type="date" name="fecha" value="<?= date('Y-m-d') ?>" required>
+                </div>
 
-            <div class="form-actions">
-                <button type="submit" class="btn">Guardar Movimiento</button>
-                <a href="movimientos.php" class="btn-secondary">Cancelar</a>
+                <div class="form-actions">
+                    <button type="submit" class="btn">Guardar Movimiento</button>
+                    <a href="movimientos.php" class="btn-secondary">Cancelar</a>
+                </div>
+            </form>
+        <?php else: ?>
+            <div style="text-align: center; padding: 20px; color: var(--muted);">
+                <p style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">🔒 Modo Consulta</p>
+                <p style="font-size: 13px; margin-bottom: 20px;">Tu rol actual (Subgerente) tiene acceso de solo lectura en el módulo SCM. No puedes registrar entradas o salidas de inventario.</p>
+                <a href="movimientos.php" class="btn-secondary">← Volver a Movimientos</a>
             </div>
-        </form>
+        <?php endif; ?>
     </div>
 </div>
 

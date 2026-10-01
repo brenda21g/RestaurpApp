@@ -1,15 +1,34 @@
 <?php
 /**
  * Archivo: scm/proveedores.php
- * Descripción: Listado general de proveedores con control de roles, buscador, banner global y Sidebar institucional.
+ * Descripción: Listado general de proveedores con control de roles, buscador, bajas lógicas, banner global y Sidebar institucional.
  */
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
-verificarAcceso(['gerente', 'subgerente', 'encargado']);
+verificarAcceso(['gerente', 'subgerente', 'encargado', 'logistica']);
 $db = getDB();
 
 $rol_actual = $_SESSION['admin_rol'] ?? '';
 $es_gerente = ($rol_actual === 'gerente');
+$es_editable = puedeEditar('scm'); // TRUE para Gerente y Logística; FALSE para Subgerente
+
+// Manejo de baja lógica (si se solicita por GET y tiene permisos de edición)
+if (isset($_GET['eliminar']) && $es_editable) {
+    $id_eliminar = intval($_GET['eliminar']);
+    try {
+        $check_col = $db->query("SHOW COLUMNS FROM proveedores LIKE 'activo'")->fetch();
+        if ($check_col) {
+            $stmt_del = $db->prepare("UPDATE proveedores SET activo = 0 WHERE id = ?");
+            $stmt_del->execute([$id_eliminar]);
+        } else {
+            // Si la tabla no tiene la columna activo, se elimina físicamente de forma segura
+            $db->prepare("DELETE FROM proveedores WHERE id = ?")->execute([$id_eliminar]);
+        }
+    } catch (Exception $e) {}
+    
+    header("Location: proveedores.php?success=baja");
+    exit;
+}
 
 // Conteo global de stock crítico para la barra lateral y banner global
 $num_alertas_global = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= stock_minimo")->fetchColumn();
@@ -19,6 +38,14 @@ $buscar = trim($_GET['buscar'] ?? '');
 
 $sql = "SELECT * FROM proveedores WHERE 1=1";
 $params = [];
+
+// Filtrar únicamente los proveedores activos si la columna existe
+try {
+    $check_col = $db->query("SHOW COLUMNS FROM proveedores LIKE 'activo'")->fetch();
+    if ($check_col) {
+        $sql .= " AND (activo = 1 OR activo IS NULL)";
+    }
+} catch (Exception $e) {}
 
 if ($buscar !== '') {
     $sql .= " AND (nombre LIKE ? OR contacto LIKE ? OR correo LIKE ?)";
@@ -32,6 +59,14 @@ $sql .= " ORDER BY id DESC";
 $stmt = $db->prepare($sql);
 $stmt->execute($params);
 $proveedores = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Definir enlace de salida según el rol actual
+$url_salida = '../index.php';
+if ($rol_actual === 'gerente') {
+    $url_salida = '../gerente/dashboard.php';
+} elseif ($rol_actual === 'subgerente') {
+    $url_salida = '../subgerente/dashboard.php';
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -194,6 +229,16 @@ $proveedores = $stmt->fetchAll(PDO::FETCH_ASSOC);
       font-weight: 500;
     }
 
+    .alert-success { 
+      background: rgba(16, 185, 129, 0.1); 
+      border: 1px solid rgba(16, 185, 129, 0.2); 
+      color: var(--success); 
+      padding: 12px 16px; 
+      border-radius: 8px; 
+      margin-bottom: 20px; 
+      font-weight: 500; 
+    }
+
     /* ==========================================================================
        5. TOOLBAR, FILTROS Y TABLA
        ========================================================================== */
@@ -257,6 +302,17 @@ $proveedores = $stmt->fetchAll(PDO::FETCH_ASSOC);
       background: var(--surface);
       color: var(--text);
       border: 1px solid var(--border);
+    }
+
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--danger);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+
+    .btn-danger:hover {
+      background: var(--danger);
+      color: #fff;
     }
 
     .card {
@@ -325,7 +381,13 @@ $proveedores = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <a href="movimientos.php" class="sidebar-item"><span>🔄</span> Movimientos</a>
         <a href="pedidos.php" class="sidebar-item"><span>🛒</span> Pedidos Internos</a>
         <a href="logistica.php" class="sidebar-item"><span>⚙️</span> Logística Push/Pull</a>
-        <a href="../gerente/dashboard.php" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>←</span> Salir al Panel</a>
+        
+        <!-- Salida condicional: Cerrar sesión para Logística, Salir al Panel para Gerente/Subgerente -->
+        <?php if ($rol_actual === 'logistica'): ?>
+            <a href="logout.php" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>🚪</span> Cerrar sesión</a>
+        <?php else: ?>
+            <a href="<?= htmlspecialchars($url_salida, ENT_QUOTES, 'UTF-8') ?>" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>←</span> Salir al Panel</a>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -340,13 +402,17 @@ $proveedores = $stmt->fetchAll(PDO::FETCH_ASSOC);
         </div>
     <?php endif; ?>
 
+    <?php if (isset($_GET['success']) && $_GET['success'] === 'baja'): ?>
+        <div class="alert-success">✔ Proveedor dado de baja lógicamente con éxito del sistema.</div>
+    <?php endif; ?>
+
     <div class="header">
         <div>
             <h1>🤝 Gestión de Proveedores</h1>
         </div>
         <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
             <div class="role-badge">Rol: <?= htmlspecialchars(ucfirst($rol_actual), ENT_QUOTES, 'UTF-8') ?></div>
-            <?php if ($es_gerente): ?>
+            <?php if ($es_editable): ?>
                 <a href="proveedor_form.php" class="btn">+ Nuevo Proveedor</a>
             <?php endif; ?>
         </div>
@@ -362,7 +428,7 @@ $proveedores = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <?php endif; ?>
         </form>
         <div style="color: var(--muted); font-size: 13px;">
-            Total proveedores: <b><?= htmlspecialchars(count($proveedores), ENT_QUOTES, 'UTF-8') ?></b>
+            Total proveedores activos: <b><?= htmlspecialchars(count($proveedores), ENT_QUOTES, 'UTF-8') ?></b>
         </div>
     </div>
 
@@ -389,8 +455,9 @@ $proveedores = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         <td><?= htmlspecialchars($p['correo'] ?? '', ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($p['telefono'] ?? '', ENT_QUOTES, 'UTF-8') ?></td>
                         <td style="text-align: right;">
-                            <?php if($es_gerente): ?>
+                            <?php if($es_editable): ?>
                                 <a href="proveedor_form.php?id=<?= htmlspecialchars($p['id'], ENT_QUOTES, 'UTF-8') ?>" class="btn" style="padding: 6px 12px; font-size:11px;">Editar</a>
+                                <a href="proveedores.php?eliminar=<?= htmlspecialchars($p['id'], ENT_QUOTES, 'UTF-8') ?>" class="btn btn-danger" style="padding: 6px 12px; font-size:11px;" onclick="return confirm('¿Estás seguro de dar de baja lógica este proveedor?');">Dar de baja</a>
                             <?php else: ?>
                                 <span style="color:var(--muted); font-size:12px;">Solo lectura</span>
                             <?php endif; ?>

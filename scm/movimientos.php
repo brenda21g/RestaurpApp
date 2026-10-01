@@ -5,10 +5,11 @@
  */
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
-verificarAcceso(['gerente', 'subgerente', 'encargado']);
+verificarAcceso(['gerente', 'subgerente', 'logistica']);
 $db = getDB();
 
 $rol_actual = $_SESSION['admin_rol'] ?? '';
+$es_editable = puedeEditar('scm'); // TRUE para Gerente y Logística; FALSE para Subgerente
 
 // Conteo global de stock crítico para la barra lateral y banner global
 $num_alertas_global = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= stock_minimo")->fetchColumn();
@@ -32,6 +33,14 @@ $sql .= " ORDER BY m.id DESC";
 $stmt = $db->prepare($sql);
 $stmt->execute($params);
 $movs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Definir enlace de salida según el rol actual
+$url_salida = '../index.php';
+if ($rol_actual === 'gerente') {
+    $url_salida = '../gerente/dashboard.php';
+} elseif ($rol_actual === 'subgerente') {
+    $url_salida = '../subgerente/dashboard.php';
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -41,9 +50,6 @@ $movs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <title>Movimientos SCM – Restaurant App</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-    /* ==========================================================================
-       1. VARIABLES Y CONFIGURACIÓN GLOBAL
-       ========================================================================== */
     :root {
       --bg: #f8fafc;
       --surface: #ffffff;
@@ -62,9 +68,6 @@ $movs = $stmt->fetchAll(PDO::FETCH_ASSOC);
       --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
     }
 
-    /* ==========================================================================
-       2. RESET Y ESTILOS BASE
-       ========================================================================== */
     * {
       box-sizing: border-box;
       margin: 0;
@@ -80,9 +83,6 @@ $movs = $stmt->fetchAll(PDO::FETCH_ASSOC);
       font-size: 14px;
     }
 
-    /* ==========================================================================
-       3. SIDEBAR INSTITUCIONAL AZUL
-       ========================================================================== */
     .sidebar {
       width: var(--sidebar-w);
       background: var(--secondary);
@@ -139,9 +139,6 @@ $movs = $stmt->fetchAll(PDO::FETCH_ASSOC);
       font-weight: 600;
     }
 
-    /* ==========================================================================
-       4. CONTENIDO PRINCIPAL Y BANNER DE ALERTA
-       ========================================================================== */
     .main-content {
       margin-left: var(--sidebar-w);
       flex: 1;
@@ -194,9 +191,6 @@ $movs = $stmt->fetchAll(PDO::FETCH_ASSOC);
       font-weight: 500;
     }
 
-    /* ==========================================================================
-       5. COMPONENTES Y TABLA
-       ========================================================================== */
     .btn {
       background: var(--primary);
       color: #fff;
@@ -294,8 +288,14 @@ $movs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         <a href="movimientos.php" class="sidebar-item active"><span>🔄</span> Movimientos</a>
         <a href="pedidos.php" class="sidebar-item"><span>🛒</span> Pedidos Internos</a>
-        <a href="logistica.php" class="sidebar-item"><span>⚙️</span> Logística Push/Pull</a>
-        <a href="../gerente/dashboard.php" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>←</span> Salir al Panel</a>
+        <a href="logistica.php" class="sidebar-item"><span>⚙</span> Logística Push/Pull</a>
+        
+        <!-- Salida condicional: Cerrar sesión para Logística, Salir al Panel para Gerente/Subgerente -->
+        <?php if ($rol_actual === 'logistica'): ?>
+            <a href="logout.php" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>🚪</span> Cerrar sesión</a>
+        <?php else: ?>
+            <a href="<?= htmlspecialchars($url_salida, ENT_QUOTES, 'UTF-8') ?>" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>←</span> Salir al Panel</a>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -319,7 +319,11 @@ $movs = $stmt->fetchAll(PDO::FETCH_ASSOC);
         </div>
         <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
             <div class="role-badge">Rol: <?= htmlspecialchars(ucfirst($rol_actual), ENT_QUOTES, 'UTF-8') ?></div>
-            <a href="movimiento_form.php" class="btn">+ Registrar Movimiento</a>
+            <?php if ($es_editable): ?>
+                <a href="movimiento_form.php" class="btn">+ Registrar Movimiento</a>
+            <?php else: ?>
+                <span style="color: var(--muted); font-size: 13px; font-style: italic;">Modo consulta (Lectura)</span>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -340,6 +344,10 @@ $movs = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <tr><td colspan="6" style="text-align:center; color:var(--muted); padding:30px;">No hay movimientos registrados en el sistema.</td></tr>
                 <?php else: foreach($movs as $m): 
                     $es_entrada = (strtolower($m['tipo']) === 'entrada');
+                    
+                    // Determinar si fue automático o manual
+                    $es_automatico = empty($m['usuario_id']) || stripos($m['motivo'], 'automátic') !== false || stripos($m['motivo'], 'push') !== false;
+                    $registrado_por = $es_automatico ? 'Sistema' : htmlspecialchars($m['admin_nombre'] ?? 'Sistema', ENT_QUOTES, 'UTF-8');
                 ?>
                     <tr>
                         <td><?= htmlspecialchars($m['fecha'], ENT_QUOTES, 'UTF-8') ?></td>
@@ -351,7 +359,7 @@ $movs = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         <td><b><?= htmlspecialchars($m['producto_nombre'], ENT_QUOTES, 'UTF-8') ?></b></td>
                         <td><b><?= htmlspecialchars($m['cantidad'], ENT_QUOTES, 'UTF-8') ?></b></td>
                         <td style="color: var(--muted);"><?= htmlspecialchars($m['motivo'], ENT_QUOTES, 'UTF-8') ?></td>
-                        <td><?= htmlspecialchars($m['admin_nombre'] ?? 'Sistema', ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><?= $registrado_por ?></td>
                     </tr>
                 <?php endforeach; endif; ?>
             </tbody>

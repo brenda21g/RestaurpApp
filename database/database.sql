@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 21-09-2026 a las 16:36:40
+-- Tiempo de generación: 01-10-2026 a las 18:36:44
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -33,7 +33,7 @@ CREATE TABLE `admins` (
   `password_hash` varchar(255) NOT NULL,
   `nombre` varchar(100) DEFAULT NULL,
   `email` varchar(100) NOT NULL,
-  `rol` enum('gerente','subgerente') NOT NULL DEFAULT 'subgerente',
+  `rol` enum('gerente','subgerente','logistica','cocina') NOT NULL DEFAULT 'subgerente',
   `pin` varchar(255) DEFAULT NULL,
   `activo` tinyint(1) DEFAULT 1,
   `ultimo_login` timestamp NULL DEFAULT NULL,
@@ -46,9 +46,9 @@ CREATE TABLE `admins` (
 --
 
 INSERT INTO `admins` (`id`, `username`, `password_hash`, `nombre`, `email`, `rol`, `pin`, `activo`, `ultimo_login`, `pin_recuperacion`, `pin_expira`) VALUES
-(1, 'Eloy', 'b0d8dc4e2b69059c760d53c7637cb44d', 'Gerente1', 'sage040621haslnla5@gmail.com', 'gerente', '81dc9bdb52d04dc20036dbd8313ed055', 1, '2026-09-17 19:44:42', NULL, NULL),
-(7, 'Brenda', '03e222fc51e9f4f5382ca4cbe26adddd', 'Brenda Cecilia Guillen', '22151220@aguascalientes.tecnm.mx', 'subgerente', NULL, 1, '2026-09-10 19:05:47', NULL, NULL),
-(8, 'Hola', '724d5a689f541cf37b5eddfa8de1c5c3', 'hkashda', 'brendaguille284@gmail.com', 'gerente', 'd93591bdf7860e1e4ee2fca799911215', 1, '2026-09-10 19:36:09', NULL, NULL);
+(1, 'Eloy', 'b0d8dc4e2b69059c760d53c7637cb44d', 'Gerente1', 'sage040621haslnla5@gmail.com', 'gerente', '81dc9bdb52d04dc20036dbd8313ed055', 1, '2026-10-01 16:31:55', NULL, NULL),
+(10, 'Lala', 'b0d8dc4e2b69059c760d53c7637cb44d', 'Lalocomotora', '22151220@aguascalientes.tecnm.mx', 'subgerente', NULL, 1, '2026-10-01 16:28:14', NULL, NULL),
+(11, 'Laca', '5ff4385bf58c47bb7ecf1cfc17364d7d', 'Laca Labaza', 'brendaguille284@gmail.com', '', NULL, 1, NULL, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -128,6 +128,27 @@ INSERT INTO `interacciones` (`id`, `cliente_id`, `tipo`, `asunto`, `descripcion`
 (4, 20, 'correo', 'Revicion', 'Hoola', '2026-09-17', '15:30:00', 'pendiente', '2026-09-10 13:30:46'),
 (5, 20, 'correo', 'Leoa', 'jhaskjdhak', '2026-09-11', '13:33:00', 'pendiente', '2026-09-10 13:31:40'),
 (6, 14, 'llamada', 'trato', 'datalles', '2026-09-17', '19:40:00', 'pendiente', '2026-09-10 13:37:22');
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `madurez_scm`
+--
+
+CREATE TABLE `madurez_scm` (
+  `id` int(11) NOT NULL,
+  `nivel_actual` int(11) NOT NULL DEFAULT 1,
+  `descripcion_avance` text DEFAULT NULL,
+  `porcentaje_implementacion` decimal(5,2) DEFAULT 0.00,
+  `actualizado_en` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Volcado de datos para la tabla `madurez_scm`
+--
+
+INSERT INTO `madurez_scm` (`id`, `nivel_actual`, `descripcion_avance`, `porcentaje_implementacion`, `actualizado_en`) VALUES
+(1, 3, 'Implementación avanzada de flujos Push/Pull y control de proveedores únicos.', 85.00, '2026-09-30 18:30:44');
 
 -- --------------------------------------------------------
 
@@ -308,6 +329,17 @@ CREATE TABLE `proveedores` (
   `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Volcado de datos para la tabla `proveedores`
+--
+
+INSERT INTO `proveedores` (`id`, `nombre`, `contacto`, `correo`, `telefono`, `direccion`, `creado_en`) VALUES
+(1, 'Central de Abastos Verel S.A.', 'Carlos Ruiz', 'contacto@verel.com', '4491234567', 'Av. Central #100, Aguascalientes', '2026-09-21 16:57:03'),
+(2, 'Bebidas del Centro (Coca-Cola / Fanta)', 'Ana Torres', 'ventas@bebidascentro.com', '4499876543', 'Zona Industrial, Aguascalientes', '2026-09-21 16:57:03'),
+(3, 'Carnes y Derivados San Marcos', 'Miguel Ángel Garza', 'pedidos@carnesfamosa.com', '4495551234', 'Blvd. San Marcos, Aguascalientes', '2026-09-21 16:57:03'),
+(4, 'Abarrotes y Panificadora La Esperanza', 'Lucía Méndez', 'laesperanza@abarrotes.com', '4497778900', 'Av. Universidad #400, Aguascalientes', '2026-09-21 16:57:03'),
+(5, 'Frutas y verduras Don pancho', 'Francisco Perez', 'franciscoperez@gmail.com', '4499486547', 'mi casa #17', '2026-09-21 19:16:52');
+
 -- --------------------------------------------------------
 
 --
@@ -324,6 +356,28 @@ CREATE TABLE `scm_movimientos` (
   `usuario_id` int(11) DEFAULT NULL COMMENT 'Administrador que registra',
   `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Volcado de datos para la tabla `scm_movimientos`
+--
+
+INSERT INTO `scm_movimientos` (`id`, `producto_id`, `tipo`, `cantidad`, `motivo`, `fecha`, `usuario_id`, `creado_en`) VALUES
+(1, 1, 'Salida', 1, 'Preparacion del dia', '2026-09-21', 1, '2026-09-21 19:07:58'),
+(2, 1, 'Salida', 5, 'Venta de nuevo', '2026-09-21', NULL, '2026-09-21 19:11:30'),
+(3, 1, 'Entrada', 25, 'Se vendio', '2026-09-21', NULL, '2026-09-21 19:12:55'),
+(4, 1, 'Salida', 50, 'Se vendio, ahora si', '2026-09-21', NULL, '2026-09-21 19:13:27'),
+(5, 1, 'Salida', 11, 'Me la comi', '2026-09-21', NULL, '2026-09-21 19:18:20'),
+(6, 1, 'Entrada', 50, 'ya lo repuse', '2026-09-21', NULL, '2026-09-21 19:18:47'),
+(7, 5, 'Entrada', 11, 'me la comi', '2026-09-21', NULL, '2026-09-21 19:19:04'),
+(8, 5, 'Salida', 28, 'mkmkmk', '2026-09-21', NULL, '2026-09-21 19:23:50'),
+(9, 2, 'Entrada', 2, 'Recepción pedido ORD-SCM-A4F378', '2026-09-30', 1, '2026-09-30 18:01:39'),
+(10, 1, 'Entrada', 1, 'Automatización PUSH ORD-SCM-8B9CE3', '2026-10-01', 1, '2026-10-01 06:59:10'),
+(11, 1, 'Entrada', 15, 'Automatización PUSH ORD-SCM-48A058', '2026-10-01', 1, '2026-10-01 06:59:10'),
+(12, 2, 'Entrada', 2, 'Automatización PUSH ORD-SCM-A4F378', '2026-10-01', 1, '2026-10-01 06:59:10'),
+(13, 6, 'Salida', 5, 'Merma de caducidad', '2026-10-01', 1, '2026-10-01 07:00:02'),
+(14, 6, 'Salida', 10, 'Comida', '2026-10-01', 1, '2026-10-01 07:00:43'),
+(15, 6, 'Entrada', 9, 'Recepción Automática ORD-PUSH-B2277E', '2026-10-01', 1, '2026-10-01 07:07:54'),
+(16, 5, 'Entrada', 15, 'Recepción Manual Pull ORD-PULL-C82DD5', '2026-10-01', 1, '2026-10-01 07:19:45');
 
 -- --------------------------------------------------------
 
@@ -343,6 +397,17 @@ CREATE TABLE `scm_pedidos` (
   `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Volcado de datos para la tabla `scm_pedidos`
+--
+
+INSERT INTO `scm_pedidos` (`id`, `numero_orden_scm`, `producto_id`, `proveedor_id`, `cantidad`, `tipo`, `estado`, `fecha`, `creado_en`) VALUES
+(1, 'ORD-SCM-8B9CE3', 1, 1, 1, 'Reposición Manual (Pull)', 'recibido', '2026-09-21', '2026-09-21 19:08:40'),
+(2, 'ORD-SCM-48A058', 1, 1, 15, 'Reposición Manual (Pull)', 'recibido', '2026-09-20', '2026-09-21 19:15:16'),
+(3, 'ORD-SCM-A4F378', 2, 1, 2, 'Reposición Manual (Pull)', 'recibido', '2026-09-18', '2026-09-21 19:17:46'),
+(4, 'ORD-PUSH-B2277E', 6, 4, 9, 'Reposición Automática (Push)', 'recibido', '2026-10-01', '2026-10-01 07:07:28'),
+(5, 'ORD-PULL-C82DD5', 5, 3, 15, 'Reposición Manual (Pull)', 'recibido', '2026-10-01', '2026-10-01 07:19:40');
+
 -- --------------------------------------------------------
 
 --
@@ -360,6 +425,18 @@ CREATE TABLE `scm_productos` (
   `precio` decimal(10,2) DEFAULT 0.00,
   `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Volcado de datos para la tabla `scm_productos`
+--
+
+INSERT INTO `scm_productos` (`id`, `nombre`, `descripcion`, `stock_actual`, `stock_minimo`, `estrategia_logistica`, `proveedor_id`, `precio`, `creado_en`) VALUES
+(1, 'Jitomate Saladette', 'Verdura fresca por kilo para salsas y guarniciones', 59, 10, 'PUSH', 1, 28.50, '2026-09-21 16:57:03'),
+(2, 'Cebolla Blanca', 'Insumo diario de verdura para cocina y tacos', 29, 8, 'PUSH', 1, 22.00, '2026-09-21 16:57:03'),
+(3, 'Refresco Coca-Cola 600ml', 'Botella individual de refresco', 60, 20, 'PUSH', 2, 18.00, '2026-09-21 16:57:03'),
+(4, 'Refresco Sprite 600ml', 'Bebida embotellada sabor lima-limón', 40, 15, 'PUSH', 2, 18.00, '2026-09-21 16:57:03'),
+(5, 'Carne Arrachera / Bistec', 'Corte seleccionado para platillos principales', 18, 10, 'PULL', 3, 140.00, '2026-09-21 16:57:03'),
+(6, 'Pan para Hamburguesa', 'Paquete con 10 piezas', 12, 6, 'PUSH', 4, 45.00, '2026-09-21 16:57:03');
 
 -- --------------------------------------------------------
 
@@ -421,6 +498,12 @@ ALTER TABLE `evaluaciones`
 ALTER TABLE `interacciones`
   ADD PRIMARY KEY (`id`),
   ADD KEY `fk_interaccion_cliente` (`cliente_id`);
+
+--
+-- Indices de la tabla `madurez_scm`
+--
+ALTER TABLE `madurez_scm`
+  ADD PRIMARY KEY (`id`);
 
 --
 -- Indices de la tabla `mesas`
@@ -499,7 +582,7 @@ ALTER TABLE `usuarios_cliente`
 -- AUTO_INCREMENT de la tabla `admins`
 --
 ALTER TABLE `admins`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- AUTO_INCREMENT de la tabla `categorias`
@@ -518,6 +601,12 @@ ALTER TABLE `evaluaciones`
 --
 ALTER TABLE `interacciones`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+
+--
+-- AUTO_INCREMENT de la tabla `madurez_scm`
+--
+ALTER TABLE `madurez_scm`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT de la tabla `mesas`
@@ -547,25 +636,25 @@ ALTER TABLE `productos`
 -- AUTO_INCREMENT de la tabla `proveedores`
 --
 ALTER TABLE `proveedores`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT de la tabla `scm_movimientos`
 --
 ALTER TABLE `scm_movimientos`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
 
 --
 -- AUTO_INCREMENT de la tabla `scm_pedidos`
 --
 ALTER TABLE `scm_pedidos`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT de la tabla `scm_productos`
 --
 ALTER TABLE `scm_productos`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT de la tabla `usuarios_cliente`

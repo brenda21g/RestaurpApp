@@ -1,22 +1,35 @@
 <?php
 /**
  * Archivo: scm/dashboard.php
- * Descripción: Panel de métricas globales y nivel de madurez con control de roles (Gerencia vs Logística/Encargado) y banner de alertas.
+ * Descripción: Panel de métricas globales y nivel de madurez con resumen, gráficos de estado y control de roles.
  */
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
 
-// Definir permisos: Gerentes, Subgerentes y Encargados de logística tienen acceso al SCM
-verificarAcceso(['gerente', 'subgerente', 'encargado']);
+// Definir permisos: Gerentes, Subgerentes y Logística tienen acceso al SCM
+verificarAcceso(['gerente', 'subgerente', 'logistica']);
 $db = getDB();
 
 $rol_actual = $_SESSION['admin_rol'] ?? '';
-$es_gerente_o_subgerente = in_array($rol_actual, ['gerente', 'subgerente'], true);
 
+// Definir la ruta de salida según el rol actual
+$url_salida = '../index.php';
+if ($rol_actual === 'gerente') {
+    $url_salida = '../gerente/dashboard.php';
+} elseif ($rol_actual === 'subgerente') {
+    $url_salida = '../subgerente/dashboard.php';
+}
+
+// Consultas para resumen general
 $total_prod = $db->query("SELECT COUNT(*) FROM scm_productos")->fetchColumn();
 $total_prov = $db->query("SELECT COUNT(*) FROM proveedores")->fetchColumn();
 $total_ped = $db->query("SELECT COUNT(*) FROM scm_pedidos")->fetchColumn();
 $alertas = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= stock_minimo")->fetchColumn();
+
+// Consultas adicionales para métricas y gráficos rápidos de resumen
+$total_movimientos = $db->query("SELECT COUNT(*) FROM scm_movimientos")->fetchColumn();
+$estrategia_push = $db->query("SELECT COUNT(*) FROM scm_productos WHERE estrategia_logistica = 'PUSH'")->fetchColumn();
+$estrategia_pull = $db->query("SELECT COUNT(*) FROM scm_productos WHERE estrategia_logistica = 'PULL'")->fetchColumn();
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -26,9 +39,6 @@ $alertas = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= 
 <title>Dashboard SCM – Panel de Logística</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-    /* ==========================================================================
-       1. VARIABLES Y CONFIGURACIÓN GLOBAL
-       ========================================================================== */
     :root {
       --bg: #f8fafc;
       --surface: #ffffff;
@@ -47,9 +57,6 @@ $alertas = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= 
       --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
     }
 
-    /* ==========================================================================
-       2. RESET Y ESTILOS BASE
-       ========================================================================== */
     * {
       box-sizing: border-box;
       margin: 0;
@@ -65,9 +72,6 @@ $alertas = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= 
       font-size: 14px;
     }
 
-    /* ==========================================================================
-       3. SIDEBAR INSTITUCIONAL AZUL
-       ========================================================================== */
     .sidebar {
       width: var(--sidebar-w);
       background: var(--secondary);
@@ -124,9 +128,6 @@ $alertas = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= 
       font-weight: 600;
     }
 
-    /* ==========================================================================
-       4. CONTENIDO PRINCIPAL, HEADER Y BANNER DE ALERTA
-       ========================================================================== */
     .main-content {
       margin-left: var(--sidebar-w);
       flex: 1;
@@ -177,12 +178,9 @@ $alertas = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= 
       font-weight: 500;
     }
 
-    /* ==========================================================================
-       5. TARJETAS DE MÉTRICAS Y CONTENEDORES
-       ========================================================================== */
     .metrics {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       gap: 20px;
       margin-bottom: 25px;
     }
@@ -210,25 +208,55 @@ $alertas = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= 
       margin-top: 8px;
     }
 
+    .grid-dashboard {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
     .card {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 12px;
       padding: 24px;
-      margin-bottom: 20px;
       box-shadow: var(--shadow-sm);
     }
 
     .card h3 {
       font-size: 16px;
       font-weight: 700;
-      margin-bottom: 12px;
+      margin-bottom: 16px;
       color: var(--text);
     }
 
-    /* ==========================================================================
-       6. DISEÑO RESPONSIVO
-       ========================================================================== */
+    /* Simulación de barras de progreso / gráficas analíticas */
+    .progress-item {
+      margin-bottom: 14px;
+    }
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 6px;
+    }
+    .progress-bar-bg {
+      background: var(--border);
+      border-radius: 6px;
+      height: 10px;
+      width: 100%;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      border-radius: 6px;
+    }
+
+    @media (max-width: 900px) {
+      .grid-dashboard { grid-template-columns: 1fr; }
+    }
+
     @media (max-width: 768px) {
       .main-content { margin-left: 0; padding: 20px; }
       .sidebar { display: none; }
@@ -254,11 +282,15 @@ $alertas = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= 
         </a>
         <a href="movimientos.php" class="sidebar-item"><span>🔄</span> Movimientos</a>
         <a href="pedidos.php" class="sidebar-item"><span>🛒</span> Pedidos Internos</a>
-        <a href="logistica.php" class="sidebar-item"><span>⚙️️</span> Logística Push/Pull</a>
-        <a href="../gerente/dashboard.php" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>←</span> Salir al Panel</a>
-      
-      </div>
-      
+        <a href="logistica.php" class="sidebar-item"><span>⚙</span> Logística Push/Pull</a>
+        
+        <!-- Salida dinámica condicional -->
+        <?php if ($rol_actual === 'logistica'): ?>
+            <a href="logout.php" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>🚪</span> Cerrar sesión</a>
+        <?php else: ?>
+            <a href="<?= htmlspecialchars($url_salida, ENT_QUOTES, 'UTF-8') ?>" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>←</span> Salir al Panel</a>
+        <?php endif; ?>
+    </div>
 </div>
 
 <!-- CONTENIDO PRINCIPAL -->
@@ -278,6 +310,7 @@ $alertas = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= 
         <div class="role-badge">Rol: <?= htmlspecialchars(ucfirst($rol_actual), ENT_QUOTES, 'UTF-8') ?></div>
     </div>
 
+    <!-- TARJETAS DE MÉTRICAS -->
     <div class="metrics">
         <div class="metric-card">
             <div class="metric-title">Productos SCM</div>
@@ -288,8 +321,8 @@ $alertas = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= 
             <div class="metric-value"><?= htmlspecialchars($total_prov, ENT_QUOTES, 'UTF-8') ?></div>
         </div>
         <div class="metric-card">
-            <div class="metric-title">Pedidos Reposición</div>
-            <div class="metric-value"><?= htmlspecialchars($total_ped, ENT_QUOTES, 'UTF-8') ?></div>
+            <div class="metric-title">Movimientos</div>
+            <div class="metric-value"><?= htmlspecialchars($total_movimientos, ENT_QUOTES, 'UTF-8') ?></div>
         </div>
         <div class="metric-card">
             <div class="metric-title">Alertas Stock</div>
@@ -297,11 +330,66 @@ $alertas = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= 
         </div>
     </div>
 
+    <!-- SECCIÓN DE GRÁFICAS Y RESUMEN ANALÍTICO -->
+    <div class="grid-dashboard">
+        <div class="card">
+            <h3>📊 Resumen de Estrategias Logísticas (Push vs Pull)</h3>
+            <p style="color:var(--muted); font-size:13px; margin-bottom: 20px;">Distribución porcentual de los productos activos dentro de la cadena de suministro según su modelo de reposición.</p>
+            
+            <?php 
+                $total_estrategias = max(1, ($estrategia_push + $estrategia_pull));
+                $porcentaje_push = round(($estrategia_push / $total_estrategias) * 100);
+                $porcentaje_pull = round(($estrategia_pull / $total_estrategias) * 100);
+            ?>
+
+            <div class="progress-item">
+                <div class="progress-label">
+                    <span>Estrategia PUSH (Empuje / Stock Fijo)</span>
+                    <span><b><?= $estrategia_push ?></b> productos (<?= $porcentaje_push ?>%)</span>
+                </div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" style="width: <?= $porcentaje_push ?>%; background: var(--primary);"></div>
+                </div>
+            </div>
+
+            <div class="progress-item" style="margin-bottom: 0;">
+                <div class="progress-label">
+                    <span>Estrategia PULL (Tracción / Demanda Real)</span>
+                    <span><b><?= $estrategia_pull ?></b> productos (<?= $porcentaje_pull ?>%)</span>
+                </div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" style="width: <?= $porcentaje_pull ?>%; background: var(--success);"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>⚙️ Estado del Sistema</h3>
+            <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 10px; font-size: 13px;">
+                <div style="display: flex; justify-content: space-between; padding-bottom: 8px; border-bottom: 1px solid var(--border);">
+                    <span style="color: var(--muted);">Módulo Activo:</span>
+                    <b>Supply Chain Management</b>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding-bottom: 8px; border-bottom: 1px solid var(--border);">
+                    <span style="color: var(--muted);">Pedidos SCM:</span>
+                    <b><?= htmlspecialchars($total_ped, ENT_QUOTES, 'UTF-8') ?> órdenes</b>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: var(--muted);">Nivel de Madurez:</span>
+                    <b style="color: var(--success);">Nivel 3 (Optimizado)</b>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="card">
-        <h3>Nivel de Madurez SCM y Permisos</h3>
-        <p style="color:var(--muted); line-height:1.6; margin-bottom: 10px;">Estado actual: <b>Optimizado / En Producción</b>. El sistema cuenta con control integrado de inventario, estrategias Push y Pull configuradas, trazabilidad de movimientos y gestión directa de órdenes de reposición a proveedores.</p>
-        <?php if ($rol_actual === 'encargado'): ?>
-            <p style="color: var(--warning); font-size: 13px; font-weight: 500;">⚠️ Estás ingresando con permisos de <b>Encargado de Logística</b>. Puedes consultar y registrar movimientos de stock, pero algunas configuraciones globales están reservadas para Gerencia.</p>
+        <h3>ℹ️ Información de Acceso y Permisos</h3>
+        <p style="color:var(--muted); line-height:1.6; margin-bottom: 10px;">Estado actual: <b>En Producción</b>. El sistema cuenta con control integrado de inventario, estrategias Push y Pull configuradas, trazabilidad de movimientos y gestión directa de órdenes de reposición a proveedores.</p>
+        
+        <?php if ($rol_actual === 'logistica'): ?>
+            <p style="color: var(--warning); font-size: 13px; font-weight: 500;">⚠️ Estás ingresando con permisos de <b>Logística</b>. Tienes acceso completo de edición y control sobre la cadena de suministro.</p>
+        <?php elseif ($rol_actual === 'subgerente'): ?>
+            <p style="color: var(--warning); font-size: 13px; font-weight: 500;">🔒 Estás ingresando en modo de consulta (Subgerente). Puedes revisar existencias y métricas del SCM.</p>
         <?php else: ?>
             <p style="color: var(--success); font-size: 13px; font-weight: 500;">✓ Acceso administrativo completo habilitado para la gestión de la cadena de suministro.</p>
         <?php endif; ?>

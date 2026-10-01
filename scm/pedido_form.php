@@ -1,41 +1,61 @@
 <?php
 /**
  * Archivo: scm/pedido_form.php
- * Descripción: Formulario para generar órdenes manuales de reposición (Pull) con su proveedor específico, control de roles y banner global.
+ * Descripción: Formulario para generar órdenes manuales de reposición (Pull) con su proveedor específico, control de roles, permisos y banner global.
  */
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
-verificarAcceso(['gerente', 'subgerente', 'encargado']);
+verificarAcceso(['gerente', 'subgerente', 'logistica']);
 $db = getDB();
 
 $rol_actual = $_SESSION['admin_rol'] ?? '';
+$es_editable = puedeEditar('scm'); // TRUE para Gerente y Logística; FALSE para Subgerente
+
+$error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $producto_id = intval($_POST['producto_id'] ?? 0);
-    $cantidad = intval($_POST['cantidad'] ?? 0);
-    $fecha = $_POST['fecha'] ?? date('Y-m-d');
-    $num_orden = 'ORD-PULL-' . strtoupper(substr(uniqid(), -6));
+    if (!$es_editable) {
+        $error = "Acceso denegado: No tienes permisos de modificación en este módulo.";
+    } else {
+        $producto_id = intval($_POST['producto_id'] ?? 0);
+        $cantidad = intval($_POST['cantidad'] ?? 0);
+        $fecha = $_POST['fecha'] ?? date('Y-m-d');
+        $num_orden = 'ORD-PULL-' . strtoupper(substr(uniqid(), -6));
 
-    if ($producto_id > 0 && $cantidad > 0) {
-        $stmt_prod = $db->prepare("SELECT proveedor_id FROM scm_productos WHERE id = ?");
-        $stmt_prod->execute([$producto_id]);
-        $prod = $stmt_prod->fetch(PDO::FETCH_ASSOC);
-        $proveedor_id = $prod['proveedor_id'] ?? null;
+        if ($producto_id > 0 && $cantidad > 0) {
+            $stmt_prod = $db->prepare("SELECT proveedor_id FROM scm_productos WHERE id = ?");
+            $stmt_prod->execute([$producto_id]);
+            $prod = $stmt_prod->fetch(PDO::FETCH_ASSOC);
+            $proveedor_id = $prod['proveedor_id'] ?? null;
 
-        if ($proveedor_id) {
-            // Se registra como Pull manual en estado pendiente para seguir el flujo de la cadena de suministro
-            $stmt = $db->prepare("INSERT INTO scm_pedidos (numero_orden_scm, producto_id, proveedor_id, cantidad, tipo, estado, fecha) VALUES (?,?,?,?,?,?,?)");
-            $stmt->execute([$num_orden, $producto_id, $proveedor_id, $cantidad, 'Reposición Manual (Pull)', 'pendiente', $fecha]);
+            if ($proveedor_id) {
+                // Se registra como Pull manual en estado pendiente para seguir el flujo de la cadena de suministro
+                $stmt = $db->prepare("INSERT INTO scm_pedidos (numero_orden_scm, producto_id, proveedor_id, cantidad, tipo, estado, fecha) VALUES (?,?,?,?,?,?,?)");
+                $stmt->execute([$num_orden, $producto_id, $proveedor_id, $cantidad, 'Reposición Manual (Pull)', 'pendiente', $fecha]);
+                
+                header("Location: pedidos.php");
+                exit;
+            } else {
+                $error = "El insumo seleccionado no tiene un proveedor asignado.";
+            }
+        } else {
+            $error = "Por favor completa todos los campos requeridos correctamente.";
         }
     }
-    header("Location: pedidos.php");
-    exit;
 }
 
 // Conteo global de stock crítico para la barra lateral y banner global
 $num_alertas_global = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= stock_minimo")->fetchColumn();
 
 $productos = $db->query("SELECT id, nombre FROM scm_productos WHERE proveedor_id IS NOT NULL ORDER BY nombre ASC")->fetchAll(PDO::FETCH_ASSOC);
+
+// Definir enlace de salida según el rol actual
+$url_salida = '../index.php';
+if ($rol_actual === 'gerente') {
+    $url_salida = '../gerente/dashboard.php';
+} elseif ($rol_actual === 'subgerente') {
+    $url_salida = '../subgerente/dashboard.php';
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -45,9 +65,6 @@ $productos = $db->query("SELECT id, nombre FROM scm_productos WHERE proveedor_id
 <title>Generar Pedido Pull SCM – Restaurant App</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-    /* ==========================================================================
-       1. VARIABLES Y CONFIGURACIÓN GLOBAL
-       ========================================================================== */
     :root {
       --bg: #f8fafc;
       --surface: #ffffff;
@@ -66,9 +83,6 @@ $productos = $db->query("SELECT id, nombre FROM scm_productos WHERE proveedor_id
       --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
     }
 
-    /* ==========================================================================
-       2. RESET Y ESTILOS BASE
-       ========================================================================== */
     * {
       box-sizing: border-box;
       margin: 0;
@@ -84,9 +98,6 @@ $productos = $db->query("SELECT id, nombre FROM scm_productos WHERE proveedor_id
       font-size: 14px;
     }
 
-    /* ==========================================================================
-       3. SIDEBAR INSTITUCIONAL AZUL
-       ========================================================================== */
     .sidebar {
       width: var(--sidebar-w);
       background: var(--secondary);
@@ -143,9 +154,6 @@ $productos = $db->query("SELECT id, nombre FROM scm_productos WHERE proveedor_id
       font-weight: 600;
     }
 
-    /* ==========================================================================
-       4. CONTENIDO PRINCIPAL Y BANNER DE ALERTA
-       ========================================================================== */
     .main-content {
       margin-left: var(--sidebar-w);
       flex: 1;
@@ -189,6 +197,16 @@ $productos = $db->query("SELECT id, nombre FROM scm_productos WHERE proveedor_id
     .alert-banner .content {
       color: #991b1b;
       font-weight: 500;
+    }
+
+    .alert-error { 
+      background: rgba(239, 68, 68, 0.1); 
+      border: 1px solid rgba(239, 68, 68, 0.2); 
+      color: var(--danger); 
+      padding: 12px 16px; 
+      border-radius: 8px; 
+      margin-bottom: 20px; 
+      font-weight: 500; 
     }
 
     .form-container-wrapper {
@@ -266,6 +284,27 @@ $productos = $db->query("SELECT id, nombre FROM scm_productos WHERE proveedor_id
       background: var(--primary-hover);
     }
 
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 10px 16px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 13px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+      margin-top: 10px;
+      width: 100%;
+    }
+
+    .btn-secondary:hover {
+      background: #f1f5f9;
+    }
+
     @media (max-width: 768px) {
       .main-content { margin-left: 0; padding: 20px; }
       .sidebar { display: none; }
@@ -290,8 +329,14 @@ $productos = $db->query("SELECT id, nombre FROM scm_productos WHERE proveedor_id
 
         <a href="movimientos.php" class="sidebar-item"><span>🔄</span> Movimientos</a>
         <a href="pedidos.php" class="sidebar-item active"><span>🛒</span> Pedidos Internos</a>
-        <a href="logistica.php" class="sidebar-item"><span>⚙️</span> Logística Push/Pull</a>
-        <a href="../gerente/dashboard.php" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>←</span> Salir al Panel</a>
+        <a href="logistica.php" class="sidebar-item"><span>⚙</span> Logística Push/Pull</a>
+        
+        <!-- Salida condicional: Cerrar sesión para Logística, Salir al Panel para Gerente/Subgerente -->
+        <?php if ($rol_actual === 'logistica'): ?>
+            <a href="logout.php" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>🚪</span> Cerrar sesión</a>
+        <?php else: ?>
+            <a href="<?= htmlspecialchars($url_salida, ENT_QUOTES, 'UTF-8') ?>" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>←</span> Salir al Panel</a>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -310,29 +355,42 @@ $productos = $db->query("SELECT id, nombre FROM scm_productos WHERE proveedor_id
         <div class="role-badge">Rol: <?= htmlspecialchars(ucfirst($rol_actual), ENT_QUOTES, 'UTF-8') ?></div>
     </div>
 
+    <?php if($error): ?>
+        <div class="alert-error">⚠️ <?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></div>
+    <?php endif; ?>
+
     <div class="form-container-wrapper">
         <div class="card">
-            <h2>Generar Pedido Manual (Estrategia PULL)</h2>
-            <form method="POST">
-                <div class="field">
-                    <label>Insumo (Con su proveedor asignado)</label>
-                    <select name="producto_id" required>
-                        <option value="">-- Selecciona un insumo --</option>
-                        <?php foreach($productos as $p): ?>
-                            <option value="<?= htmlspecialchars($p['id'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($p['nombre'], ENT_QUOTES, 'UTF-8') ?></option>
-                        <?php endforeach; ?>
-                    </select>
+            <?php if ($es_editable): ?>
+                <h2>Generar Pedido Manual (Estrategia PULL)</h2>
+                <form method="POST">
+                    <div class="field">
+                        <label>Insumo (Con su proveedor asignado)</label>
+                        <select name="producto_id" required>
+                            <option value="">-- Selecciona un insumo --</option>
+                            <?php foreach($productos as $p): ?>
+                                <option value="<?= htmlspecialchars($p['id'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($p['nombre'], ENT_QUOTES, 'UTF-8') ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label>Cantidad a solicitar</label>
+                        <input type="number" name="cantidad" required min="1" placeholder="Ej. 25">
+                    </div>
+                    <div class="field">
+                        <label>Fecha de Solicitud</label>
+                        <input type="date" name="fecha" value="<?= date('Y-m-d') ?>" required>
+                    </div>
+                    <button type="submit">Crear Orden de Reposición Pull</button>
+                    <a href="pedidos.php" class="btn-secondary">Cancelar</a>
+                </form>
+            <?php else: ?>
+                <div style="text-align: center; padding: 10px; color: var(--muted);">
+                    <p style="font-size: 16px; font-weight: 600; margin-bottom: 8px; color: var(--text);">🔒 Modo Consulta</p>
+                    <p style="font-size: 13px; margin-bottom: 20px;">Tu rol actual (Subgerente) tiene acceso de solo lectura en el módulo SCM. No puedes generar órdenes manuales de reposición.</p>
+                    <a href="pedidos.php" class="btn-secondary">← Volver a Pedidos</a>
                 </div>
-                <div class="field">
-                    <label>Cantidad a solicitar</label>
-                    <input type="number" name="cantidad" required min="1" placeholder="Ej. 25">
-                </div>
-                <div class="field">
-                    <label>Fecha de Solicitud</label>
-                    <input type="date" name="fecha" value="<?= date('Y-m-d') ?>" required>
-                </div>
-                <button type="submit">Crear Orden de Reposición Pull</button>
-            </form>
+            <?php endif; ?>
         </div>
     </div>
 </div>
