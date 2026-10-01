@@ -1,10 +1,19 @@
 <?php
+/**
+ * Archivo: subgerente/logout.php
+ * Descripción: Controlador de cierre de sesión seguro para el panel del Subgerente.
+ */
 require_once __DIR__ . '/../config/config.php';
 
-// 1. Vaciar todas las variables de sesión
-$_SESSION = array();
+// Asegurar que la sesión esté iniciada para poder destruirla correctamente
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
-// 2. Si se desea destruir la sesión completamente, también se debe borrar la cookie de sesión
+// 1. Vaciar todas las variables de sesión
+$_SESSION = [];
+
+// 2. Borrar la cookie de sesión del servidor
 if (ini_get("session.use_cookies")) {
     $params = session_get_cookie_params();
     setcookie(
@@ -21,6 +30,12 @@ if (ini_get("session.use_cookies")) {
 // 3. Destruir la sesión en el servidor
 session_destroy();
 
-// 4. Redirigir al formulario de login
-header('Location: login.php');
+// 4. Redirigir explícitamente al login administrativo de la raíz (ajusta 'index.php' o 'login.php' según tu archivo de acceso de administradores)
+$redirect = 'login.php'; 
+
+if (isset($_GET['reason']) && $_GET['reason'] === 'inactividad') {
+    $redirect .= '?inactivo=1';
+}
+
+header('Location: ' . $redirect);
 exit;

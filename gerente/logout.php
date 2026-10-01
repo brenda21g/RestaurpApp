@@ -5,10 +5,16 @@
  */
 require_once __DIR__ . '/../config/config.php';
 
-// 1. Vaciar todas las variables de sesión
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+$rol = $_SESSION['admin_rol'] ?? '';
+
+// 1. Vaciar variables de sesión
 $_SESSION = [];
 
-// 2. Si se desea destruir la sesión completamente, también se debe borrar la cookie de sesión
+// 2. Borrar cookie de sesión
 if (ini_get("session.use_cookies")) {
     $params = session_get_cookie_params();
     setcookie(
@@ -22,11 +28,12 @@ if (ini_get("session.use_cookies")) {
     );
 }
 
-// 3. Destruir la sesión en el servidor
+// 3. Destruir sesión
 session_destroy();
 
-// 4. Redirigir al formulario de login con opción de razón opcional si viene por inactividad
-$redirect = '../login.php';
+// 4. Redirección al login principal en la raíz
+$redirect = 'login.php'; // Cambiar a '../login.php' si tu acceso administrativo se llama login.php en la raíz
+
 if (isset($_GET['reason']) && $_GET['reason'] === 'inactividad') {
     $redirect .= '?inactivo=1';
 }

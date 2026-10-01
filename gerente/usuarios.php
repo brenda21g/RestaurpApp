@@ -1,7 +1,7 @@
 <?php
 /**
  * Archivo: gerente/usuarios.php
- * Descripción: Gestión de Administradores / Usuarios con soporte para los roles gerente, subgerente y encargado.
+ * Descripción: Gestión de Administradores / Usuarios con soporte para gerente, subgerente, logística y cocina.
  */
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
@@ -29,8 +29,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $rol = $_POST['rol'] ?? 'subgerente';
             $pin = trim($_POST['pin'] ?? '');
 
-            // Validar que el rol sea uno de los permitidos
-            $roles_permitidos = ['gerente', 'subgerente', 'encargado'];
+            // Validar que el rol coincida estrictamente con los valores permitidos en el ENUM de la BD
+            $roles_permitidos = ['gerente', 'subgerente', 'logistica', 'cocina'];
             if (!in_array($rol, $roles_permitidos, true)) {
                 $rol = 'subgerente';
             }
@@ -84,9 +84,6 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-    /* ==========================================================================
-       1. VARIABLES Y CONFIGURACIÓN GLOBAL
-       ========================================================================== */
     :root {
         --bg-body: #f8fafc;
         --bg-surface: #ffffff;
@@ -106,9 +103,6 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
         --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
     }
 
-    /* ==========================================================================
-       2. RESET Y ESTILOS BASE
-       ========================================================================== */
     * {
         box-sizing: border-box;
         margin: 0;
@@ -124,9 +118,6 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
         font-size: 14px;
     }
 
-    /* ==========================================================================
-       3. SIDEBAR INSTITUCIONAL AZUL
-       ========================================================================== */
     .sidebar {
         width: var(--sidebar-w);
         background-color: var(--sidebar-bg);
@@ -209,9 +200,6 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
         color: #f87171;
     }
 
-    /* ==========================================================================
-       4. CONTENIDO PRINCIPAL Y TOPBAR
-       ========================================================================== */
     .main {
         margin-left: var(--sidebar-w);
         flex: 1;
@@ -231,9 +219,6 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
         color: var(--text-main);
     }
 
-    /* ==========================================================================
-       5. TARJETAS, FORMULARIOS Y TABLAS
-       ========================================================================== */
     .card {
         background: var(--bg-surface);
         border: 1px solid var(--border-color);
@@ -336,9 +321,6 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
     tr:last-child td { border-bottom: none; }
     tr:hover td { background-color: #f8fafc; }
 
-    /* ==========================================================================
-       6. ETIQUETAS, BADGES Y ALERTAS
-       ========================================================================== */
     .badge {
         padding: 4px 10px;
         border-radius: 20px;
@@ -351,16 +333,14 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
 
     .badge.gerente { background: rgba(2, 132, 199, 0.1); color: var(--color-primary); }
     .badge.subgerente { background: rgba(100, 116, 139, 0.1); color: var(--text-muted); }
-    .badge.encargado { background: rgba(245, 158, 11, 0.1); color: var(--color-warning); }
+    .badge.logistica { background: rgba(245, 158, 11, 0.1); color: var(--color-warning); }
+    .badge.cocina { background: rgba(16, 185, 129, 0.1); color: var(--color-success); }
     .badge.activo { background: rgba(16, 185, 129, 0.1); color: var(--color-success); }
     .badge.inactivo { background: rgba(239, 68, 68, 0.1); color: var(--color-danger); }
 
     .alert-success { background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); color: var(--color-success); padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-weight: 500; }
     .alert-error { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: var(--color-danger); padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-weight: 500; }
 
-    /* ==========================================================================
-       7. DISEÑO RESPONSIVO
-       ========================================================================== */
     @media (max-width: 768px) {
         .main { margin-left: 0; padding: 20px; }
         .sidebar { display: none; }
@@ -440,7 +420,8 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
                     <label>Rol del Sistema</label>
                     <select name="rol" id="rolSelect" onchange="togglePinField()">
                         <option value="subgerente">Subgerente</option>
-                        <option value="encargado">Encargado</option>
+                        <option value="logistica">Logística</option>
+                        <option value="cocina">Cocina</option>
                         <option value="gerente">Gerente</option>
                     </select>
                 </div>
@@ -478,7 +459,11 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
                         <td style="font-weight: 600;"><?= htmlspecialchars($adm['username'], ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($adm['nombre'] ?? 'Sin nombre', ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($adm['email'] ?? 'N/D', ENT_QUOTES, 'UTF-8') ?></td>
-                        <td><span class="badge <?= htmlspecialchars($adm['rol'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(ucfirst($adm['rol']), ENT_QUOTES, 'UTF-8') ?></span></td>
+                        <td>
+                            <span class="badge <?= htmlspecialchars($adm['rol'], ENT_QUOTES, 'UTF-8') ?>">
+                                <?= htmlspecialchars(ucfirst($adm['rol']), ENT_QUOTES, 'UTF-8') ?>
+                            </span>
+                        </td>
                         <td>
                             <span class="badge <?= $adm['activo'] ? 'activo' : 'inactivo' ?>">
                                 <?= $adm['activo'] ? 'Activo' : 'Inactivo' ?>

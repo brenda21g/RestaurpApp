@@ -256,7 +256,9 @@ $alertas = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= 
         <a href="pedidos.php" class="sidebar-item"><span>🛒</span> Pedidos Internos</a>
         <a href="logistica.php" class="sidebar-item"><span>⚙️️</span> Logística Push/Pull</a>
         <a href="../gerente/dashboard.php" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>←</span> Salir al Panel</a>
-    </div>
+      
+      </div>
+      
 </div>
 
 <!-- CONTENIDO PRINCIPAL -->
