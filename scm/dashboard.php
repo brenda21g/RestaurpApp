@@ -1,8 +1,9 @@
 <?php
 /**
  * Archivo: scm/dashboard.php
- * Descripción: Panel de métricas globales y nivel de madurez con control de roles (Gerencia vs Logística/Encargado).
+ * Descripción: Panel de métricas globales y nivel de madurez con control de roles (Gerencia vs Logística/Encargado) y banner de alertas.
  */
+require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
 
 // Definir permisos: Gerentes, Subgerentes y Encargados de logística tienen acceso al SCM
@@ -21,13 +22,18 @@ $alertas = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= 
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Dashboard SCM – Restaurant App</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard SCM – Panel de Logística</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
+    /* ==========================================================================
+       1. VARIABLES Y CONFIGURACIÓN GLOBAL
+       ========================================================================== */
     :root {
       --bg: #f8fafc;
       --surface: #ffffff;
       --secondary: #000049;
+      --sidebar-hover: #0369a1;
       --text: #0f172a;
       --muted: #64748b;
       --border: #e2e8f0;
@@ -36,8 +42,14 @@ $alertas = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= 
       --danger: #ef4444;
       --success: #10b981;
       --warning: #f59e0b;
+      --sidebar-w: 260px;
+      --radius: 10px;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
     }
 
+    /* ==========================================================================
+       2. RESET Y ESTILOS BASE
+       ========================================================================== */
     * {
       box-sizing: border-box;
       margin: 0;
@@ -53,14 +65,21 @@ $alertas = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= 
       font-size: 14px;
     }
 
+    /* ==========================================================================
+       3. SIDEBAR INSTITUCIONAL AZUL
+       ========================================================================== */
     .sidebar {
-      width: 260px;
+      width: var(--sidebar-w);
       background: var(--secondary);
       border-right: 1px solid var(--border);
       display: flex;
       flex-direction: column;
       position: fixed;
+      top: 0;
+      left: 0;
       height: 100vh;
+      z-index: 100;
+      overflow-y: auto;
     }
 
     .sidebar-brand {
@@ -80,34 +99,38 @@ $alertas = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= 
       display: flex;
       flex-direction: column;
       gap: 6px;
+      flex: 1;
     }
 
     .sidebar-item {
       padding: 12px 16px;
-      border-radius: 8px;
+      border-radius: var(--radius);
       color: #94a3b8;
       text-decoration: none;
       font-weight: 500;
+      font-size: 13px;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
       transition: 0.2s;
     }
 
     .sidebar-item:hover, .sidebar-item.active {
-      background: rgba(2, 132, 199, 0.15);
+      background: var(--sidebar-hover);
       color: #ffffff;
     }
 
     .sidebar-item.active {
-      color: var(--primary);
       font-weight: 600;
     }
 
+    /* ==========================================================================
+       4. CONTENIDO PRINCIPAL, HEADER Y BANNER DE ALERTA
+       ========================================================================== */
     .main-content {
-      margin-left: 260px;
+      margin-left: var(--sidebar-w);
       flex: 1;
-      padding: 30px;
+      padding: 32px 40px;
     }
 
     .header {
@@ -133,6 +156,30 @@ $alertas = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= 
       text-transform: uppercase;
     }
 
+    .alert-banner {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-left: 4px solid var(--danger);
+      padding: 16px;
+      border-radius: var(--radius);
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .alert-banner span.icon {
+      font-size: 20px;
+    }
+
+    .alert-banner .content {
+      color: #991b1b;
+      font-weight: 500;
+    }
+
+    /* ==========================================================================
+       5. TARJETAS DE MÉTRICAS Y CONTENEDORES
+       ========================================================================== */
     .metrics {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -145,7 +192,7 @@ $alertas = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= 
       border: 1px solid var(--border);
       border-radius: 12px;
       padding: 20px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      box-shadow: var(--shadow-sm);
     }
 
     .metric-title {
@@ -169,54 +216,82 @@ $alertas = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= 
       border-radius: 12px;
       padding: 24px;
       margin-bottom: 20px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      box-shadow: var(--shadow-sm);
     }
 
     .card h3 {
-      font-size: 18px;
+      font-size: 16px;
       font-weight: 700;
       margin-bottom: 12px;
       color: var(--text);
+    }
+
+    /* ==========================================================================
+       6. DISEÑO RESPONSIVO
+       ========================================================================== */
+    @media (max-width: 768px) {
+      .main-content { margin-left: 0; padding: 20px; }
+      .sidebar { display: none; }
     }
 </style>
 </head>
 <body>
 
+<!-- SIDEBAR -->
 <div class="sidebar">
     <div class="sidebar-brand">Restaurant <span>App SCM</span></div>
     <div class="sidebar-menu">
-        <a href="dashboard.php" class="sidebar-item active">📈 Dashboard SCM</a>
-        <a href="productos.php" class="sidebar-item">📦 Productos SCM</a>
-        <a href="proveedores.php" class="sidebar-item">🤝 Proveedores</a>
-        <a href="inventario.php" class="sidebar-item">📊 Inventario / Alertas</a>
-        <a href="movimientos.php" class="sidebar-item">🔄 Movimientos</a>
-        <a href="pedidos.php" class="sidebar-item">🛒 Pedidos Internos</a>
-        <a href="../gerente/dashboard.php" class="sidebar-item" style="margin-top: 20px; color:var(--danger);">← Salir al Panel</a>
+        <a href="dashboard.php" class="sidebar-item active">
+            <span>📈</span> Dashboard SCM
+        </a>
+        <a href="productos.php" class="sidebar-item"><span>📦</span> Productos SCM</a>
+        <a href="proveedores.php" class="sidebar-item"><span>🤝</span> Proveedores</a>
+        <a href="inventario.php" class="sidebar-item">
+            <span>📊</span> Inventario / Alertas 
+            <?php if($alertas > 0): ?>
+                <span style="background: var(--danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700;"><?= htmlspecialchars($alertas, ENT_QUOTES, 'UTF-8') ?></span>
+            <?php endif; ?>
+        </a>
+        <a href="movimientos.php" class="sidebar-item"><span>🔄</span> Movimientos</a>
+        <a href="pedidos.php" class="sidebar-item"><span>🛒</span> Pedidos Internos</a>
+        <a href="logistica.php" class="sidebar-item"><span>⚙️️</span> Logística Push/Pull</a>
+        <a href="../gerente/dashboard.php" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>←</span> Salir al Panel</a>
     </div>
 </div>
 
+<!-- CONTENIDO PRINCIPAL -->
 <div class="main-content">
+    <?php if ($alertas > 0): ?>
+        <div class="alert-banner">
+            <span class="icon">⚠️</span>
+            <div class="content">
+                <b>¡Atención SCM!</b> Hay <b><?= htmlspecialchars($alertas, ENT_QUOTES, 'UTF-8') ?></b> insumo(s) con stock crítico por debajo del mínimo permitido. 
+                <a href="inventario.php?estado=critico" style="color: #b91c1c; font-weight: 700; text-decoration: underline; margin-left: 5px;">Ver inventario crítico</a>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <div class="header">
         <h1>📈 Dashboard y Métricas SCM</h1>
-        <div class="role-badge">Rol: <?= htmlspecialchars(ucfirst($rol_actual)) ?></div>
+        <div class="role-badge">Rol: <?= htmlspecialchars(ucfirst($rol_actual), ENT_QUOTES, 'UTF-8') ?></div>
     </div>
 
     <div class="metrics">
         <div class="metric-card">
             <div class="metric-title">Productos SCM</div>
-            <div class="metric-value"><?= $total_prod ?></div>
+            <div class="metric-value"><?= htmlspecialchars($total_prod, ENT_QUOTES, 'UTF-8') ?></div>
         </div>
         <div class="metric-card">
             <div class="metric-title">Proveedores</div>
-            <div class="metric-value"><?= $total_prov ?></div>
+            <div class="metric-value"><?= htmlspecialchars($total_prov, ENT_QUOTES, 'UTF-8') ?></div>
         </div>
         <div class="metric-card">
             <div class="metric-title">Pedidos Reposición</div>
-            <div class="metric-value"><?= $total_ped ?></div>
+            <div class="metric-value"><?= htmlspecialchars($total_ped, ENT_QUOTES, 'UTF-8') ?></div>
         </div>
         <div class="metric-card">
             <div class="metric-title">Alertas Stock</div>
-            <div class="metric-value" style="color:var(--danger);"><?= $alertas ?></div>
+            <div class="metric-value" style="color:var(--danger);"><?= htmlspecialchars($alertas, ENT_QUOTES, 'UTF-8') ?></div>
         </div>
     </div>
 

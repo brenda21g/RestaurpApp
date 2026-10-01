@@ -405,7 +405,7 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
         <?php endif; ?>
     </nav>
     <div class="sidebar-bottom">
-        <a class="logout-btn" href="../config/logout.php">🚪 Cerrar sesión</a>
+        <a class="logout-btn" href="logout.php">🚪 Cerrar sesión</a>
     </div>
 </aside>
 

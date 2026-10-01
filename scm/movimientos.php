@@ -1,17 +1,17 @@
 <?php
 /**
  * Archivo: scm/movimientos.php
- * Descripción: Historial trazable de entradas/salidas con Sidebar azul, alerta global de stock crítico y soporte para filtros por producto.
+ * Descripción: Historial trazable de entradas/salidas con Sidebar azul, banner global de alerta de stock crítico y soporte para filtros por producto.
  */
+require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
 verificarAcceso(['gerente', 'subgerente', 'encargado']);
 $db = getDB();
 
 $rol_actual = $_SESSION['admin_rol'] ?? '';
 
-// Conteo global de stock crítico para mostrar la alerta en el menú lateral
-$db_sidebar = getDB();
-$num_alertas_global = $db_sidebar->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= stock_minimo")->fetchColumn();
+// Conteo global de stock crítico para la barra lateral y banner global
+$num_alertas_global = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= stock_minimo")->fetchColumn();
 
 // Filtrar opcionalmente por producto si se pasa por GET
 $producto_id_filtro = intval($_GET['producto_id'] ?? 0);
@@ -37,13 +37,18 @@ $movs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Movimientos SCM – Restaurant App</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
+    /* ==========================================================================
+       1. VARIABLES Y CONFIGURACIÓN GLOBAL
+       ========================================================================== */
     :root {
       --bg: #f8fafc;
       --surface: #ffffff;
       --secondary: #000049;
+      --sidebar-hover: #0369a1;
       --text: #0f172a;
       --muted: #64748b;
       --border: #e2e8f0;
@@ -52,8 +57,14 @@ $movs = $stmt->fetchAll(PDO::FETCH_ASSOC);
       --danger: #ef4444;
       --success: #10b981;
       --warning: #f59e0b;
+      --sidebar-w: 260px;
+      --radius: 10px;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
     }
 
+    /* ==========================================================================
+       2. RESET Y ESTILOS BASE
+       ========================================================================== */
     * {
       box-sizing: border-box;
       margin: 0;
@@ -69,15 +80,21 @@ $movs = $stmt->fetchAll(PDO::FETCH_ASSOC);
       font-size: 14px;
     }
 
+    /* ==========================================================================
+       3. SIDEBAR INSTITUCIONAL AZUL
+       ========================================================================== */
     .sidebar {
-      width: 260px;
+      width: var(--sidebar-w);
       background: var(--secondary);
       border-right: 1px solid var(--border);
       display: flex;
       flex-direction: column;
       position: fixed;
+      top: 0;
+      left: 0;
       height: 100vh;
       z-index: 100;
+      overflow-y: auto;
     }
 
     .sidebar-brand {
@@ -97,34 +114,38 @@ $movs = $stmt->fetchAll(PDO::FETCH_ASSOC);
       display: flex;
       flex-direction: column;
       gap: 6px;
+      flex: 1;
     }
 
     .sidebar-item {
       padding: 12px 16px;
-      border-radius: 8px;
+      border-radius: var(--radius);
       color: #94a3b8;
       text-decoration: none;
       font-weight: 500;
+      font-size: 13px;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
       transition: 0.2s;
     }
 
     .sidebar-item:hover, .sidebar-item.active {
-      background: rgba(2, 132, 199, 0.15);
+      background: var(--sidebar-hover);
       color: #ffffff;
     }
 
     .sidebar-item.active {
-      color: var(--primary);
       font-weight: 600;
     }
 
+    /* ==========================================================================
+       4. CONTENIDO PRINCIPAL Y BANNER DE ALERTA
+       ========================================================================== */
     .main-content {
-      margin-left: 260px;
+      margin-left: var(--sidebar-w);
       flex: 1;
-      padding: 30px;
+      padding: 32px 40px;
     }
 
     .header {
@@ -152,6 +173,30 @@ $movs = $stmt->fetchAll(PDO::FETCH_ASSOC);
       text-transform: uppercase;
     }
 
+    .alert-banner {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-left: 4px solid var(--danger);
+      padding: 16px;
+      border-radius: var(--radius);
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .alert-banner span.icon {
+      font-size: 20px;
+    }
+
+    .alert-banner .content {
+      color: #991b1b;
+      font-weight: 500;
+    }
+
+    /* ==========================================================================
+       5. COMPONENTES Y TABLA
+       ========================================================================== */
     .btn {
       background: var(--primary);
       color: #fff;
@@ -177,20 +222,20 @@ $movs = $stmt->fetchAll(PDO::FETCH_ASSOC);
       border: 1px solid var(--border);
       border-radius: 12px;
       padding: 24px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      box-shadow: var(--shadow-sm);
       margin-bottom: 20px;
+      overflow-x: auto;
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 15px;
+      text-align: left;
     }
 
     th {
       background: #f1f5f9;
       padding: 12px 16px;
-      text-align: left;
       font-size: 11px;
       text-transform: uppercase;
       color: var(--muted);
@@ -219,10 +264,16 @@ $movs = $stmt->fetchAll(PDO::FETCH_ASSOC);
       font-size: 11px;
       font-weight: 600;
       text-transform: uppercase;
+      display: inline-block;
     }
 
     .badge-entrada { background: rgba(16, 185, 129, 0.1); color: var(--success); }
     .badge-salida { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
+
+    @media (max-width: 768px) {
+      .main-content { margin-left: 0; padding: 20px; }
+      .sidebar { display: none; }
+    }
 </style>
 </head>
 <body>
@@ -230,34 +281,44 @@ $movs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <div class="sidebar">
     <div class="sidebar-brand">Restaurant <span>App SCM</span></div>
     <div class="sidebar-menu">
-        <a href="dashboard.php" class="sidebar-item">📈 Dashboard SCM</a>
-        <a href="productos.php" class="sidebar-item">📦 Productos SCM</a>
-        <a href="proveedores.php" class="sidebar-item">🤝 Proveedores</a>
+        <a href="dashboard.php" class="sidebar-item"><span>📈</span> Dashboard SCM</a>
+        <a href="productos.php" class="sidebar-item"><span>📦</span> Productos SCM</a>
+        <a href="proveedores.php" class="sidebar-item"><span>🤝</span> Proveedores</a>
         
         <a href="inventario.php" class="sidebar-item">
-            📊 Inventario / Alertas 
+            <span>📊</span> Inventario / Alertas 
             <?php if($num_alertas_global > 0): ?>
-                <span style="background: var(--danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700;">⚠️ <?= $num_alertas_global ?></span>
+                <span style="background: var(--danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700;"><?= htmlspecialchars($num_alertas_global, ENT_QUOTES, 'UTF-8') ?></span>
             <?php endif; ?>
         </a>
 
-        <a href="movimientos.php" class="sidebar-item active">🔄 Movimientos</a>
-        <a href="pedidos.php" class="sidebar-item">🛒 Pedidos Internos</a>
-        <a href="logistica.php" class="sidebar-item">⚙️ Logística Push/Pull</a>
-        <a href="../gerente/dashboard.php" class="sidebar-item" style="margin-top: 20px; color: var(--danger);">← Salir al Panel</a>
+        <a href="movimientos.php" class="sidebar-item active"><span>🔄</span> Movimientos</a>
+        <a href="pedidos.php" class="sidebar-item"><span>🛒</span> Pedidos Internos</a>
+        <a href="logistica.php" class="sidebar-item"><span>⚙️</span> Logística Push/Pull</a>
+        <a href="../gerente/dashboard.php" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>←</span> Salir al Panel</a>
     </div>
 </div>
 
 <div class="main-content">
+    <?php if ($num_alertas_global > 0): ?>
+        <div class="alert-banner">
+            <span class="icon">⚠️</span>
+            <div class="content">
+                <b>¡Atención SCM!</b> Hay <b><?= htmlspecialchars($num_alertas_global, ENT_QUOTES, 'UTF-8') ?></b> insumo(s) con stock crítico por debajo del mínimo permitido. 
+                <a href="inventario.php?estado=critico" style="color: #b91c1c; font-weight: 700; text-decoration: underline; margin-left: 5px;">Ver inventario crítico</a>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <div class="header">
         <div>
             <h1>🔄 Movimientos de Inventario</h1>
             <?php if($producto_id_filtro > 0): ?>
-                <div style="font-size: 13px; color: var(--muted); margin-top: 4px;">Filtrando por el insumo seleccionado (<a href="movimientos.php" style="color: var(--primary); text-decoration: none;">Ver todos</a>)</div>
+                <div style="font-size: 13px; color: var(--muted); margin-top: 4px;">Filtrando por el insumo seleccionado (<a href="movimientos.php" style="color: var(--primary); text-decoration: none; font-weight:600;">Ver todos</a>)</div>
             <?php endif; ?>
         </div>
-        <div style="display: flex; align-items: center; gap: 12px;">
-            <div class="role-badge">Rol: <?= htmlspecialchars(ucfirst($rol_actual)) ?></div>
+        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <div class="role-badge">Rol: <?= htmlspecialchars(ucfirst($rol_actual), ENT_QUOTES, 'UTF-8') ?></div>
             <a href="movimiento_form.php" class="btn">+ Registrar Movimiento</a>
         </div>
     </div>
@@ -281,16 +342,16 @@ $movs = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     $es_entrada = (strtolower($m['tipo']) === 'entrada');
                 ?>
                     <tr>
-                        <td><?= htmlspecialchars($m['fecha']) ?></td>
+                        <td><?= htmlspecialchars($m['fecha'], ENT_QUOTES, 'UTF-8') ?></td>
                         <td>
                             <span class="badge-tipo <?= $es_entrada ? 'badge-entrada' : 'badge-salida' ?>">
-                                <?= htmlspecialchars($m['tipo']) ?>
+                                <?= htmlspecialchars($m['tipo'], ENT_QUOTES, 'UTF-8') ?>
                             </span>
                         </td>
-                        <td><b><?= htmlspecialchars($m['producto_nombre']) ?></b></td>
-                        <td><b><?= $m['cantidad'] ?></b></td>
-                        <td style="color: var(--muted);"><?= htmlspecialchars($m['motivo']) ?></td>
-                        <td><?= htmlspecialchars($m['admin_nombre'] ?? 'Sistema') ?></td>
+                        <td><b><?= htmlspecialchars($m['producto_nombre'], ENT_QUOTES, 'UTF-8') ?></b></td>
+                        <td><b><?= htmlspecialchars($m['cantidad'], ENT_QUOTES, 'UTF-8') ?></b></td>
+                        <td style="color: var(--muted);"><?= htmlspecialchars($m['motivo'], ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><?= htmlspecialchars($m['admin_nombre'] ?? 'Sistema', ENT_QUOTES, 'UTF-8') ?></td>
                     </tr>
                 <?php endforeach; endif; ?>
             </tbody>

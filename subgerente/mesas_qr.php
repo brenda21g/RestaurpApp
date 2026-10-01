@@ -3,6 +3,7 @@
  * Archivo: subgerente/mesas_qr.php
  * Descripción: Gestión de mesas y códigos QR con control de acceso y definición segura de SITE_URL.
  */
+require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
 verificarAcceso(['subgerente']);
 
@@ -81,6 +82,7 @@ body {
     left: 0;
     height: 100vh;
     z-index: 100;
+    overflow-y: auto;
 }
 
 .sidebar-logo {
@@ -200,13 +202,6 @@ body {
     margin-bottom: 4px;
 }
 
-.mesa-token {
-    font-size: 10px;
-    color: var(--muted);
-    word-break: break-all;
-    margin-bottom: 12px;
-}
-
 .qr-box {
     background: #ffffff;
     border: 1px solid #edf0f4;
@@ -251,54 +246,19 @@ body {
 }
 
 @media(max-width:800px) {
-    .sidebar {
-        width: 210px;
-    }
-
-    .main {
-        margin-left: 210px;
-        padding: 24px;
-    }
-
-    .mesas-grid {
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    }
+    .sidebar { width: 210px; }
+    .main { margin-left: 210px; padding: 24px; }
+    .mesas-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
 }
 
 @media(max-width:600px) {
-    .sidebar {
-        width: 70px;
-    }
-
-    .sidebar-logo .name,
-    .sidebar-logo .role,
-    .nav-item:not(.active)::after,
-    .logout-btn {
-        font-size: 0;
-    }
-
-    .sidebar-logo {
-        padding: 20px 10px;
-        text-align: center;
-    }
-
-    .nav {
-        padding: 16px 8px;
-    }
-
-    .nav-item {
-        justify-content: center;
-        padding: 12px 8px;
-    }
-
-    .main {
-        margin-left: 70px;
-        padding: 20px 16px;
-    }
-
-    .mesas-grid {
-        grid-template-columns: 1fr;
-    }
+    .sidebar { width: 70px; }
+    .sidebar-logo .name, .sidebar-logo .role, .logout-btn { font-size: 0; }
+    .sidebar-logo { padding: 20px 10px; text-align: center; }
+    .nav { padding: 16px 8px; }
+    .nav-item { justify-content: center; padding: 12px 8px; }
+    .main { margin-left: 70px; padding: 20px 16px; }
+    .mesas-grid { grid-template-columns: 1fr; }
 }
 </style>
 </head>
@@ -326,6 +286,10 @@ body {
         <a class="nav-item" href="corte.php">
             <span>💵</span> Corte de Caja
         </a>
+        <!-- ENLACE AL SCM EN MODO CONSULTA PARA EL SUBGERENTE -->
+        <a class="nav-item" href="../scm/dashboard.php" style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
+            <span class="icon">📦</span> SCM / Inventario (Ver)
+        </a>
     </nav>
     <div class="sidebar-bottom">
         <a class="logout-btn" href="logout.php">
@@ -346,15 +310,15 @@ body {
         <?php foreach ($mesasData as$m): ?>
         <div class="mesa-card">
             <div class="mesa-num">
-                Mesa <?= htmlspecialchars($m['numero']) ?>
+                Mesa <?= htmlspecialchars($m['numero'], ENT_QUOTES, 'UTF-8') ?>
             </div>
-            <div class="qr-box" id="qr-<?= $m['id'] ?>"></div>
+            <div class="qr-box" id="qr-<?= htmlspecialchars($m['id'], ENT_QUOTES, 'UTF-8') ?>"></div>
             <span class="url-link">
-                <?= htmlspecialchars($m['url']) ?>
+                <?= htmlspecialchars($m['url'], ENT_QUOTES, 'UTF-8') ?>
             </span>
             <button
                 class="print-mesa-btn"
-                onclick="printQR(<?= $m['id'] ?>, <?=$m['numero'] ?>)"
+                onclick="printQR(<?= htmlspecialchars($m['id'], ENT_QUOTES, 'UTF-8') ?>, <?= htmlspecialchars($m['numero'], ENT_QUOTES, 'UTF-8') ?>)"
             >
                 🖨️ Imprimir QR
             </button>

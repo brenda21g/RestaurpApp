@@ -3,6 +3,7 @@
  * Archivo: scm/movimiento_form.php
  * Descripción: Formulario para registrar entradas o salidas manuales en el inventario con control de roles y Sidebar institucional.
  */
+require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
 verificarAcceso(['gerente', 'subgerente', 'encargado']);
 $db = getDB();
@@ -11,6 +12,8 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
 
 $db_sidebar = getDB();
 $num_alertas_global = $db_sidebar->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= stock_minimo")->fetchColumn();
+
+$error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $producto_id = intval($_POST['producto_id'] ?? 0);
@@ -21,35 +24,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $usuario_id = $_SESSION['admin_id'] ?? null;
 
     if ($producto_id > 0 && $cantidad > 0 && $motivo !== '') {
-        // Registrar el movimiento
-        $stmt = $db->prepare("INSERT INTO scm_movimientos (producto_id, tipo, cantidad, motivo, fecha, usuario_id) VALUES (?, ?, ?, ?, ?, ?)");
-        $stmt->execute([$producto_id, $tipo, $cantidad, $motivo, $fecha, $usuario_id]);
-
-        // Actualizar stock actual en scm_productos automáticamente
-        if ($tipo === 'Entrada') {
-            $db->prepare("UPDATE scm_productos SET stock_actual = stock_actual + ? WHERE id = ?")->execute([$cantidad, $producto_id]);
-        } else {
-            $db->prepare("UPDATE scm_productos SET stock_actual = stock_actual - ? WHERE id = ?")->execute([$cantidad, $producto_id]);
+        // Validar si hay suficiente stock en caso de una salida
+        if ($tipo === 'Salida') {
+            $stmt_stock = $db->prepare("SELECT stock_actual, nombre FROM scm_productos WHERE id = ?");
+            $stmt_stock->execute([$producto_id]);
+            $prod_info = $stmt_stock->fetch(PDO::FETCH_ASSOC);
+            
+            if ($prod_info && $cantidad > intval($prod_info['stock_actual'])) {
+                $error = "Stock insuficiente para el insumo <b>" . htmlspecialchars($prod_info['nombre'], ENT_QUOTES, 'UTF-8') . "</b>. Stock actual disponible: <b>" . $prod_info['stock_actual'] . "</b>.";
+            }
         }
 
-        header("Location: movimientos.php");
-        exit;
+        if ($error === '') {
+            // Registrar el movimiento
+            $stmt = $db->prepare("INSERT INTO scm_movimientos (producto_id, tipo, cantidad, motivo, fecha, usuario_id) VALUES (?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$producto_id, $tipo, $cantidad, $motivo, $fecha, $usuario_id]);
+
+            // Actualizar stock actual en scm_productos automáticamente
+            if ($tipo === 'Entrada') {
+                $db->prepare("UPDATE scm_productos SET stock_actual = stock_actual + ? WHERE id = ?")->execute([$cantidad, $producto_id]);
+            } else {
+                $db->prepare("UPDATE scm_productos SET stock_actual = stock_actual - ? WHERE id = ?")->execute([$cantidad, $producto_id]);
+            }
+
+            header("Location: movimientos.php");
+            exit;
+        }
+    } else {
+        $error = "Por favor completa todos los campos requeridos correctamente.";
     }
 }
 
-$productos = $db->query("SELECT id, nombre FROM scm_productos ORDER BY nombre ASC")->fetchAll(PDO::FETCH_ASSOC);
+$productos = $db->query("SELECT id, nombre, stock_actual FROM scm_productos ORDER BY nombre ASC")->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Registrar Movimiento SCM – Restaurant App</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
+    /* ==========================================================================
+       1. VARIABLES Y CONFIGURACIÓN GLOBAL
+       ========================================================================== */
     :root {
       --bg: #f8fafc;
       --surface: #ffffff;
       --secondary: #000049;
+      --sidebar-hover: #0369a1;
       --text: #0f172a;
       --muted: #64748b;
       --border: #e2e8f0;
@@ -58,8 +81,14 @@ $productos = $db->query("SELECT id, nombre FROM scm_productos ORDER BY nombre AS
       --danger: #ef4444;
       --success: #10b981;
       --warning: #f59e0b;
+      --sidebar-w: 260px;
+      --radius: 10px;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
     }
 
+    /* ==========================================================================
+       2. RESET Y ESTILOS BASE
+       ========================================================================== */
     * {
       box-sizing: border-box;
       margin: 0;
@@ -75,15 +104,21 @@ $productos = $db->query("SELECT id, nombre FROM scm_productos ORDER BY nombre AS
       font-size: 14px;
     }
 
+    /* ==========================================================================
+       3. SIDEBAR INSTITUCIONAL AZUL
+       ========================================================================== */
     .sidebar {
-      width: 260px;
+      width: var(--sidebar-w);
       background: var(--secondary);
       border-right: 1px solid var(--border);
       display: flex;
       flex-direction: column;
       position: fixed;
+      top: 0;
+      left: 0;
       height: 100vh;
       z-index: 100;
+      overflow-y: auto;
     }
 
     .sidebar-brand {
@@ -103,34 +138,38 @@ $productos = $db->query("SELECT id, nombre FROM scm_productos ORDER BY nombre AS
       display: flex;
       flex-direction: column;
       gap: 6px;
+      flex: 1;
     }
 
     .sidebar-item {
       padding: 12px 16px;
-      border-radius: 8px;
+      border-radius: var(--radius);
       color: #94a3b8;
       text-decoration: none;
       font-weight: 500;
+      font-size: 13px;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
       transition: 0.2s;
     }
 
     .sidebar-item:hover, .sidebar-item.active {
-      background: rgba(2, 132, 199, 0.15);
+      background: var(--sidebar-hover);
       color: #ffffff;
     }
 
     .sidebar-item.active {
-      color: var(--primary);
       font-weight: 600;
     }
 
+    /* ==========================================================================
+       4. CONTENIDO PRINCIPAL Y ALERTAS
+       ========================================================================== */
     .main-content {
-      margin-left: 260px;
+      margin-left: var(--sidebar-w);
       flex: 1;
-      padding: 30px;
+      padding: 32px 40px;
     }
 
     .header {
@@ -138,6 +177,8 @@ $productos = $db->query("SELECT id, nombre FROM scm_productos ORDER BY nombre AS
       justify-content: space-between;
       align-items: center;
       margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 16px;
     }
 
     .header h1 {
@@ -156,6 +197,40 @@ $productos = $db->query("SELECT id, nombre FROM scm_productos ORDER BY nombre AS
       text-transform: uppercase;
     }
 
+    .alert-banner {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-left: 4px solid var(--danger);
+      padding: 16px;
+      border-radius: var(--radius);
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .alert-banner span.icon {
+      font-size: 20px;
+    }
+
+    .alert-banner .content {
+      color: #991b1b;
+      font-weight: 500;
+    }
+
+    .alert-error { 
+      background: rgba(239, 68, 68, 0.1); 
+      border: 1px solid rgba(239, 68, 68, 0.2); 
+      color: var(--danger); 
+      padding: 12px 16px; 
+      border-radius: 8px; 
+      margin-bottom: 20px; 
+      font-weight: 500; 
+    }
+
+    /* ==========================================================================
+       5. FORMULARIO Y CONTENEDORES
+       ========================================================================== */
     .btn {
       background: var(--primary);
       color: #fff;
@@ -181,7 +256,7 @@ $productos = $db->query("SELECT id, nombre FROM scm_productos ORDER BY nombre AS
       border: 1px solid var(--border);
       border-radius: 12px;
       padding: 24px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      box-shadow: var(--shadow-sm);
       max-width: 600px;
     }
 
@@ -228,8 +303,9 @@ $productos = $db->query("SELECT id, nombre FROM scm_productos ORDER BY nombre AS
     }
 
     .btn-secondary {
-      background: #e2e8f0;
-      color: #334155;
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
       padding: 10px 16px;
       border-radius: 8px;
       text-decoration: none;
@@ -242,7 +318,12 @@ $productos = $db->query("SELECT id, nombre FROM scm_productos ORDER BY nombre AS
     }
 
     .btn-secondary:hover {
-      background: #cbd5e1;
+      background: #f1f5f9;
+    }
+
+    @media (max-width: 768px) {
+      .main-content { margin-left: 0; padding: 20px; }
+      .sidebar { display: none; }
     }
 </style>
 </head>
@@ -251,29 +332,43 @@ $productos = $db->query("SELECT id, nombre FROM scm_productos ORDER BY nombre AS
 <div class="sidebar">
     <div class="sidebar-brand">Restaurant <span>App SCM</span></div>
     <div class="sidebar-menu">
-        <a href="dashboard.php" class="sidebar-item">📈 Dashboard SCM</a>
-        <a href="productos.php" class="sidebar-item">📦 Productos SCM</a>
-        <a href="proveedores.php" class="sidebar-item">🤝 Proveedores</a>
+        <a href="dashboard.php" class="sidebar-item"><span>📈</span> Dashboard SCM</a>
+        <a href="productos.php" class="sidebar-item"><span>📦</span> Productos SCM</a>
+        <a href="proveedores.php" class="sidebar-item"><span>🤝</span> Proveedores</a>
         
         <a href="inventario.php" class="sidebar-item">
-            📊 Inventario / Alertas 
+            <span>📊</span> Inventario / Alertas 
             <?php if($num_alertas_global > 0): ?>
-                <span style="background: var(--danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700;">⚠️ <?= $num_alertas_global ?></span>
+                <span style="background: var(--danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700;"><?= htmlspecialchars($num_alertas_global, ENT_QUOTES, 'UTF-8') ?></span>
             <?php endif; ?>
         </a>
 
-        <a href="movimientos.php" class="sidebar-item active">🔄 Movimientos</a>
-        <a href="pedidos.php" class="sidebar-item">🛒 Pedidos Internos</a>
-        <a href="logistica.php" class="sidebar-item">⚙️ Logística Push/Pull</a>
-        <a href="../gerente/dashboard.php" class="sidebar-item" style="margin-top: 20px; color: var(--danger);">← Salir al Panel</a>
+        <a href="movimientos.php" class="sidebar-item active"><span>🔄</span> Movimientos</a>
+        <a href="pedidos.php" class="sidebar-item"><span>🛒</span> Pedidos Internos</a>
+        <a href="logistica.php" class="sidebar-item"><span>⚙️</span> Logística Push/Pull</a>
+        <a href="../gerente/dashboard.php" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>←</span> Salir al Panel</a>
     </div>
 </div>
 
 <div class="main-content">
+    <?php if ($num_alertas_global > 0): ?>
+        <div class="alert-banner">
+            <span class="icon">⚠️</span>
+            <div class="content">
+                <b>¡Atención SCM!</b> Hay <b><?= htmlspecialchars($num_alertas_global, ENT_QUOTES, 'UTF-8') ?></b> insumo(s) con stock crítico por debajo del mínimo permitido. 
+                <a href="inventario.php?estado=critico" style="color: #b91c1c; font-weight: 700; text-decoration: underline; margin-left: 5px;">Ver inventario crítico</a>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <div class="header">
         <h1>🔄 Registrar Movimiento de Inventario</h1>
-        <div class="role-badge">Rol: <?= htmlspecialchars(ucfirst($rol_actual)) ?></div>
+        <div class="role-badge">Rol: <?= htmlspecialchars(ucfirst($rol_actual), ENT_QUOTES, 'UTF-8') ?></div>
     </div>
+
+    <?php if($error): ?>
+        <div class="alert-error">⚠️ <?= $error ?></div>
+    <?php endif; ?>
 
     <div class="card">
         <form method="POST">
@@ -282,7 +377,9 @@ $productos = $db->query("SELECT id, nombre FROM scm_productos ORDER BY nombre AS
                 <select name="producto_id" required>
                     <option value="">Seleccione un insumo...</option>
                     <?php foreach($productos as $p): ?>
-                        <option value="<?= $p['id'] ?>"><?= htmlspecialchars($p['nombre']) ?></option>
+                        <option value="<?= htmlspecialchars($p['id'], ENT_QUOTES, 'UTF-8') ?>">
+                            <?= htmlspecialchars($p['nombre'], ENT_QUOTES, 'UTF-8') ?> (Stock actual: <?= htmlspecialchars($p['stock_actual'], ENT_QUOTES, 'UTF-8') ?>)
+                        </option>
                     <?php endforeach; ?>
                 </select>
             </div>

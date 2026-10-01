@@ -1,5 +1,11 @@
 <?php
+/**
+ * Archivo: subgerente/menu.php
+ * Descripción: Módulo de gestión del menú, disponibilidad y productos para el Subgerente.
+ */
+require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
+verificarAcceso(['subgerente']);
 $db = getDB();
 
 // Manejo de peticiones AJAX
@@ -38,12 +44,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $id = (int)($_POST['id'] ?? 0);
 
         try {
-            // Intentamos eliminarlo de la tabla productos
             $stmt = $db->prepare("DELETE FROM productos WHERE id = ?");
             $stmt->execute([$id]);
             echo json_encode(['success' => true]);
         } catch (PDOException $e) {
-            // Si da error por Foreign Key, deshabilitamos el producto
             if ($e->getCode() == '23000') {
                 $db->prepare("UPDATE productos SET disponible = 0 WHERE id = ?")->execute([$id]);
                 echo json_encode([
@@ -74,20 +78,13 @@ $productos = $db->query("
 
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>Menú – RestaurApp Admin</title>
-
 <link rel="preconnect" href="https://fonts.googleapis.com">
-
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-
 <style>
-
 *, *::before, *::after {
     box-sizing: border-box;
     margin: 0;
@@ -98,22 +95,15 @@ $productos = $db->query("
     --bg: #f7f9fc;
     --card: #ffffff;
     --border: #e2e8f0;
-
     --accent: #ffffff;
-
     --text: #071b3a;
     --muted: #60708a;
-
     --sidebar: #03143d;
     --sidebar-hover: #092e70;
-
     --green: #07543f;
     --green-light: #e4f7f0;
-
     --blue: #1684c4;
-
     --red: #ff5b5b;
-
     --sidebar-w: 240px;
 }
 
@@ -126,10 +116,6 @@ body {
     font-size: 14px;
 }
 
-/* =========================
-   SIDEBAR
-========================= */
-
 .sidebar {
     width: var(--sidebar-w);
     background: var(--sidebar);
@@ -141,6 +127,7 @@ body {
     left: 0;
     height: 100vh;
     z-index: 100;
+    overflow-y: auto;
 }
 
 .sidebar-logo {
@@ -217,10 +204,6 @@ body {
     background: rgba(255, 104, 104, .1);
 }
 
-/* =========================
-   CONTENIDO PRINCIPAL
-========================= */
-
 .main {
     margin-left: var(--sidebar-w);
     flex: 1;
@@ -242,10 +225,6 @@ body {
     margin-bottom: 20px;
 }
 
-/* =========================
-   BOTÓN AGREGAR
-========================= */
-
 .add-btn {
     padding: 10px 20px;
     background: var(--green);
@@ -263,10 +242,6 @@ body {
     background: #063f30;
     transform: translateY(-1px);
 }
-
-/* =========================
-   TABLA
-========================= */
 
 .table-card {
     background: var(--card);
@@ -308,10 +283,6 @@ tbody tr:hover {
     background: #f8fafc;
 }
 
-/* =========================
-   ESTADO DISPONIBILIDAD
-========================= */
-
 .toggle-btn {
     padding: 5px 12px;
     border-radius: 7px;
@@ -341,10 +312,6 @@ tbody tr:hover {
     background: #ffe3e3;
 }
 
-/* =========================
-   BOTÓN ELIMINAR
-========================= */
-
 .del-btn {
     padding: 5px 11px;
     border-radius: 7px;
@@ -360,10 +327,6 @@ tbody tr:hover {
     background: #fff0f0;
     border-color: #e07070;
 }
-
-/* =========================
-   MODAL
-========================= */
 
 .modal-overlay {
     display: none;
@@ -435,22 +398,9 @@ select:focus {
     box-shadow: 0 0 0 3px rgba(22, 132, 196, .08);
 }
 
-textarea {
-    resize: vertical;
-}
-
-select {
-    cursor: pointer;
-}
-
-select option {
-    background: #ffffff;
-    color: var(--text);
-}
-
-/* =========================
-   BOTONES DEL MODAL
-========================= */
+textarea { resize: vertical; }
+select { cursor: pointer; }
+select option { background: #ffffff; color: var(--text); }
 
 .modal-btns {
     display: flex;
@@ -472,9 +422,7 @@ select option {
     transition: background .15s;
 }
 
-.modal-save:hover {
-    background: #063f30;
-}
+.modal-save:hover { background: #063f30; }
 
 .modal-cancel {
     padding: 10px 16px;
@@ -488,164 +436,82 @@ select option {
     transition: all .15s;
 }
 
-.modal-cancel:hover {
-    background: #f7f9fc;
-    color: var(--text);
-}
-
-/* =========================
-   RESPONSIVE
-========================= */
+.modal-cancel:hover { background: #f7f9fc; color: var(--text); }
 
 @media (max-width: 800px) {
-
-    .sidebar {
-        width: 210px;
-    }
-
-    .main {
-        margin-left: 210px;
-        padding: 24px;
-    }
-
-    .top-row {
-        gap: 15px;
-    }
-
-    .table-card {
-        overflow-x: auto;
-    }
-
-    table {
-        min-width: 650px;
-    }
+    .sidebar { width: 210px; }
+    .main { margin-left: 210px; padding: 24px; }
+    .top-row { gap: 15px; }
+    .table-card { overflow-x: auto; }
+    table { min-width: 650px; }
 }
 
 @media (max-width: 600px) {
-
-    .sidebar {
-        width: 70px;
-    }
-
-    .sidebar-logo .name,
-    .sidebar-logo .role,
-    .logout-btn {
-        font-size: 0;
-    }
-
-    .sidebar-logo {
-        padding: 20px 10px;
-        text-align: center;
-    }
-
-    .nav {
-        padding: 16px 8px;
-    }
-
-    .nav-item {
-        justify-content: center;
-        padding: 12px 8px;
-    }
-
-    .main {
-        margin-left: 70px;
-        padding: 20px 16px;
-    }
-
-    .top-row {
-        align-items: flex-start;
-        flex-direction: column;
-    }
-
-    .add-btn {
-        width: 100%;
-    }
-
-    .table-card {
-        overflow-x: auto;
-    }
-
-    table {
-        min-width: 650px;
-    }
-
-    .modal {
-        padding: 22px;
-    }
+    .sidebar { width: 70px; }
+    .sidebar-logo .name, .sidebar-logo .role, .logout-btn { font-size: 0; }
+    .sidebar-logo { padding: 20px 10px; text-align: center; }
+    .nav { padding: 16px 8px; }
+    .nav-item { justify-content: center; padding: 12px 8px; }
+    .main { margin-left: 70px; padding: 20px 16px; }
+    .top-row { align-items: flex-start; flex-direction: column; }
+    .add-btn { width: 100%; }
+    .table-card { overflow-x: auto; }
+    table { min-width: 650px; }
+    .modal { padding: 22px; }
 }
-
 </style>
-
 </head>
-
 <body>
 
 <!-- SIDEBAR -->
-
 <aside class="sidebar">
-
     <div class="sidebar-logo">
-
         <div class="name">🍽️ RestaurApp</div>
-
         <div class="role">Subgerente</div>
-
     </div>
 
     <nav class="nav">
-
         <a class="nav-item" href="dashboard.php">
             <span class="icon">📊</span> Dashboard
         </a>
-
         <a class="nav-item" href="pedidos.php">
             <span class="icon">📋</span> Pedidos
         </a>
-
         <a class="nav-item" href="mesas_qr.php">
             <span class="icon">🪑</span> Mesas & QR
         </a>
-
         <a class="nav-item active" href="menu.php">
             <span class="icon">🍽️</span> Menú
         </a>
-
         <a class="nav-item" href="corte.php">
             <span>💵</span> Corte de Caja
         </a>
-
+        <!-- ENLACE AL SCM EN MODO CONSULTA PARA EL SUBGERENTE -->
+        <a class="nav-item" href="../scm/dashboard.php" style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
+            <span class="icon">📦</span> SCM / Inventario (Ver)
+        </a>
     </nav>
 
     <div class="sidebar-bottom">
-
         <a class="logout-btn" href="logout.php">
             🚪 Cerrar sesión
         </a>
-
     </div>
-
 </aside>
 
 <main class="main">
-
     <div class="top-row">
-
         <div class="page-title">
             🍽️ Gestión del Menú
         </div>
-
         <button class="add-btn" onclick="showAddModal()">
             + Agregar producto
         </button>
-
     </div>
 
     <div class="table-card">
-
         <table>
-
             <thead>
-
                 <tr>
                     <th>Producto</th>
                     <th>Categoría</th>
@@ -653,111 +519,73 @@ select option {
                     <th>Estado</th>
                     <th></th>
                 </tr>
-
             </thead>
-
             <tbody id="prod-table">
-
                 <?php foreach ($productos as $p): ?>
-
-                <tr id="row-<?= $p['id'] ?>">
-
+                <tr id="row-<?= htmlspecialchars($p['id'], ENT_QUOTES, 'UTF-8') ?>">
                     <td>
-
                         <div style="font-weight:500;">
-                            <?= htmlspecialchars($p['nombre']) ?>
+                            <?= htmlspecialchars($p['nombre'], ENT_QUOTES, 'UTF-8') ?>
                         </div>
-
                         <?php if ($p['descripcion']): ?>
-
                         <div style="color:var(--muted);font-size:12px;margin-top:2px;">
-                            <?= htmlspecialchars($p['descripcion']) ?>
+                            <?= htmlspecialchars($p['descripcion'], ENT_QUOTES, 'UTF-8') ?>
                         </div>
-
                         <?php endif; ?>
-
                     </td>
-
                     <td style="color:var(--muted);">
-                        <?= htmlspecialchars($p['cat_nombre']) ?>
+                        <?= htmlspecialchars($p['cat_nombre'], ENT_QUOTES, 'UTF-8') ?>
                     </td>
-
                     <td>
                         $<?= number_format($p['precio'], 2) ?>
                     </td>
-
                     <td>
-
                         <button
                             class="toggle-btn <?= $p['disponible'] ? 'on' : 'off' ?>"
-                            onclick="toggleProducto(<?= $p['id'] ?>, this)"
+                            onclick="toggleProducto(<?= htmlspecialchars($p['id'], ENT_QUOTES, 'UTF-8') ?>, this)"
                         >
                             <?= $p['disponible'] ? '✓ Disponible' : '✗ No disp.' ?>
                         </button>
-
                     </td>
-
                     <td>
-
                         <button
                             class="del-btn"
-                            onclick="eliminarProducto(<?= $p['id'] ?>)"
+                            onclick="eliminarProducto(<?= htmlspecialchars($p['id'], ENT_QUOTES, 'UTF-8') ?>)"
                         >
                             Eliminar
                         </button>
-
                     </td>
-
                 </tr>
-
                 <?php endforeach; ?>
-
             </tbody>
-
         </table>
-
     </div>
-
 </main>
 
 <!-- MODAL AGREGAR PRODUCTO -->
-
 <div class="modal-overlay" id="add-modal">
-
     <div class="modal">
-
         <h3>
             ➕ Agregar producto
         </h3>
-
         <div class="field">
-
             <label>Nombre</label>
-
             <input
                 type="text"
                 id="nuevo-nombre"
                 placeholder="Ej: Tacos de suadero"
             >
-
         </div>
-
         <div class="field">
-
             <label>Descripción (opcional)</label>
-
             <textarea
                 id="nuevo-desc"
                 rows="2"
                 placeholder="Breve descripción del platillo"
             ></textarea>
-
         </div>
-
         <div class="field">
-
             <label>Precio</label>
-
             <input
                 type="number"
                 id="nuevo-precio"
@@ -765,51 +593,35 @@ select option {
                 step="0.01"
                 min="0"
             >
-
         </div>
-
         <div class="field">
-
             <label>Categoría</label>
-
             <select id="nuevo-cat">
-
                 <?php foreach ($categorias as $c): ?>
-
-                <option value="<?= $c['id'] ?>">
-                    <?= htmlspecialchars($c['nombre']) ?>
+                <option value="<?= htmlspecialchars($c['id'], ENT_QUOTES, 'UTF-8') ?>">
+                    <?= htmlspecialchars($c['nombre'], ENT_QUOTES, 'UTF-8') ?>
                 </option>
-
                 <?php endforeach; ?>
-
             </select>
-
         </div>
-
         <div class="modal-btns">
-
             <button
                 class="modal-cancel"
                 onclick="hideModal()"
             >
                 Cancelar
             </button>
-
             <button
                 class="modal-save"
                 onclick="guardarProducto()"
             >
                 Guardar producto
             </button>
-
         </div>
-
     </div>
-
 </div>
 
 <script>
-
 function showAddModal() {
     document.getElementById('add-modal').classList.add('show');
 }
@@ -819,9 +631,7 @@ function hideModal() {
 }
 
 async function toggleProducto(id, btn) {
-
     const fd = new FormData();
-
     fd.append('action', 'toggle_producto');
     fd.append('id', id);
 
@@ -833,26 +643,21 @@ async function toggleProducto(id, btn) {
     const data = await res.json();
 
     if (data.success) {
-
         btn.classList.toggle('on');
         btn.classList.toggle('off');
 
         btn.textContent = btn.classList.contains('on')
             ? '✓ Disponible'
             : '✗ No disp.';
-
     }
-
 }
 
 async function eliminarProducto(id) {
-
     if (!confirm('¿Seguro que deseas eliminar este producto?')) {
         return;
     }
 
     const fd = new FormData();
-
     fd.append('action', 'delete_producto');
     fd.append('id', id);
 
@@ -864,36 +669,25 @@ async function eliminarProducto(id) {
     const data = await res.json();
 
     if (data.success) {
-
         document.getElementById('row-' + id)?.remove();
-
     } else {
-
         alert(data.error);
-
         location.reload();
-
     }
-
 }
 
 async function guardarProducto() {
-
     const nombre = document.getElementById('nuevo-nombre').value.trim();
     const desc = document.getElementById('nuevo-desc').value.trim();
     const precio = document.getElementById('nuevo-precio').value;
     const cat_id = document.getElementById('nuevo-cat').value;
 
     if (!nombre || !precio) {
-
         alert('Completa nombre y precio');
-
         return;
-
     }
 
     const fd = new FormData();
-
     fd.append('action', 'add_producto');
     fd.append('nombre', nombre);
     fd.append('descripcion', desc);
@@ -908,21 +702,13 @@ async function guardarProducto() {
     const data = await res.json();
 
     if (data.success) {
-
         hideModal();
-
         location.reload();
-
     } else {
-
         alert(data.error);
-
     }
-
 }
-
 </script>
 
 </body>
-
 </html>

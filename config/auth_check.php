@@ -47,9 +47,4 @@ function verificarAcceso($rolesPermitidos = []) {
         exit;
     }
 }
-
-/**
- * Nota: La función getDB() se ha migrado al archivo central de conexión 
- * para mantener el principio de responsabilidad única (Single Responsibility Principle).
- */
 ?>

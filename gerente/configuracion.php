@@ -3,6 +3,7 @@
  * Archivo: gerente/configuracion.php
  * Descripción: Configuración y perfil con Sidebar azul institucional y control de roles.
  */
+require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
 require_once __DIR__ . '/../config/mail.php';
 verificarAcceso(['gerente']);
@@ -83,6 +84,9 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        /* ==========================================================================
+           1. VARIABLES Y CONFIGURACIÓN GLOBAL
+           ========================================================================== */
         :root {
             --bg-body: #f8fafc;
             --bg-surface: #ffffff;
@@ -100,6 +104,9 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
             --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
 
+        /* ==========================================================================
+           2. RESET Y ESTILOS BASE
+           ========================================================================== */
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
@@ -111,7 +118,9 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
             font-size: 14px;
         }
 
-        /* SIDEBAR INSTITUCIONAL AZUL */
+        /* ==========================================================================
+           3. SIDEBAR INSTITUCIONAL AZUL
+           ========================================================================== */
         .sidebar {
             width: var(--sidebar-w);
             background-color: var(--sidebar-bg);
@@ -194,7 +203,9 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
             color: #f87171;
         }
 
-        /* CONTENIDO PRINCIPAL */
+        /* ==========================================================================
+           4. CONTENIDO PRINCIPAL Y GRID DE CONFIGURACIÓN
+           ========================================================================== */
         .main {
             margin-left: var(--sidebar-w);
             flex: 1;
@@ -326,13 +337,13 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
             <a class="nav-item" href="../scm/dashboard.php">
                 <span>📈</span> Dashboard SCM
                 <?php if($num_alertas_global > 0): ?>
-                    <span style="background: var(--color-danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700;">⚠️ <?= $num_alertas_global ?></span>
+                    <span style="background: var(--color-danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700;">⚠️ <?= htmlspecialchars($num_alertas_global, ENT_QUOTES, 'UTF-8') ?></span>
                 <?php endif; ?>
             </a>
         <?php endif; ?>
     </nav>
     <div class="sidebar-bottom">
-        <a class="logout-btn" href="../config/logout.php">🚪 Cerrar sesión</a>
+        <a class="logout-btn" href="logout.php">🚪 Cerrar sesión</a>
     </div>
 </aside>
 
@@ -360,15 +371,15 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
                 <input type="hidden" name="actualizar_perfil" value="1">
                 <div class="field">
                     <label>Nombre de usuario (Login)</label>
-                    <input type="text" name="username" value="<?= htmlspecialchars($admin['username'] ?? '', ENT_QUOTES, 'UTF-8') ?>" required>
+                    <input type="text" name="username" value="<?= htmlspecialchars($admin['username'] ?? '', ENT_QUOTES, 'UTF-8') ?>" required autocomplete="username">
                 </div>
                 <div class="field">
                     <label>Nombre completo</label>
-                    <input type="text" name="nombre" value="<?= htmlspecialchars($admin['nombre'] ?? '', ENT_QUOTES, 'UTF-8') ?>" required>
+                    <input type="text" name="nombre" value="<?= htmlspecialchars($admin['nombre'] ?? '', ENT_QUOTES, 'UTF-8') ?>" required autocomplete="name">
                 </div>
                 <div class="field">
                     <label>Correo electrónico</label>
-                    <input type="email" name="email" value="<?= htmlspecialchars($admin['email'] ?? '', ENT_QUOTES, 'UTF-8') ?>" required>
+                    <input type="email" name="email" value="<?= htmlspecialchars($admin['email'] ?? '', ENT_QUOTES, 'UTF-8') ?>" required autocomplete="email">
                 </div>
                 <div class="field">
                     <label>Rol de acceso</label>

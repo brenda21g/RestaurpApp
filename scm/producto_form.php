@@ -1,8 +1,9 @@
 <?php
 /**
  * Archivo: scm/producto_form.php
- * Descripción: Formulario para crear o editar materias primas e insumos con control de roles y Sidebar institucional.
+ * Descripción: Formulario para crear o editar materias primas e insumos con control de roles, banner global y Sidebar institucional.
  */
+require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
 verificarAcceso(['gerente', 'subgerente', 'encargado']);
 $db = getDB();
@@ -10,7 +11,7 @@ $db = getDB();
 $rol_actual = $_SESSION['admin_rol'] ?? '';
 $es_gerente = ($rol_actual === 'gerente');
 
-// Solo el gerente puede modificar o crear productos; los demás roles pueden tener acceso de lectura/consulta si se requiere
+// Solo el gerente puede modificar o crear productos
 if (!$es_gerente && $_SERVER['REQUEST_METHOD'] === 'POST') {
     header("Location: productos.php?error=sin_permisos");
     exit;
@@ -47,9 +48,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $es_gerente) {
     }
 }
 
-// Conteo global de stock crítico para la barra lateral
-$db_sidebar = getDB();
-$num_alertas_global = $db_sidebar->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= stock_minimo")->fetchColumn();
+// Conteo global de stock crítico para la barra lateral y banner global
+$num_alertas_global = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= stock_minimo")->fetchColumn();
 
 $proveedores = $db->query("SELECT id, nombre FROM proveedores ORDER BY nombre ASC")->fetchAll(PDO::FETCH_ASSOC);
 ?>
@@ -57,13 +57,18 @@ $proveedores = $db->query("SELECT id, nombre FROM proveedores ORDER BY nombre AS
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Materia Prima Form – Restaurant App</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
+    /* ==========================================================================
+       1. VARIABLES Y CONFIGURACIÓN GLOBAL
+       ========================================================================== */
     :root {
       --bg: #f8fafc;
       --surface: #ffffff;
       --secondary: #000049;
+      --sidebar-hover: #0369a1;
       --text: #0f172a;
       --muted: #64748b;
       --border: #e2e8f0;
@@ -72,8 +77,14 @@ $proveedores = $db->query("SELECT id, nombre FROM proveedores ORDER BY nombre AS
       --danger: #ef4444;
       --success: #10b981;
       --warning: #f59e0b;
+      --sidebar-w: 260px;
+      --radius: 10px;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
     }
 
+    /* ==========================================================================
+       2. RESET Y ESTILOS BASE
+       ========================================================================== */
     * {
       box-sizing: border-box;
       margin: 0;
@@ -89,15 +100,21 @@ $proveedores = $db->query("SELECT id, nombre FROM proveedores ORDER BY nombre AS
       font-size: 14px;
     }
 
+    /* ==========================================================================
+       3. SIDEBAR INSTITUCIONAL AZUL
+       ========================================================================== */
     .sidebar {
-      width: 260px;
+      width: var(--sidebar-w);
       background: var(--secondary);
       border-right: 1px solid var(--border);
       display: flex;
       flex-direction: column;
       position: fixed;
+      top: 0;
+      left: 0;
       height: 100vh;
       z-index: 100;
+      overflow-y: auto;
     }
 
     .sidebar-brand {
@@ -117,34 +134,38 @@ $proveedores = $db->query("SELECT id, nombre FROM proveedores ORDER BY nombre AS
       display: flex;
       flex-direction: column;
       gap: 6px;
+      flex: 1;
     }
 
     .sidebar-item {
       padding: 12px 16px;
-      border-radius: 8px;
+      border-radius: var(--radius);
       color: #94a3b8;
       text-decoration: none;
       font-weight: 500;
+      font-size: 13px;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
       transition: 0.2s;
     }
 
     .sidebar-item:hover, .sidebar-item.active {
-      background: rgba(2, 132, 199, 0.15);
+      background: var(--sidebar-hover);
       color: #ffffff;
     }
 
     .sidebar-item.active {
-      color: var(--primary);
       font-weight: 600;
     }
 
+    /* ==========================================================================
+       4. CONTENIDO PRINCIPAL Y BANNER DE ALERTA
+       ========================================================================== */
     .main-content {
-      margin-left: 260px;
+      margin-left: var(--sidebar-w);
       flex: 1;
-      padding: 30px;
+      padding: 32px 40px;
       display: flex;
       flex-direction: column;
     }
@@ -165,6 +186,27 @@ $proveedores = $db->query("SELECT id, nombre FROM proveedores ORDER BY nombre AS
       text-transform: uppercase;
     }
 
+    .alert-banner {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-left: 4px solid var(--danger);
+      padding: 16px;
+      border-radius: var(--radius);
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .alert-banner span.icon {
+      font-size: 20px;
+    }
+
+    .alert-banner .content {
+      color: #991b1b;
+      font-weight: 500;
+    }
+
     .form-container-wrapper {
       flex: 1;
       display: flex;
@@ -179,7 +221,7 @@ $proveedores = $db->query("SELECT id, nombre FROM proveedores ORDER BY nombre AS
       border: 1px solid var(--border);
       border-radius: 12px;
       padding: 24px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      box-shadow: var(--shadow-sm);
     }
 
     h2 {
@@ -213,6 +255,7 @@ $proveedores = $db->query("SELECT id, nombre FROM proveedores ORDER BY nombre AS
       background: #fff;
       color: var(--text);
       font-family: inherit;
+      transition: border-color 0.2s;
     }
 
     input:focus, select:focus, textarea:focus {
@@ -243,6 +286,11 @@ $proveedores = $db->query("SELECT id, nombre FROM proveedores ORDER BY nombre AS
     button:hover {
       background: var(--primary-hover);
     }
+
+    @media (max-width: 768px) {
+      .main-content { margin-left: 0; padding: 20px; }
+      .sidebar { display: none; }
+    }
 </style>
 </head>
 <body>
@@ -250,27 +298,37 @@ $proveedores = $db->query("SELECT id, nombre FROM proveedores ORDER BY nombre AS
 <div class="sidebar">
     <div class="sidebar-brand">Restaurant <span>App SCM</span></div>
     <div class="sidebar-menu">
-        <a href="dashboard.php" class="sidebar-item">📈 Dashboard SCM</a>
-        <a href="productos.php" class="sidebar-item active">📦 Productos SCM</a>
-        <a href="proveedores.php" class="sidebar-item">🤝 Proveedores</a>
+        <a href="dashboard.php" class="sidebar-item"><span>📈</span> Dashboard SCM</a>
+        <a href="productos.php" class="sidebar-item active"><span>📦</span> Productos SCM</a>
+        <a href="proveedores.php" class="sidebar-item"><span>🤝</span> Proveedores</a>
         
         <a href="inventario.php" class="sidebar-item">
-            📊 Inventario / Alertas 
+            <span>📊</span> Inventario / Alertas 
             <?php if($num_alertas_global > 0): ?>
-                <span style="background: var(--danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700;">⚠️ <?= $num_alertas_global ?></span>
+                <span style="background: var(--danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700;"><?= htmlspecialchars($num_alertas_global, ENT_QUOTES, 'UTF-8') ?></span>
             <?php endif; ?>
         </a>
 
-        <a href="movimientos.php" class="sidebar-item">🔄 Movimientos</a>
-        <a href="pedidos.php" class="sidebar-item">🛒 Pedidos Internos</a>
-        <a href="logistica.php" class="sidebar-item">⚙️ Logística Push/Pull</a>
-        <a href="../gerente/dashboard.php" class="sidebar-item" style="margin-top: 20px; color: var(--danger);">← Salir al Panel</a>
+        <a href="movimientos.php" class="sidebar-item"><span>🔄</span> Movimientos</a>
+        <a href="pedidos.php" class="sidebar-item"><span>🛒</span> Pedidos Internos</a>
+        <a href="logistica.php" class="sidebar-item"><span>⚙️</span> Logística Push/Pull</a>
+        <a href="../gerente/dashboard.php" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>←</span> Salir al Panel</a>
     </div>
 </div>
 
 <div class="main-content">
+    <?php if ($num_alertas_global > 0): ?>
+        <div class="alert-banner">
+            <span class="icon">⚠️</span>
+            <div class="content">
+                <b>¡Atención SCM!</b> Hay <b><?= htmlspecialchars($num_alertas_global, ENT_QUOTES, 'UTF-8') ?></b> insumo(s) con stock crítico por debajo del mínimo permitido. 
+                <a href="inventario.php?estado=critico" style="color: #b91c1c; font-weight: 700; text-decoration: underline; margin-left: 5px;">Ver inventario crítico</a>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <div class="header-top">
-        <div class="role-badge">Rol: <?= htmlspecialchars(ucfirst($rol_actual)) ?></div>
+        <div class="role-badge">Rol: <?= htmlspecialchars(ucfirst($rol_actual), ENT_QUOTES, 'UTF-8') ?></div>
     </div>
 
     <div class="form-container-wrapper">
@@ -286,25 +344,25 @@ $proveedores = $db->query("SELECT id, nombre FROM proveedores ORDER BY nombre AS
             <form method="POST">
                 <div class="field">
                     <label>Nombre del Insumo *</label>
-                    <input type="text" name="nombre" value="<?= htmlspecialchars($producto['nombre']) ?>" required <?= !$es_gerente ? 'disabled' : '' ?>>
+                    <input type="text" name="nombre" value="<?= htmlspecialchars($producto['nombre'], ENT_QUOTES, 'UTF-8') ?>" required <?= !$es_gerente ? 'disabled' : '' ?> autocomplete="off">
                 </div>
                 <div class="field">
                     <label>Descripción</label>
-                    <textarea name="descripcion" <?= !$es_gerente ? 'disabled' : '' ?>><?= htmlspecialchars($producto['descripcion']) ?></textarea>
+                    <textarea name="descripcion" <?= !$es_gerente ? 'disabled' : '' ?>><?= htmlspecialchars($producto['descripcion'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
                 </div>
                 <div class="field">
                     <label>Stock Actual</label>
-                    <input type="number" name="stock_actual" value="<?= $producto['stock_actual'] ?>" <?= !$es_gerente ? 'disabled' : '' ?>>
+                    <input type="number" name="stock_actual" value="<?= htmlspecialchars($producto['stock_actual'], ENT_QUOTES, 'UTF-8') ?>" <?= !$es_gerente ? 'disabled' : '' ?>>
                 </div>
                 <div class="field">
                     <label>Stock Mínimo (Alerta)</label>
-                    <input type="number" name="stock_minimo" value="<?= $producto['stock_minimo'] ?>" <?= !$es_gerente ? 'disabled' : '' ?>>
+                    <input type="number" name="stock_minimo" value="<?= htmlspecialchars($producto['stock_minimo'], ENT_QUOTES, 'UTF-8') ?>" <?= !$es_gerente ? 'disabled' : '' ?>>
                 </div>
                 <div class="field">
                     <label>Estrategia Logística</label>
                     <select name="estrategia_logistica" <?= !$es_gerente ? 'disabled' : '' ?>>
-                        <option value="PUSH" <?= $producto['estrategia_logistica']=='PUSH'?'selected':'' ?>>PUSH (Automática)</option>
-                        <option value="PULL" <?= $producto['estrategia_logistica']=='PULL'?'selected':'' ?>>PULL (Bajo demanda)</option>
+                        <option value="PUSH" <?= ($producto['estrategia_logistica'] ?? 'PUSH') === 'PUSH' ? 'selected' : '' ?>>PUSH (Automática)</option>
+                        <option value="PULL" <?= ($producto['estrategia_logistica'] ?? 'PUSH') === 'PULL' ? 'selected' : '' ?>>PULL (Bajo demanda)</option>
                     </select>
                 </div>
                 <div class="field">
@@ -312,13 +370,13 @@ $proveedores = $db->query("SELECT id, nombre FROM proveedores ORDER BY nombre AS
                     <select name="proveedor_id" <?= !$es_gerente ? 'disabled' : '' ?>>
                         <option value="">-- Seleccionar --</option>
                         <?php foreach($proveedores as $prov): ?>
-                            <option value="<?= $prov['id'] ?>" <?= $producto['proveedor_id']==$prov['id']?'selected':'' ?>><?= htmlspecialchars($prov['nombre']) ?></option>
+                            <option value="<?= htmlspecialchars($prov['id'], ENT_QUOTES, 'UTF-8') ?>" <?= ($producto['proveedor_id'] ?? '') == $prov['id'] ? 'selected' : '' ?>><?= htmlspecialchars($prov['nombre'], ENT_QUOTES, 'UTF-8') ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
                 <div class="field">
                     <label>Costo / Precio Unitario</label>
-                    <input type="number" step="0.01" name="precio" value="<?= $producto['precio'] ?>" <?= !$es_gerente ? 'disabled' : '' ?>>
+                    <input type="number" step="0.01" name="precio" value="<?= htmlspecialchars($producto['precio'], ENT_QUOTES, 'UTF-8') ?>" <?= !$es_gerente ? 'disabled' : '' ?>>
                 </div>
                 
                 <?php if($es_gerente): ?>

@@ -1,8 +1,9 @@
 <?php
 /**
  * Archivo: scm/proveedores.php
- * Descripción: Listado general de proveedores con control de roles, buscador y Sidebar institucional.
+ * Descripción: Listado general de proveedores con control de roles, buscador, banner global y Sidebar institucional.
  */
+require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
 verificarAcceso(['gerente', 'subgerente', 'encargado']);
 $db = getDB();
@@ -10,9 +11,8 @@ $db = getDB();
 $rol_actual = $_SESSION['admin_rol'] ?? '';
 $es_gerente = ($rol_actual === 'gerente');
 
-// Conteo global de stock crítico para la barra lateral y banner
-$db_sidebar = getDB();
-$num_alertas_global = $db_sidebar->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= stock_minimo")->fetchColumn();
+// Conteo global de stock crítico para la barra lateral y banner global
+$num_alertas_global = $db->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= stock_minimo")->fetchColumn();
 
 // Filtro de búsqueda por nombre, contacto o correo
 $buscar = trim($_GET['buscar'] ?? '');
@@ -37,13 +37,18 @@ $proveedores = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Proveedores SCM – Restaurant App</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
+    /* ==========================================================================
+       1. VARIABLES Y CONFIGURACIÓN GLOBAL
+       ========================================================================== */
     :root {
       --bg: #f8fafc;
       --surface: #ffffff;
       --secondary: #000049;
+      --sidebar-hover: #0369a1;
       --text: #0f172a;
       --muted: #64748b;
       --border: #e2e8f0;
@@ -52,8 +57,14 @@ $proveedores = $stmt->fetchAll(PDO::FETCH_ASSOC);
       --danger: #ef4444;
       --success: #10b981;
       --warning: #f59e0b;
+      --sidebar-w: 260px;
+      --radius: 10px;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
     }
 
+    /* ==========================================================================
+       2. RESET Y ESTILOS BASE
+       ========================================================================== */
     * {
       box-sizing: border-box;
       margin: 0;
@@ -69,15 +80,21 @@ $proveedores = $stmt->fetchAll(PDO::FETCH_ASSOC);
       font-size: 14px;
     }
 
+    /* ==========================================================================
+       3. SIDEBAR INSTITUCIONAL AZUL
+       ========================================================================== */
     .sidebar {
-      width: 260px;
+      width: var(--sidebar-w);
       background: var(--secondary);
       border-right: 1px solid var(--border);
       display: flex;
       flex-direction: column;
       position: fixed;
+      top: 0;
+      left: 0;
       height: 100vh;
       z-index: 100;
+      overflow-y: auto;
     }
 
     .sidebar-brand {
@@ -97,34 +114,38 @@ $proveedores = $stmt->fetchAll(PDO::FETCH_ASSOC);
       display: flex;
       flex-direction: column;
       gap: 6px;
+      flex: 1;
     }
 
     .sidebar-item {
       padding: 12px 16px;
-      border-radius: 8px;
+      border-radius: var(--radius);
       color: #94a3b8;
       text-decoration: none;
       font-weight: 500;
+      font-size: 13px;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
       transition: 0.2s;
     }
 
     .sidebar-item:hover, .sidebar-item.active {
-      background: rgba(2, 132, 199, 0.15);
+      background: var(--sidebar-hover);
       color: #ffffff;
     }
 
     .sidebar-item.active {
-      color: var(--primary);
       font-weight: 600;
     }
 
+    /* ==========================================================================
+       4. CONTENIDO PRINCIPAL Y BANNER DE ALERTA
+       ========================================================================== */
     .main-content {
-      margin-left: 260px;
+      margin-left: var(--sidebar-w);
       flex: 1;
-      padding: 30px;
+      padding: 32px 40px;
     }
 
     .header {
@@ -157,7 +178,7 @@ $proveedores = $stmt->fetchAll(PDO::FETCH_ASSOC);
       border: 1px solid #fecaca;
       border-left: 4px solid var(--danger);
       padding: 16px;
-      border-radius: 8px;
+      border-radius: var(--radius);
       margin-bottom: 24px;
       display: flex;
       align-items: center;
@@ -173,6 +194,9 @@ $proveedores = $stmt->fetchAll(PDO::FETCH_ASSOC);
       font-weight: 500;
     }
 
+    /* ==========================================================================
+       5. TOOLBAR, FILTROS Y TABLA
+       ========================================================================== */
     .toolbar {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -184,7 +208,7 @@ $proveedores = $stmt->fetchAll(PDO::FETCH_ASSOC);
       align-items: center;
       gap: 12px;
       flex-wrap: wrap;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      box-shadow: var(--shadow-sm);
     }
 
     .filters {
@@ -240,7 +264,8 @@ $proveedores = $stmt->fetchAll(PDO::FETCH_ASSOC);
       border: 1px solid var(--border);
       border-radius: 12px;
       padding: 24px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      box-shadow: var(--shadow-sm);
+      overflow-x: auto;
     }
 
     table {
@@ -274,6 +299,11 @@ $proveedores = $stmt->fetchAll(PDO::FETCH_ASSOC);
     tr:hover td {
       background: #f8fafc;
     }
+
+    @media (max-width: 768px) {
+      .main-content { margin-left: 0; padding: 20px; }
+      .sidebar { display: none; }
+    }
 </style>
 </head>
 <body>
@@ -281,21 +311,21 @@ $proveedores = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <div class="sidebar">
     <div class="sidebar-brand">Restaurant <span>App SCM</span></div>
     <div class="sidebar-menu">
-        <a href="dashboard.php" class="sidebar-item">📈 Dashboard SCM</a>
-        <a href="productos.php" class="sidebar-item">📦 Productos SCM</a>
-        <a href="proveedores.php" class="sidebar-item active">🤝 Proveedores</a>
+        <a href="dashboard.php" class="sidebar-item"><span>📈</span> Dashboard SCM</a>
+        <a href="productos.php" class="sidebar-item"><span>📦</span> Productos SCM</a>
+        <a href="proveedores.php" class="sidebar-item active"><span>🤝</span> Proveedores</a>
         
         <a href="inventario.php" class="sidebar-item">
-            📊 Inventario / Alertas 
+            <span>📊</span> Inventario / Alertas 
             <?php if($num_alertas_global > 0): ?>
-                <span style="background: var(--danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700;">⚠️ <?= $num_alertas_global ?></span>
+                <span style="background: var(--danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700;"><?= htmlspecialchars($num_alertas_global, ENT_QUOTES, 'UTF-8') ?></span>
             <?php endif; ?>
         </a>
 
-        <a href="movimientos.php" class="sidebar-item">🔄 Movimientos</a>
-        <a href="pedidos.php" class="sidebar-item">🛒 Pedidos Internos</a>
-        <a href="logistica.php" class="sidebar-item">⚙️ Logística Push/Pull</a>
-        <a href="../gerente/dashboard.php" class="sidebar-item" style="margin-top: 20px; color: var(--danger);">← Salir al Panel</a>
+        <a href="movimientos.php" class="sidebar-item"><span>🔄</span> Movimientos</a>
+        <a href="pedidos.php" class="sidebar-item"><span>🛒</span> Pedidos Internos</a>
+        <a href="logistica.php" class="sidebar-item"><span>⚙️</span> Logística Push/Pull</a>
+        <a href="../gerente/dashboard.php" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>←</span> Salir al Panel</a>
     </div>
 </div>
 
@@ -304,7 +334,7 @@ $proveedores = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <div class="alert-banner">
             <span class="icon">⚠️</span>
             <div class="content">
-                <b>¡Atención SCM!</b> Hay <b><?= $num_alertas_global ?></b> insumo(s) con stock crítico por debajo del mínimo permitido. 
+                <b>¡Atención SCM!</b> Hay <b><?= htmlspecialchars($num_alertas_global, ENT_QUOTES, 'UTF-8') ?></b> insumo(s) con stock crítico por debajo del mínimo permitido. 
                 <a href="inventario.php" style="color: #b91c1c; font-weight: 700; text-decoration: underline; margin-left: 5px;">Ver inventario y solicitar reposición</a>
             </div>
         </div>
@@ -314,8 +344,8 @@ $proveedores = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <div>
             <h1>🤝 Gestión de Proveedores</h1>
         </div>
-        <div style="display: flex; align-items: center; gap: 12px;">
-            <div class="role-badge">Rol: <?= htmlspecialchars(ucfirst($rol_actual)) ?></div>
+        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <div class="role-badge">Rol: <?= htmlspecialchars(ucfirst($rol_actual), ENT_QUOTES, 'UTF-8') ?></div>
             <?php if ($es_gerente): ?>
                 <a href="proveedor_form.php" class="btn">+ Nuevo Proveedor</a>
             <?php endif; ?>
@@ -325,14 +355,14 @@ $proveedores = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <!-- TOOLBAR DE BÚSQUEDA -->
     <div class="toolbar">
         <form method="GET" class="filters">
-            <input type="text" name="buscar" placeholder="Buscar por empresa, contacto o correo..." value="<?= htmlspecialchars($buscar) ?>" style="width: 320px;">
+            <input type="text" name="buscar" placeholder="Buscar por empresa, contacto o correo..." value="<?= htmlspecialchars($buscar, ENT_QUOTES, 'UTF-8') ?>" style="width: 320px;" autocomplete="off">
             <button class="btn btn-secondary" type="submit">🔎 Buscar</button>
             <?php if($buscar !== ''): ?>
                 <a href="proveedores.php" class="btn btn-secondary" style="color:var(--danger);">✕ Limpiar</a>
             <?php endif; ?>
         </form>
         <div style="color: var(--muted); font-size: 13px;">
-            Total proveedores: <b><?= count($proveedores) ?></b>
+            Total proveedores: <b><?= htmlspecialchars(count($proveedores), ENT_QUOTES, 'UTF-8') ?></b>
         </div>
     </div>
 
@@ -353,14 +383,14 @@ $proveedores = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <tr><td colspan="6" style="text-align:center; color:var(--muted); padding:30px;">No hay proveedores registrados en el sistema.</td></tr>
                 <?php else: foreach($proveedores as $p): ?>
                     <tr>
-                        <td><?= $p['id'] ?></td>
-                        <td><b><?= htmlspecialchars($p['nombre']) ?></b></td>
-                        <td><?= htmlspecialchars($p['contacto']) ?></td>
-                        <td><?= htmlspecialchars($p['correo']) ?></td>
-                        <td><?= htmlspecialchars($p['telefono']) ?></td>
+                        <td><?= htmlspecialchars($p['id'], ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><b><?= htmlspecialchars($p['nombre'], ENT_QUOTES, 'UTF-8') ?></b></td>
+                        <td><?= htmlspecialchars($p['contacto'] ?? '', ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><?= htmlspecialchars($p['correo'] ?? '', ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><?= htmlspecialchars($p['telefono'] ?? '', ENT_QUOTES, 'UTF-8') ?></td>
                         <td style="text-align: right;">
                             <?php if($es_gerente): ?>
-                                <a href="proveedor_form.php?id=<?= $p['id'] ?>" class="btn" style="padding: 6px 12px; font-size:11px;">Editar</a>
+                                <a href="proveedor_form.php?id=<?= htmlspecialchars($p['id'], ENT_QUOTES, 'UTF-8') ?>" class="btn" style="padding: 6px 12px; font-size:11px;">Editar</a>
                             <?php else: ?>
                                 <span style="color:var(--muted); font-size:12px;">Solo lectura</span>
                             <?php endif; ?>

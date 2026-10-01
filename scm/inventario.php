@@ -3,6 +3,7 @@
  * Archivo: scm/inventario.php
  * Descripción: Control de stock actual y alertas de inventario bajo con Sidebar, banner global y buscador.
  */
+require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
 verificarAcceso(['gerente', 'subgerente', 'encargado']);
 $db = getDB();
@@ -46,13 +47,18 @@ $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Inventario SCM – Restaurant App</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inventario SCM – Panel de Logística</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
+    /* ==========================================================================
+       1. VARIABLES Y CONFIGURACIÓN GLOBAL
+       ========================================================================== */
     :root {
       --bg: #f8fafc;
       --surface: #ffffff;
       --secondary: #000049;
+      --sidebar-hover: #0369a1;
       --text: #0f172a;
       --muted: #64748b;
       --border: #e2e8f0;
@@ -61,8 +67,14 @@ $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
       --danger: #ef4444;
       --success: #10b981;
       --warning: #f59e0b;
+      --sidebar-w: 260px;
+      --radius: 10px;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
     }
 
+    /* ==========================================================================
+       2. RESET Y ESTILOS BASE
+       ========================================================================== */
     * {
       box-sizing: border-box;
       margin: 0;
@@ -78,15 +90,21 @@ $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
       font-size: 14px;
     }
 
+    /* ==========================================================================
+       3. SIDEBAR INSTITUCIONAL AZUL
+       ========================================================================== */
     .sidebar {
-      width: 260px;
+      width: var(--sidebar-w);
       background: var(--secondary);
       border-right: 1px solid var(--border);
       display: flex;
       flex-direction: column;
       position: fixed;
+      top: 0;
+      left: 0;
       height: 100vh;
       z-index: 100;
+      overflow-y: auto;
     }
 
     .sidebar-brand {
@@ -106,34 +124,38 @@ $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
       display: flex;
       flex-direction: column;
       gap: 6px;
+      flex: 1;
     }
 
     .sidebar-item {
       padding: 12px 16px;
-      border-radius: 8px;
+      border-radius: var(--radius);
       color: #94a3b8;
       text-decoration: none;
       font-weight: 500;
+      font-size: 13px;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
       transition: 0.2s;
     }
 
     .sidebar-item:hover, .sidebar-item.active {
-      background: rgba(2, 132, 199, 0.15);
+      background: var(--sidebar-hover);
       color: #ffffff;
     }
 
     .sidebar-item.active {
-      color: var(--primary);
       font-weight: 600;
     }
 
+    /* ==========================================================================
+       4. CONTENIDO PRINCIPAL Y BANNER DE ALERTA
+       ========================================================================== */
     .main-content {
-      margin-left: 260px;
+      margin-left: var(--sidebar-w);
       flex: 1;
-      padding: 30px;
+      padding: 32px 40px;
     }
 
     .header {
@@ -156,7 +178,7 @@ $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
       border: 1px solid #fecaca;
       border-left: 4px solid var(--danger);
       padding: 16px;
-      border-radius: 8px;
+      border-radius: var(--radius);
       margin-bottom: 24px;
       display: flex;
       align-items: center;
@@ -172,6 +194,9 @@ $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
       font-weight: 500;
     }
 
+    /* ==========================================================================
+       5. TOOLBAR, FILTROS Y TABLA
+       ========================================================================== */
     .toolbar {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -183,7 +208,7 @@ $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
       align-items: center;
       gap: 12px;
       flex-wrap: wrap;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      box-shadow: var(--shadow-sm);
     }
 
     .filters {
@@ -240,7 +265,8 @@ $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
       border: 1px solid var(--border);
       border-radius: 12px;
       padding: 24px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      box-shadow: var(--shadow-sm);
+      overflow-x: auto;
     }
 
     table {
@@ -298,34 +324,45 @@ $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
       background: rgba(2, 132, 199, 0.1);
       color: var(--primary);
     }
+
+    /* ==========================================================================
+       6. DISEÑO RESPONSIVO
+       ========================================================================== */
+    @media (max-width: 768px) {
+      .main-content { margin-left: 0; padding: 20px; }
+      .sidebar { display: none; }
+    }
 </style>
 </head>
 <body>
 
+<!-- SIDEBAR -->
 <div class="sidebar">
     <div class="sidebar-brand">Restaurant <span>App SCM</span></div>
     <div class="sidebar-menu">
-        <a href="dashboard.php" class="sidebar-item">📈 Dashboard SCM</a>
-        <a href="productos.php" class="sidebar-item">📦 Productos SCM</a>
-        <a href="proveedores.php" class="sidebar-item">🤝 Proveedores</a>
+        <a href="dashboard.php" class="sidebar-item"><span>📈</span> Dashboard SCM</a>
+        <a href="productos.php" class="sidebar-item"><span>📦</span> Productos SCM</a>
+        <a href="proveedores.php" class="sidebar-item"><span>🤝</span> Proveedores</a>
         <a href="inventario.php" class="sidebar-item active">
-            📊 Inventario / Alertas 
+            <span>📊</span> Inventario / Alertas 
             <?php if($num_alertas_global > 0): ?>
-                <span style="background: var(--danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700;">⚠️ <?= $num_alertas_global ?></span>
+                <span style="background: var(--danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700;"><?= htmlspecialchars($num_alertas_global, ENT_QUOTES, 'UTF-8') ?></span>
             <?php endif; ?>
         </a>
-        <a href="movimientos.php" class="sidebar-item">🔄 Movimientos</a>
-        <a href="pedidos.php" class="sidebar-item">🛒 Pedidos Internos</a>
-        <a href="../gerente/dashboard.php" class="sidebar-item" style="margin-top: 20px; color:var(--danger);">← Salir al Panel</a>
+        <a href="movimientos.php" class="sidebar-item"><span>🔄</span> Movimientos</a>
+        <a href="pedidos.php" class="sidebar-item"><span>🛒</span> Pedidos Internos</a>
+        <a href="logistica.php" class="sidebar-item"><span>⚙️</span> Logística Push/Pull</a>
+        <a href="../gerente/dashboard.php" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>←</span> Salir al Panel</a>
     </div>
 </div>
 
+<!-- CONTENIDO PRINCIPAL -->
 <div class="main-content">
     <?php if ($num_alertas_global > 0): ?>
         <div class="alert-banner">
             <span class="icon">⚠️</span>
             <div class="content">
-                <b>¡Atención SCM!</b> Hay <b><?= $num_alertas_global ?></b> insumo(s) con stock crítico por debajo del mínimo permitido. 
+                <b>¡Atención SCM!</b> Hay <b><?= htmlspecialchars($num_alertas_global, ENT_QUOTES, 'UTF-8') ?></b> insumo(s) con stock crítico por debajo del mínimo permitido. 
                 <a href="inventario.php?estado=critico" style="color: #b91c1c; font-weight: 700; text-decoration: underline; margin-left: 5px;">Filtrar alertas críticas</a>
             </div>
         </div>
@@ -333,7 +370,7 @@ $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     <div class="header">
         <h1>📊 Control de Inventario y Alertas</h1>
-        <div>
+        <div style="display: flex; gap: 10px;">
             <a href="movimientos.php" class="btn">+ Registrar Movimiento</a>
             <a href="pedidos.php" class="btn" style="background:#0f172a;">Pedir a Proveedor</a>
         </div>
@@ -342,7 +379,7 @@ $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <!-- TOOLBAR DE BÚSQUEDA Y FILTROS -->
     <div class="toolbar">
         <form method="GET" class="filters">
-            <input type="text" name="q" placeholder="Buscar por insumo o categoría..." value="<?= htmlspecialchars($busqueda) ?>" style="width: 260px;">
+            <input type="text" name="q" placeholder="Buscar por insumo o categoría..." value="<?= htmlspecialchars($busqueda, ENT_QUOTES, 'UTF-8') ?>" style="width: 260px;" autocomplete="off">
             <select name="estado">
                 <option value="">Todos los estados</option>
                 <option value="critico" <?= $filtro_estado === 'critico' ? 'selected' : '' ?>>⚠️ Alerta Stock Bajo</option>
@@ -354,7 +391,7 @@ $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <?php endif; ?>
         </form>
         <div style="color: var(--muted); font-size: 13px;">
-            Total registros: <b><?= count($productos) ?></b>
+            Total registros: <b><?= htmlspecialchars(count($productos), ENT_QUOTES, 'UTF-8') ?></b>
         </div>
     </div>
 
@@ -377,16 +414,16 @@ $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <tr><td colspan="8" style="text-align:center; color:var(--muted); padding:30px;">No se encontraron registros de inventario con los filtros seleccionados.</td></tr>
                 <?php else: foreach($productos as $p): $bajo = $p['stock_actual'] <= $p['stock_minimo']; ?>
                     <tr>
-                        <td><b><?= htmlspecialchars($p['nombre']) ?></b></td>
-                        <td style="color: var(--muted);"><?= htmlspecialchars($p['categoria'] ?? 'General') ?></td>
-                        <td style="color: var(--muted);"><?= htmlspecialchars($p['proveedor_nombre'] ?? 'Sin asignar') ?></td>
-                        <td><b><?= $p['stock_actual'] ?></b></td>
-                        <td><?= $p['stock_minimo'] ?></td>
-                        <td><span class="badge"><?= htmlspecialchars($p['estrategia_logistica'] ?? 'PUSH') ?></span></td>
+                        <td><b><?= htmlspecialchars($p['nombre'], ENT_QUOTES, 'UTF-8') ?></b></td>
+                        <td style="color: var(--muted);"><?= htmlspecialchars($p['categoria'] ?? 'General', ENT_QUOTES, 'UTF-8') ?></td>
+                        <td style="color: var(--muted);"><?= htmlspecialchars($p['proveedor_nombre'] ?? 'Sin asignar', ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><b><?= htmlspecialchars($p['stock_actual'], ENT_QUOTES, 'UTF-8') ?></b></td>
+                        <td><?= htmlspecialchars($p['stock_minimo'], ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><span class="badge"><?= htmlspecialchars($p['estrategia_logistica'] ?? 'PUSH', ENT_QUOTES, 'UTF-8') ?></span></td>
                         <td><?= $bajo ? '<span class="status-low">⚠️ Alerta Stock Bajo</span>' : '<span class="status-ok">✔ Óptimo</span>' ?></td>
                         <td style="text-align: right;">
                             <a href="productos.php?buscar=<?= urlencode($p['nombre']) ?>" title="Ver / Editar Producto" style="color: var(--primary); text-decoration: none; font-weight: 600; font-size: 16px; margin-right: 8px;">👁️</a>
-                            <a href="movimientos.php?producto_id=<?= $p['id'] ?>" title="Ver Movimientos" style="color: var(--muted); text-decoration: none; font-weight: 600; font-size: 16px;">🔄</a>
+                            <a href="movimientos.php?producto_id=<?= htmlspecialchars($p['id'], ENT_QUOTES, 'UTF-8') ?>" title="Ver Movimientos" style="color: var(--muted); text-decoration: none; font-weight: 600; font-size: 16px;">🔄</a>
                         </td>
                     </tr>
                 <?php endforeach; endif; ?>

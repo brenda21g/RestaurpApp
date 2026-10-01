@@ -1,6 +1,11 @@
 <?php
-// Carga de configuración y verificación de sesión del administrador
+/**
+ * Archivo: subgerente/pedido_detalle.php
+ * Descripción: Endpoint JSON para consultar el detalle completo de un pedido y sus ítems con control de acceso.
+ */
+require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
+verificarAcceso(['subgerente']);
 
 $db = getDB();
 
@@ -37,7 +42,7 @@ $items_stmt = $db->prepare("
 $items_stmt->execute([$id]);
 $items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Formatear numéricos de los ítems
+// Formatear numéricos de los ítems y proteger textos con htmlspecialchars si se renderizan directamente (aquí van en JSON puro)
 foreach ($items as &$item) {
     $item['cantidad']        = (int)$item['cantidad'];
     $item['precio_unitario'] = (float)$item['precio_unitario'];

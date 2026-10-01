@@ -1,5 +1,11 @@
 <?php
+/**
+ * Archivo: subgerente/corte.php
+ * Descripción: Módulo de cortes de caja (diario, semanal, mensual) e impresión de reportes para el Subgerente.
+ */
+require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
+verificarAcceso(['subgerente']);
 $db = getDB();
 
 $tipo = $_GET['tipo'] ?? 'dia';
@@ -44,7 +50,6 @@ $res = $resumen->fetch(PDO::FETCH_ASSOC);
 $ingresos_dia = [];
 
 if ($tipo !== 'dia') {
-
     $q_dias = $db->prepare("
         SELECT
             DATE(creado_en) as fecha,
@@ -102,20 +107,13 @@ $lista_pedidos = $q_pedidos->fetchAll(PDO::FETCH_ASSOC);
 
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Corte <?= ucfirst($tipo) ?> – RestaurApp</title>
-
+<title>Corte <?= htmlspecialchars(ucfirst($tipo), ENT_QUOTES, 'UTF-8') ?> – RestaurApp</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-
 <style>
-
 *, *::before, *::after {
     box-sizing: border-box;
     margin: 0;
@@ -126,32 +124,20 @@ $lista_pedidos = $q_pedidos->fetchAll(PDO::FETCH_ASSOC);
     --bg: #f7f9fc;
     --card: #ffffff;
     --border: #e2e8f0;
-
     --accent: #1684c4;
-
     --text: #071b3a;
     --muted: #60708a;
-
     --sidebar: #03143d;
     --sidebar-hover: #092e70;
-
     --green: #07543f;
     --green-light: #e4f7f0;
-
     --blue-light: #eaf5fb;
-
     --red: #e07070;
     --red-light: #fff0f0;
-
     --yellow: #d99a24;
     --yellow-light: #fff6df;
-
     --sidebar-w: 240px;
 }
-
-/* =========================
-   BODY
-========================= */
 
 body {
     background: var(--bg);
@@ -161,10 +147,6 @@ body {
     min-height: 100vh;
     margin-left: var(--sidebar-w);
 }
-
-/* =========================
-   SIDEBAR
-========================= */
 
 .sidebar {
     width: var(--sidebar-w);
@@ -177,6 +159,7 @@ body {
     left: 0;
     height: 100vh;
     z-index: 100;
+    overflow-y: auto;
 }
 
 .sidebar-logo {
@@ -253,19 +236,11 @@ body {
     background: rgba(255,104,104,.1);
 }
 
-/* =========================
-   CONTENIDO
-========================= */
-
 .main {
     padding: 28px 32px;
     max-width: 1250px;
     margin: 0 auto;
 }
-
-/* =========================
-   NAVEGACIÓN SUPERIOR
-========================= */
 
 .topnav {
     display: flex;
@@ -321,10 +296,6 @@ body {
     font-weight: 600;
 }
 
-/* =========================
-   BOTÓN IMPRIMIR
-========================= */
-
 .print-btn {
     display: flex;
     align-items: center;
@@ -346,10 +317,6 @@ body {
     background: #063f30;
     transform: translateY(-1px);
 }
-
-/* =========================
-   ENCABEZADO
-========================= */
 
 .report-header {
     text-align: center;
@@ -373,10 +340,6 @@ body {
     margin-top: 6px;
 }
 
-/* =========================
-   SECCIONES
-========================= */
-
 .section {
     background: var(--card);
     border: 1px solid var(--border);
@@ -394,10 +357,6 @@ body {
     padding-bottom: 10px;
     border-bottom: 1px solid var(--border);
 }
-
-/* =========================
-   ESTADÍSTICAS
-========================= */
 
 .stats-row {
     display: grid;
@@ -431,10 +390,6 @@ body {
     margin-top: 4px;
 }
 
-/* =========================
-   TABLAS
-========================= */
-
 table {
     width: 100%;
     border-collapse: collapse;
@@ -466,10 +421,6 @@ tbody tr:hover {
     background: #f8fafc;
 }
 
-/* =========================
-   BADGES
-========================= */
-
 .badge {
     display: inline-block;
     padding: 4px 9px;
@@ -478,34 +429,11 @@ tbody tr:hover {
     font-weight: 500;
 }
 
-.badge.entregado {
-    background: var(--green-light);
-    color: #0aa878;
-}
-
-.badge.cancelado {
-    background: var(--red-light);
-    color: var(--red);
-}
-
-.badge.pendiente {
-    background: var(--yellow-light);
-    color: var(--yellow);
-}
-
-.badge.preparando {
-    background: var(--blue-light);
-    color: var(--accent);
-}
-
-.badge.listo {
-    background: var(--green-light);
-    color: #0aa878;
-}
-
-/* =========================
-   TOTALES
-========================= */
+.badge.entregado { background: var(--green-light); color: #0aa878; }
+.badge.cancelado { background: var(--red-light); color: var(--red); }
+.badge.pendiente { background: var(--yellow-light); color: var(--yellow); }
+.badge.preparando { background: var(--blue-light); color: var(--accent); }
+.badge.listo { background: var(--green-light); color: #0aa878; }
 
 .total-row td {
     font-weight: 600;
@@ -513,479 +441,189 @@ tbody tr:hover {
     border-top: 2px solid var(--border);
 }
 
-/* =========================
-   MENSAJES SIN DATOS
-========================= */
-
-.section p {
-    color: var(--muted);
-}
-
-/* =========================
-   RESPONSIVE
-========================= */
-
 @media (max-width: 900px) {
-
-    body {
-        margin-left: 210px;
-    }
-
-    .sidebar {
-        width: 210px;
-    }
-
-    .main {
-        padding: 24px;
-    }
-
-    .stats-row {
-        grid-template-columns: repeat(2, 1fr);
-    }
-
-    table {
-        min-width: 650px;
-    }
-
-    .section {
-        overflow-x: auto;
-    }
+    body { margin-left: 210px; }
+    .sidebar { width: 210px; }
+    .main { padding: 24px; }
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+    table { min-width: 650px; }
+    .section { overflow-x: auto; }
 }
 
 @media (max-width: 600px) {
-
-    body {
-        margin-left: 70px;
-    }
-
-    .sidebar {
-        width: 70px;
-    }
-
-    .sidebar-logo {
-        padding: 20px 10px;
-        text-align: center;
-    }
-
-    .sidebar-logo .name,
-    .sidebar-logo .role,
-    .logout-btn {
-        font-size: 0;
-    }
-
-    .nav {
-        padding: 16px 8px;
-    }
-
-    .nav-item {
-        justify-content: center;
-        padding: 12px 8px;
-    }
-
-    .main {
-        padding: 20px 16px;
-    }
-
-    .topnav {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .tipo-btns {
-        margin-left: 0;
-        width: 100%;
-    }
-
-    .tipo-btn {
-        flex: 1;
-        text-align: center;
-    }
-
-    .print-btn {
-        width: 100%;
-        justify-content: center;
-    }
-
-    .stats-row {
-        grid-template-columns: 1fr;
-    }
-
-    .report-header {
-        padding: 22px 15px;
-    }
-
-    .report-header h1 {
-        font-size: 24px;
-    }
-
-    .section {
-        padding: 16px;
-    }
-
+    body { margin-left: 70px; }
+    .sidebar { width: 70px; }
+    .sidebar-logo { padding: 20px 10px; text-align: center; }
+    .sidebar-logo .name, .sidebar-logo .role, .logout-btn { font-size: 0; }
+    .nav { padding: 16px 8px; }
+    .nav-item { justify-content: center; padding: 12px 8px; }
+    .main { padding: 20px 16px; }
+    .topnav { flex-direction: column; align-items: stretch; }
+    .tipo-btns { margin-left: 0; width: 100%; }
+    .tipo-btn { flex: 1; text-align: center; }
+    .print-btn { width: 100%; justify-content: center; }
+    .stats-row { grid-template-columns: 1fr; }
+    .report-header { padding: 22px 15px; }
+    .report-header h1 { font-size: 24px; }
+    .section { padding: 16px; }
 }
-
-/* =========================
-   IMPRESIÓN
-========================= */
 
 @media print {
-
-    body {
-        background: white;
-        color: #111;
-        margin: 0;
-        padding: 20px;
-    }
-
-    .sidebar,
-    .topnav,
-    .print-btn {
-        display: none !important;
-    }
-
-    .main {
-        margin: 0;
-        padding: 0;
-        max-width: none;
-    }
-
-    .section,
-    .report-header {
-        background: white;
-        border: 1px solid #ddd;
-        box-shadow: none;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-    }
-
-    .stat-box {
-        background: #f8f8f8 !important;
-        box-shadow: none;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-    }
-
-    .stat-box .val,
-    .total-row td {
-        color: #07543f;
-    }
-
-    .badge.entregado,
-    .badge.cancelado,
-    .badge.pendiente,
-    .badge.preparando,
-    .badge.listo {
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-    }
-
-    :root {
-        --text: #111111;
-        --muted: #666666;
-        --border: #dddddd;
-    }
-
+    body { background: white; color: #111; margin: 0; padding: 20px; }
+    .sidebar, .topnav, .print-btn { display: none !important; }
+    .main { margin: 0; padding: 0; max-width: none; }
+    .section, .report-header { background: white; border: 1px solid #ddd; box-shadow: none; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .stat-box { background: #f8f8f8 !important; box-shadow: none; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .stat-box .val, .total-row td { color: #07543f; }
+    .badge.entregado, .badge.cancelado, .badge.pendiente, .badge.preparando, .badge.listo { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    :root { --text: #111111; --muted: #666666; --border: #dddddd; }
 }
-
 </style>
-
 </head>
-
 <body>
 
 <!-- SIDEBAR -->
-
 <aside class="sidebar">
-
     <div class="sidebar-logo">
-
         <div class="name">🍽️ RestaurApp</div>
-
         <div class="role">Subgerente</div>
-
     </div>
 
     <nav class="nav">
-
         <a class="nav-item" href="dashboard.php">
             <span class="icon">📊</span> Dashboard
         </a>
-
         <a class="nav-item" href="pedidos.php">
             <span class="icon">📋</span> Pedidos
         </a>
-
         <a class="nav-item" href="mesas_qr.php">
             <span class="icon">🪑</span> Mesas & QR
         </a>
-
         <a class="nav-item" href="menu.php">
             <span class="icon">🍽️</span> Menú
         </a>
-
         <a class="nav-item active" href="corte.php">
             <span>💵</span> Corte de Caja
         </a>
-
+        <!-- ENLACE AL SCM EN MODO CONSULTA PARA EL SUBGERENTE -->
+        <a class="nav-item" href="../scm/dashboard.php" style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
+            <span class="icon">📦</span> SCM / Inventario (Ver)
+        </a>
     </nav>
 
     <div class="sidebar-bottom">
-
         <a class="logout-btn" href="logout.php">
             🚪 Cerrar sesión
         </a>
-
     </div>
-
 </aside>
 
 <main class="main">
-
     <!-- NAVEGACIÓN -->
-
     <div class="topnav">
-
         <a class="back-btn" href="dashboard.php">
             ← Regresar
         </a>
-
         <div class="tipo-btns">
-
-            <a
-                href="corte.php?tipo=dia"
-                class="tipo-btn <?= $tipo === 'dia' ? 'active' : '' ?>"
-            >
-                Día
-            </a>
-
-            <a
-                href="corte.php?tipo=semana"
-                class="tipo-btn <?= $tipo === 'semana' ? 'active' : '' ?>"
-            >
-                Semana
-            </a>
-
-            <a
-                href="corte.php?tipo=mes"
-                class="tipo-btn <?= $tipo === 'mes' ? 'active' : '' ?>"
-            >
-                Mes
-            </a>
-
+            <a href="corte.php?tipo=dia" class="tipo-btn <?= $tipo === 'dia' ? 'active' : '' ?>">Día</a>
+            <a href="corte.php?tipo=semana" class="tipo-btn <?= $tipo === 'semana' ? 'active' : '' ?>">Semana</a>
+            <a href="corte.php?tipo=mes" class="tipo-btn <?= $tipo === 'mes' ? 'active' : '' ?>">Mes</a>
         </div>
-
     </div>
 
     <!-- BOTÓN IMPRIMIR -->
-
     <button class="print-btn" onclick="window.print()">
         🖨️ Imprimir / Guardar PDF
     </button>
 
     <!-- ENCABEZADO -->
-
     <div class="report-header">
-
         <h1>🍽️ RestaurApp</h1>
-
-        <div class="sub">
-            Corte de caja — <?= $label ?>
-        </div>
-
-        <div class="sub" style="margin-top:4px;">
-            Generado el <?= date('d/m/Y H:i') ?>
-        </div>
-
+        <div class="sub">Corte de caja — <?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></div>
+        <div class="sub" style="margin-top:4px;">Generado el <?= htmlspecialchars(date('d/m/Y H:i'), ENT_QUOTES, 'UTF-8') ?></div>
     </div>
 
     <!-- RESUMEN GENERAL -->
-
     <div class="section">
-
-        <h2>
-            📊 Resumen general
-        </h2>
-
+        <h2>📊 Resumen general</h2>
         <div class="stats-row">
-
             <div class="stat-box">
-
-                <div class="val">
-                    $<?= number_format($res['ingresos_totales'] ?? 0, 2) ?>
-                </div>
-
-                <div class="lbl">
-                    Ingresos totales
-                </div>
-
+                <div class="val">$<?= number_format($res['ingresos_totales'] ?? 0, 2) ?></div>
+                <div class="lbl">Ingresos totales</div>
             </div>
-
             <div class="stat-box">
-
-                <div class="val">
-                    <?= $res['total_pedidos'] ?? 0 ?>
-                </div>
-
-                <div class="lbl">
-                    Pedidos totales
-                </div>
-
+                <div class="val"><?= htmlspecialchars($res['total_pedidos'] ?? 0, ENT_QUOTES, 'UTF-8') ?></div>
+                <div class="lbl">Pedidos totales</div>
             </div>
-
             <div class="stat-box">
-
-                <div class="val">
-                    <?= $res['completados'] ?? 0 ?>
-                </div>
-
-                <div class="lbl">
-                    Completados
-                </div>
-
+                <div class="val"><?= htmlspecialchars($res['completados'] ?? 0, ENT_QUOTES, 'UTF-8') ?></div>
+                <div class="lbl">Completados</div>
             </div>
-
             <div class="stat-box">
-
-                <div class="val">
-                    $<?= number_format($res['ticket_promedio'] ?? 0, 2) ?>
-                </div>
-
-                <div class="lbl">
-                    Ticket promedio
-                </div>
-
+                <div class="val">$<?= number_format($res['ticket_promedio'] ?? 0, 2) ?></div>
+                <div class="lbl">Ticket promedio</div>
             </div>
-
             <div class="stat-box">
-
-                <div class="val">
-                    <?= $res['cancelados'] ?? 0 ?>
-                </div>
-
-                <div class="lbl">
-                    Cancelados
-                </div>
-
+                <div class="val"><?= htmlspecialchars($res['cancelados'] ?? 0, ENT_QUOTES, 'UTF-8') ?></div>
+                <div class="lbl">Cancelados</div>
             </div>
-
             <div class="stat-box">
-
                 <div class="val">
-
-                    <?= $tipo === 'dia'
+                    <?= htmlspecialchars($tipo === 'dia'
                         ? date('d/m/Y')
                         : ($desde != $hasta
                             ? date('d/m', strtotime($desde)) . '–' . date('d/m', strtotime($hasta))
                             : date('d/m/Y', strtotime($desde))
-                        )
+                        ), ENT_QUOTES, 'UTF-8')
                     ?>
-
                 </div>
-
-                <div class="lbl">
-                    Período
-                </div>
-
+                <div class="lbl">Período</div>
             </div>
-
         </div>
-
     </div>
 
     <?php if ($tipo !== 'dia' && !empty($ingresos_dia)): ?>
-
     <!-- INGRESOS POR DÍA -->
-
     <div class="section">
-
-        <h2>
-            📅 Ingresos por día
-        </h2>
-
+        <h2>📅 Ingresos por día</h2>
         <table>
-
             <thead>
-
                 <tr>
                     <th>Fecha</th>
                     <th>Pedidos</th>
                     <th>Ingresos</th>
                 </tr>
-
             </thead>
-
             <tbody>
-
                 <?php
-
                 $gran_total = 0;
-
                 foreach ($ingresos_dia as $d):
-
                     $gran_total += $d['ingresos'];
-
                 ?>
-
                 <tr>
-
-                    <td>
-                        <?= date('d/m/Y (l)', strtotime($d['fecha'])) ?>
-                    </td>
-
-                    <td>
-                        <?= $d['pedidos'] ?>
-                    </td>
-
-                    <td>
-                        $<?= number_format($d['ingresos'], 2) ?>
-                    </td>
-
+                    <td><?= htmlspecialchars(date('d/m/Y (l)', strtotime($d['fecha'])), ENT_QUOTES, 'UTF-8') ?></td>
+                    <td><?= htmlspecialchars($d['pedidos'], ENT_QUOTES, 'UTF-8') ?></td>
+                    <td>$<?= number_format($d['ingresos'], 2) ?></td>
                 </tr>
-
                 <?php endforeach; ?>
-
                 <tr class="total-row">
-
-                    <td>
-                        TOTAL
-                    </td>
-
+                    <td>TOTAL</td>
                     <td></td>
-
-                    <td>
-                        $<?= number_format($gran_total, 2) ?>
-                    </td>
-
+                    <td>$<?= number_format($gran_total, 2) ?></td>
                 </tr>
-
             </tbody>
-
         </table>
-
     </div>
-
     <?php endif; ?>
 
     <!-- PRODUCTOS VENDIDOS -->
-
     <div class="section">
-
-        <h2>
-            🏆 Detalle de productos vendidos
-        </h2>
-
+        <h2>🏆 Detalle de productos vendidos</h2>
         <?php if (empty($prod_vendidos)): ?>
-
-            <p style="font-size:13px;">
-                Sin ventas en este período.
-            </p>
-
+            <p style="font-size:13px;">Sin ventas en este período.</p>
         <?php else: ?>
-
         <table>
-
             <thead>
-
                 <tr>
                     <th>Producto</th>
                     <th>Categoría</th>
@@ -993,87 +631,38 @@ tbody tr:hover {
                     <th>Cant.</th>
                     <th>Total</th>
                 </tr>
-
             </thead>
-
             <tbody>
-
                 <?php
-
                 $total_gen = 0;
-
                 foreach ($prod_vendidos as $pv):
-
                     $total_gen += $pv['total_generado'];
-
                 ?>
-
                 <tr>
-
-                    <td>
-                        <?= htmlspecialchars($pv['nombre']) ?>
-                    </td>
-
-                    <td style="color:var(--muted);">
-                        <?= htmlspecialchars($pv['categoria']) ?>
-                    </td>
-
-                    <td>
-                        $<?= number_format($pv['precio_unitario'], 2) ?>
-                    </td>
-
-                    <td>
-                        <?= $pv['cantidad_total'] ?>
-                    </td>
-
-                    <td>
-                        $<?= number_format($pv['total_generado'], 2) ?>
-                    </td>
-
+                    <td><?= htmlspecialchars($pv['nombre'], ENT_QUOTES, 'UTF-8') ?></td>
+                    <td style="color:var(--muted);"><?= htmlspecialchars($pv['categoria'], ENT_QUOTES, 'UTF-8') ?></td>
+                    <td>$<?= number_format($pv['precio_unitario'], 2) ?></td>
+                    <td><?= htmlspecialchars($pv['cantidad_total'], ENT_QUOTES, 'UTF-8') ?></td>
+                    <td>$<?= number_format($pv['total_generado'], 2) ?></td>
                 </tr>
-
                 <?php endforeach; ?>
-
                 <tr class="total-row">
-
-                    <td colspan="4">
-                        TOTAL INGRESOS
-                    </td>
-
-                    <td>
-                        $<?= number_format($total_gen, 2) ?>
-                    </td>
-
+                    <td colspan="4">TOTAL INGRESOS</td>
+                    <td>$<?= number_format($total_gen, 2) ?></td>
                 </tr>
-
             </tbody>
-
         </table>
-
         <?php endif; ?>
-
     </div>
 
     <!-- REGISTRO DE PEDIDOS -->
-
     <div class="section">
-
-        <h2>
-            📋 Registro completo de pedidos
-        </h2>
-
+        <h2>📋 Registro completo de pedidos</h2>
         <?php if (empty($lista_pedidos)): ?>
-
-            <p style="font-size:13px;">
-                Sin pedidos en este período.
-            </p>
-
+            <p style="font-size:13px;">Sin pedidos en este período.</p>
         <?php else: ?>
-
         <table>
-
             <thead>
-
                 <tr>
                     <th>#Orden</th>
                     <th>Mesa</th>
@@ -1081,58 +670,28 @@ tbody tr:hover {
                     <th>Estado</th>
                     <th>Fecha/Hora</th>
                 </tr>
-
             </thead>
-
             <tbody>
-
                 <?php foreach ($lista_pedidos as $lp): ?>
-
                 <tr>
-
-                    <td style="font-weight:500;">
-                        <?= htmlspecialchars($lp['numero_orden']) ?>
-                    </td>
-
+                    <td style="font-weight:500;"><?= htmlspecialchars($lp['numero_orden'], ENT_QUOTES, 'UTF-8') ?></td>
+                    <td>Mesa <?= htmlspecialchars($lp['mesa'], ENT_QUOTES, 'UTF-8') ?></td>
+                    <td>$<?= number_format($lp['total'], 2) ?></td>
                     <td>
-                        Mesa <?= $lp['mesa'] ?>
-                    </td>
-
-                    <td>
-                        $<?= number_format($lp['total'], 2) ?>
-                    </td>
-
-                    <td>
-
-                        <span class="badge <?= $lp['estado'] ?>">
-                            <?= ucfirst($lp['estado']) ?>
+                        <span class="badge <?= htmlspecialchars($lp['estado'], ENT_QUOTES, 'UTF-8') ?>">
+                            <?= htmlspecialchars(ucfirst($lp['estado']), ENT_QUOTES, 'UTF-8') ?>
                         </span>
-
                     </td>
-
                     <td style="color:var(--muted);font-size:12px;">
-
-                        <?= date(
-                            'd/m H:i',
-                            strtotime($lp['creado_en'])
-                        ) ?>
-
+                        <?= htmlspecialchars(date('d/m H:i', strtotime($lp['creado_en'])), ENT_QUOTES, 'UTF-8') ?>
                     </td>
-
                 </tr>
-
                 <?php endforeach; ?>
-
             </tbody>
-
         </table>
-
         <?php endif; ?>
-
     </div>
-
 </main>
 
 </body>
-
 </html>

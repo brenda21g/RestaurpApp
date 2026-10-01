@@ -1,8 +1,11 @@
-```php
 <?php
-
+/**
+ * Archivo: subgerente/dashboard.php
+ * Descripción: Dashboard principal del Subgerente con métricas operativas, ventas, pedidos y enlace de consulta al SCM.
+ */
+require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
-
+verificarAcceso(['subgerente']);
 $db = getDB();
 
 /* Estadísticas del día */
@@ -72,25 +75,17 @@ $ultimos = $db->prepare("
 
 $ultimos->execute();
 $ultimos_pedidos = $ultimos->fetchAll(PDO::FETCH_ASSOC);
-
 ?>
 
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <title>Dashboard – RestaurantApp Admin</title>
-
     <link rel="preconnect" href="https://fonts.googleapis.com">
-
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-
     <style>
-
         *,
         *::before,
         *::after {
@@ -141,8 +136,8 @@ $ultimos_pedidos = $ultimos->fetchAll(PDO::FETCH_ASSOC);
         }
 
         /* ================================
-           SIDEBAR
-        ================================= */
+            SIDEBAR
+        ================================ */
 
         .sidebar {
             width: var(--sidebar-w);
@@ -155,6 +150,7 @@ $ultimos_pedidos = $ultimos->fetchAll(PDO::FETCH_ASSOC);
             left: 0;
             height: 100vh;
             z-index: 100;
+            overflow-y: auto;
         }
 
         .sidebar-logo {
@@ -232,19 +228,18 @@ $ultimos_pedidos = $ultimos->fetchAll(PDO::FETCH_ASSOC);
         }
 
         /* ================================
-           MAIN
-        ================================= */
+            MAIN
+        ================================ */
 
         .main {
             margin-left: var(--sidebar-w);
             flex: 1;
             padding: 28px 32px;
-            max-width: calc(100% - var(--sidebar-w));
         }
 
         /* ================================
-           TOP BAR
-        ================================= */
+            TOP BAR
+        ================================ */
 
         .topbar {
             display: flex;
@@ -278,8 +273,8 @@ $ultimos_pedidos = $ultimos->fetchAll(PDO::FETCH_ASSOC);
         }
 
         /* ================================
-           LIVE DOT
-        ================================= */
+            LIVE DOT
+        ================================ */
 
         .live-dot {
             display: inline-block;
@@ -292,18 +287,13 @@ $ultimos_pedidos = $ultimos->fetchAll(PDO::FETCH_ASSOC);
         }
 
         @keyframes pulse {
-            0%, 100% {
-                opacity: 1;
-            }
-
-            50% {
-                opacity: .35;
-            }
+            0%, 100% { opacity: 1; }
+            50% { opacity: .35; }
         }
 
         /* ================================
-           STATS
-        ================================= */
+            STATS
+        ================================ */
 
         .stats-grid {
             display: grid;
@@ -358,8 +348,8 @@ $ultimos_pedidos = $ultimos->fetchAll(PDO::FETCH_ASSOC);
         }
 
         /* ================================
-           CHARTS
-        ================================= */
+            CHARTS
+        ================================ */
 
         .charts-row {
             display: grid;
@@ -387,8 +377,8 @@ $ultimos_pedidos = $ultimos->fetchAll(PDO::FETCH_ASSOC);
         }
 
         /* ================================
-           BAR CHART
-        ================================= */
+            BAR CHART
+        ================================ */
 
         .bar-chart {
             display: flex;
@@ -428,8 +418,8 @@ $ultimos_pedidos = $ultimos->fetchAll(PDO::FETCH_ASSOC);
         }
 
         /* ================================
-           PRODUCT LIST
-        ================================= */
+            PRODUCT LIST
+        ================================ */
 
         .prod-list {
             display: flex;
@@ -474,8 +464,8 @@ $ultimos_pedidos = $ultimos->fetchAll(PDO::FETCH_ASSOC);
         }
 
         /* ================================
-           TABLE
-        ================================= */
+            TABLE
+        ================================ */
 
         .table-card {
             background: var(--card-bg);
@@ -542,8 +532,8 @@ $ultimos_pedidos = $ultimos->fetchAll(PDO::FETCH_ASSOC);
         }
 
         /* ================================
-           BADGES
-        ================================= */
+            BADGES
+        ================================ */
 
         .badge {
             display: inline-flex;
@@ -555,34 +545,15 @@ $ultimos_pedidos = $ultimos->fetchAll(PDO::FETCH_ASSOC);
             font-weight: 600;
         }
 
-        .badge.pendiente {
-            background: #fff4d8;
-            color: #d88900;
-        }
-
-        .badge.preparando {
-            background: #e3f4fb;
-            color: #0788c9;
-        }
-
-        .badge.listo {
-            background: #dff7ed;
-            color: #079969;
-        }
-
-        .badge.entregado {
-            background: #e5f8f1;
-            color: #0bad77;
-        }
-
-        .badge.cancelado {
-            background: #fde9eb;
-            color: #dc4c55;
-        }
+        .badge.pendiente { background: #fff4d8; color: #d88900; }
+        .badge.preparando { background: #e3f4fb; color: #0788c9; }
+        .badge.listo { background: #dff7ed; color: #079969; }
+        .badge.entregado { background: #e5f8f1; color: #0bad77; }
+        .badge.cancelado { background: #fde9eb; color: #dc4c55; }
 
         /* ================================
-           CORTES DE CAJA
-        ================================= */
+            CORTES DE CAJA
+        ================================ */
 
         .cortes-section {
             background: var(--card-bg);
@@ -640,720 +611,258 @@ $ultimos_pedidos = $ultimos->fetchAll(PDO::FETCH_ASSOC);
             border-color: var(--primary-dark);
         }
 
-        /* ================================
-           RESPONSIVE
-        ================================= */
-
         @media(max-width:1200px) {
-
-            .stats-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-
-            .charts-row {
-                grid-template-columns: 1fr;
-            }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .charts-row { grid-template-columns: 1fr; }
         }
 
         @media(max-width:800px) {
-
-            .sidebar {
-                width: 210px;
-            }
-
-            .main {
-                margin-left: 210px;
-                padding: 24px;
-                max-width: calc(100% - 210px);
-            }
-
-            .topbar {
-                flex-direction: column;
-                gap: 15px;
-            }
-
-            .date-badge {
-                align-self: flex-start;
-            }
-
-            th,
-            td {
-                padding-left: 14px;
-                padding-right: 14px;
-            }
+            .sidebar { width: 210px; }
+            .main { margin-left: 210px; padding: 24px; }
+            .topbar { flex-direction: column; gap: 15px; }
+            .date-badge { align-self: flex-start; }
         }
-
-        @media(max-width:600px) {
-
-            .sidebar {
-                width: 70px;
-            }
-
-            .sidebar-logo .name,
-            .sidebar-logo .role,
-            .nav-item:not(.active)::after,
-            .logout-btn {
-                font-size: 0;
-            }
-
-            .sidebar-logo {
-                padding: 20px 10px;
-                text-align: center;
-            }
-
-            .nav {
-                padding: 16px 8px;
-            }
-
-            .nav-item {
-                justify-content: center;
-                padding: 12px 8px;
-            }
-
-            .nav-item .icon {
-                font-size: 18px;
-            }
-
-            .logout-btn {
-                justify-content: center;
-                padding: 12px 8px;
-            }
-
-            .main {
-                margin-left: 70px;
-                padding: 20px 16px;
-                max-width: calc(100% - 70px);
-            }
-
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .charts-row {
-                grid-template-columns: 1fr;
-            }
-
-            .table-card {
-                overflow-x: auto;
-            }
-
-            table {
-                min-width: 650px;
-            }
-        }
-
     </style>
-
 </head>
-
 <body>
 
     <!-- SIDEBAR -->
-
     <aside class="sidebar">
-
         <div class="sidebar-logo">
-
-            <div class="name">
-                🍽️ RestaurApp
-            </div>
-
-            <div class="role">
-                Subgerente
-            </div>
-
+            <div class="name">🍽️ RestaurApp</div>
+            <div class="role">Subgerente</div>
         </div>
 
         <nav class="nav">
-
             <a class="nav-item active" href="dashboard.php">
-                <span class="icon">📊</span>
-                Dashboard
+                <span class="icon">📊</span> Dashboard
             </a>
-
             <a class="nav-item" href="pedidos.php">
-                <span class="icon">📋</span>
-                Pedidos
+                <span class="icon">📋</span> Pedidos
             </a>
-
             <a class="nav-item" href="mesas_qr.php">
-                <span class="icon">🪑</span>
-                Mesas & QR
+                <span class="icon">🪑</span> Mesas & QR
             </a>
-
             <a class="nav-item" href="menu.php">
-                <span class="icon">🍽️</span>
-                Menú
+                <span class="icon">🍽️️</span> Menú
             </a>
-
             <a class="nav-item" href="corte.php">
-                <span class="icon">💵</span>
-                Corte de Caja
+                <span class="icon">💵</span> Corte de Caja
             </a>
-
+            <!-- ENLACE AL SCM EN MODO CONSULTA PARA EL SUBGERENTE -->
+            <a class="nav-item" href="../scm/dashboard.php" style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
+                <span class="icon">📦</span> SCM / Inventario (Ver)
+            </a>
         </nav>
 
         <div class="sidebar-bottom">
-
             <a class="logout-btn" href="logout.php">
                 🚪 Cerrar sesión
             </a>
-
         </div>
-
     </aside>
 
-
     <!-- MAIN -->
-
     <main class="main">
-
-        <!-- TOP BAR -->
-
         <div class="topbar">
-
             <div>
-
-                <div class="page-title">
-                    Dashboard
-                </div>
-
+                <div class="page-title">Dashboard</div>
                 <div class="top-subtitle">
-
-                    <span class="live-dot"></span>
-
-                    Actualizando en tiempo real
-
+                    <span class="live-dot"></span> Actualizando en tiempo real
                 </div>
-
             </div>
-
             <div class="date-badge">
-
-                📅 <?= date('d \d\e F \d\e Y') ?>
-
+                📅 <?= htmlspecialchars(date('d \d\e F \d\e Y'), ENT_QUOTES, 'UTF-8') ?>
             </div>
-
         </div>
-
 
         <!-- STATS -->
-
         <div class="stats-grid">
-
             <div class="stat-card">
-
-                <span class="stat-icon">
-                    💰
-                </span>
-
-                <div class="stat-label">
-                    Ingresos del día
-                </div>
-
-                <div class="stat-value money">
-
-                    <?= number_format($stats['ingresos'] ?? 0, 2) ?>
-
-                </div>
-
+                <span class="stat-icon">💰</span>
+                <div class="stat-label">Ingresos del día</div>
+                <div class="stat-value money"><?= number_format($stats['ingresos'] ?? 0, 2) ?></div>
             </div>
 
-
             <div class="stat-card">
-
-                <span class="stat-icon">
-                    📋
-                </span>
-
-                <div class="stat-label">
-                    Total pedidos
-                </div>
-
-                <div class="stat-value">
-
-                    <?= $stats['total_pedidos'] ?? 0 ?>
-
-                </div>
-
+                <span class="stat-icon">📋</span>
+                <div class="stat-label">Total pedidos</div>
+                <div class="stat-value"><?= htmlspecialchars($stats['total_pedidos'] ?? 0, ENT_QUOTES, 'UTF-8') ?></div>
             </div>
 
-
             <div class="stat-card">
-
-                <span class="stat-icon">
-                    ✅
-                </span>
-
-                <div class="stat-label">
-                    Completados
-                </div>
-
-                <div
-                    class="stat-value"
-                    style="color:var(--green-dashboard);"
-                >
-
-                    <?= $stats['completados'] ?? 0 ?>
-
-                </div>
-
+                <span class="stat-icon">✅</span>
+                <div class="stat-label">Completados</div>
+                <div class="stat-value" style="color:var(--green-dashboard);"><?= htmlspecialchars($stats['completados'] ?? 0, ENT_QUOTES, 'UTF-8') ?></div>
             </div>
 
-
             <div class="stat-card">
-
-                <span class="stat-icon">
-                    ⏳
-                </span>
-
-                <div class="stat-label">
-                    En proceso
-                </div>
-
-                <div
-                    class="stat-value"
-                    style="color:var(--amber);"
-                >
-
-                    <?= $stats['activos'] ?? 0 ?>
-
-                </div>
-
+                <span class="stat-icon">⏳</span>
+                <div class="stat-label">En proceso</div>
+                <div class="stat-value" style="color:var(--amber);"><?= htmlspecialchars($stats['activos'] ?? 0, ENT_QUOTES, 'UTF-8') ?></div>
             </div>
-
         </div>
-
 
         <!-- CHARTS -->
-
         <div class="charts-row">
-
-
             <!-- PEDIDOS POR HORA -->
-
             <div class="chart-card">
-
-                <div class="chart-title">
-                    📊 Pedidos por hora (hoy)
-                </div>
-
+                <div class="chart-title">📊 Pedidos por hora (hoy)</div>
                 <?php
-                $max_pedidos = max(
-                    array_column($pedidos_hora, 'cantidad') ?: [1]
-                );
+                $max_pedidos = max(array_column($pedidos_hora, 'cantidad') ?: [1]);
                 ?>
-
                 <div class="bar-chart">
-
                     <?php if (empty($pedidos_hora)): ?>
-
-                        <div
-                            style="
-                                color:var(--text-muted);
-                                font-size:13px;
-                                width:100%;
-                                text-align:center;
-                                padding:40px 0;
-                            "
-                        >
+                        <div style="color:var(--text-muted); font-size:13px; width:100%; text-align:center; padding:40px 0;">
                             Sin pedidos hoy
                         </div>
-
                     <?php else: ?>
-
                         <?php foreach ($pedidos_hora as $ph): ?>
-
                             <div class="bar-col">
-
-                                <div
-                                    style="
-                                        font-size:10px;
-                                        color:var(--text-muted);
-                                    "
-                                >
-
-                                    <?= $ph['cantidad'] ?>
-
-                                </div>
-
-                                <div
-                                    class="bar"
-                                    style="
-                                        height:<?= round(
-                                            ($ph['cantidad'] / $max_pedidos) * 100
-                                        ) ?>%;
-                                    "
-                                ></div>
-
-                                <div class="bar-label">
-
-                                    <?= str_pad(
-                                        $ph['hora'],
-                                        2,
-                                        '0',
-                                        STR_PAD_LEFT
-                                    ) ?>h
-
-                                </div>
-
+                                <div style="font-size:10px; color:var(--text-muted);"><?= htmlspecialchars($ph['cantidad'], ENT_QUOTES, 'UTF-8') ?></div>
+                                <div class="bar" style="height:<?= round(($ph['cantidad'] / $max_pedidos) * 100) ?>%;"></div>
+                                <div class="bar-label"><?= htmlspecialchars(str_pad($ph['hora'], 2, '0', STR_PAD_LEFT), ENT_QUOTES, 'UTF-8') ?>h</div>
                             </div>
-
                         <?php endforeach; ?>
-
                     <?php endif; ?>
-
                 </div>
-
             </div>
-
 
             <!-- TOP PRODUCTOS -->
-
             <div class="chart-card">
-
-                <div class="chart-title">
-                    🔥 Productos más vendidos (hoy)
-                </div>
-
+                <div class="chart-title">🔥 Productos más vendidos (hoy)</div>
                 <?php if (empty($top_productos)): ?>
-
-                    <div
-                        style="
-                            color:var(--text-muted);
-                            font-size:13px;
-                            padding:20px 0;
-                        "
-                    >
+                    <div style="color:var(--text-muted); font-size:13px; padding:20px 0;">
                         Sin ventas completadas hoy
                     </div>
-
                 <?php else: ?>
-
                     <?php
-                    $max_v = max(
-                        array_column($top_productos, 'vendidos')
-                    );
+                    $max_v = max(array_column($top_productos, 'vendidos') ?: [1]);
                     ?>
-
                     <div class="prod-list">
-
                         <?php foreach ($top_productos as $i => $p): ?>
-
                             <div class="prod-item">
-
-                                <span
-                                    style="
-                                        width:20px;
-                                        font-size:11px;
-                                        color:var(--text-muted);
-                                        text-align:right;
-                                        flex-shrink:0;
-                                    "
-                                >
-
-                                    <?= $i + 1 ?>
-
+                                <span style="width:20px; font-size:11px; color:var(--text-muted); text-align:right; flex-shrink:0;">
+                                    <?= htmlspecialchars($i + 1, ENT_QUOTES, 'UTF-8') ?>
                                 </span>
-
                                 <span class="prod-name">
-
-                                    <?= htmlspecialchars($p['nombre']) ?>
-
+                                    <?= htmlspecialchars($p['nombre'], ENT_QUOTES, 'UTF-8') ?>
                                 </span>
-
                                 <div class="prod-bar-wrap">
-
-                                    <div
-                                        class="prod-bar"
-                                        style="
-                                            width:<?= round(
-                                                ($p['vendidos'] / $max_v) * 100
-                                            ) ?>%;
-                                        "
-                                    ></div>
-
+                                    <div class="prod-bar" style="width:<?= round(($p['vendidos'] / $max_v) * 100) ?>%;"></div>
                                 </div>
-
                                 <span class="prod-count">
-
-                                    <?= $p['vendidos'] ?> uds
-
+                                    <?= htmlspecialchars($p['vendidos'], ENT_QUOTES, 'UTF-8') ?> uds
                                 </span>
-
                             </div>
-
                         <?php endforeach; ?>
-
                     </div>
-
                 <?php endif; ?>
-
             </div>
-
         </div>
-
 
         <!-- ÚLTIMOS PEDIDOS -->
-
         <div class="table-card">
-
             <div class="table-header">
-
-                <h3>
-                    📋 Registro de pedidos recientes
-                </h3>
-
-                <a
-                    href="pedidos.php"
-                    style="
-                        color:var(--primary);
-                        font-size:13px;
-                        font-weight:600;
-                        text-decoration:none;
-                    "
-                >
+                <h3>📋 Registro de pedidos recientes</h3>
+                <a href="pedidos.php" style="color:var(--primary); font-size:13px; font-weight:600; text-decoration:none;">
                     Ver todos →
                 </a>
-
             </div>
-
 
             <table>
-
                 <thead>
-
                     <tr>
-
-                        <th>
-                            Orden
-                        </th>
-
-                        <th>
-                            Mesa
-                        </th>
-
-                        <th>
-                            Total
-                        </th>
-
-                        <th>
-                            Estado
-                        </th>
-
-                        <th>
-                            Hora
-                        </th>
-
+                        <th>Orden</th>
+                        <th>Mesa</th>
+                        <th>Total</th>
+                        <th>Estado</th>
+                        <th>Hora</th>
                     </tr>
-
                 </thead>
-
-
                 <tbody>
-
                     <?php if (empty($ultimos_pedidos)): ?>
-
                         <tr>
-
-                            <td
-                                colspan="5"
-                                style="
-                                    text-align:center;
-                                    color:var(--text-muted);
-                                    padding:30px;
-                                "
-                            >
+                            <td colspan="5" style="text-align:center; color:var(--text-muted); padding:30px;">
                                 Sin pedidos aún
                             </td>
-
                         </tr>
-
                     <?php else: ?>
-
                         <?php foreach ($ultimos_pedidos as $p): ?>
-
                             <tr>
-
                                 <td style="font-weight:700;">
-
-                                    <?= htmlspecialchars(
-                                        $p['numero_orden']
-                                    ) ?>
-
+                                    <?= htmlspecialchars($p['numero_orden'] ?? '', ENT_QUOTES, 'UTF-8') ?>
                                 </td>
-
                                 <td>
-
-                                    Mesa <?= $p['mesa_num'] ?>
-
+                                    Mesa <?= htmlspecialchars($p['mesa_num'] ?? '', ENT_QUOTES, 'UTF-8') ?>
                                 </td>
-
                                 <td>
-
-                                    $<?= number_format(
-                                        $p['total'],
-                                        2
-                                    ) ?>
-
+                                    $<?= number_format($p['total'] ?? 0, 2) ?>
                                 </td>
-
                                 <td>
-
-                                    <span
-                                        class="badge <?= htmlspecialchars(
-                                            $p['estado']
-                                        ) ?>"
-                                    >
-
-                                        <?= ucfirst(
-                                            $p['estado']
-                                        ) ?>
-
+                                    <span class="badge <?= htmlspecialchars($p['estado'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                                        <?= htmlspecialchars(ucfirst($p['estado'] ?? ''), ENT_QUOTES, 'UTF-8') ?>
                                     </span>
-
                                 </td>
-
                                 <td style="color:var(--text-muted);">
-
-                                    <?= date(
-                                        'H:i',
-                                        strtotime($p['creado_en'])
-                                    ) ?>
-
+                                    <?= htmlspecialchars(date('H:i', strtotime($p['creado_en'] ?? 'now')), ENT_QUOTES, 'UTF-8') ?>
                                 </td>
-
                             </tr>
-
                         <?php endforeach; ?>
-
                     <?php endif; ?>
-
                 </tbody>
-
             </table>
-
         </div>
-
 
         <!-- CORTES DE CAJA -->
-
         <div class="cortes-section">
-
             <div class="cortes-title">
-
                 🖨️ Cortes de caja e impresión
-
             </div>
-
-
             <div class="cortes-btns">
-
-                <a
-                    href="corte.php?tipo=dia"
-                    class="corte-btn primary"
-                >
+                <a href="corte.php?tipo=dia" class="corte-btn primary">
                     📄 Corte del día
                 </a>
-
-                <a
-                    href="corte.php?tipo=semana"
-                    class="corte-btn"
-                >
+                <a href="corte.php?tipo=semana" class="corte-btn">
                     📅 Corte semanal
                 </a>
-
-                <a
-                    href="corte.php?tipo=mes"
-                    class="corte-btn"
-                >
+                <a href="corte.php?tipo=mes" class="corte-btn">
                     📆 Corte mensual
                 </a>
-
             </div>
-
         </div>
-
     </main>
 
-
     <!-- ACTUALIZACIÓN Y CIERRE POR INACTIVIDAD -->
-
     <script>
-
         (function() {
-
             const TIEMPO_INACTIVIDAD = 3 * 60 * 1000;
-
             const INTERVALO_RECARGA = 30000;
-
             let temporizadorInactividad;
-
             let temporizadorRecarga;
 
-
             function cerrarSesion() {
-
-                window.location.href =
-                    'logout.php?reason=inactividad';
-
+                window.location.href = 'logout.php?reason=inactividad';
             }
-
 
             function reiniciarInactividad() {
-
-                clearTimeout(
-                    temporizadorInactividad
-                );
-
-                temporizadorInactividad =
-                    setTimeout(
-                        cerrarSesion,
-                        TIEMPO_INACTIVIDAD
-                    );
-
+                clearTimeout(temporizadorInactividad);
+                temporizadorInactividad = setTimeout(cerrarSesion, TIEMPO_INACTIVIDAD);
             }
 
-
-            const eventos = [
-                'mousemove',
-                'mousedown',
-                'keydown',
-                'scroll',
-                'touchstart',
-                'click'
-            ];
-
-
+            const eventos = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
             eventos.forEach(evento => {
-
-                window.addEventListener(
-                    evento,
-                    reiniciarInactividad,
-                    true
-                );
-
+                window.addEventListener(evento, reiniciarInactividad, true);
             });
-
 
             reiniciarInactividad();
 
-
             temporizadorRecarga = setInterval(() => {
-
                 if (!document.hidden) {
-
                     location.reload();
-
                 }
-
             }, INTERVALO_RECARGA);
-
         })();
-
     </script>
-
 </body>
-
 </html>
-```
