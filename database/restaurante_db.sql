@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 01-10-2026 a las 18:36:44
+-- Tiempo de generación: 02-11-2026 a las 20:31:10
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -46,9 +46,9 @@ CREATE TABLE `admins` (
 --
 
 INSERT INTO `admins` (`id`, `username`, `password_hash`, `nombre`, `email`, `rol`, `pin`, `activo`, `ultimo_login`, `pin_recuperacion`, `pin_expira`) VALUES
-(1, 'Eloy', 'b0d8dc4e2b69059c760d53c7637cb44d', 'Gerente1', 'sage040621haslnla5@gmail.com', 'gerente', '81dc9bdb52d04dc20036dbd8313ed055', 1, '2026-10-01 16:31:55', NULL, NULL),
-(10, 'Lala', 'b0d8dc4e2b69059c760d53c7637cb44d', 'Lalocomotora', '22151220@aguascalientes.tecnm.mx', 'subgerente', NULL, 1, '2026-10-01 16:28:14', NULL, NULL),
-(11, 'Laca', '5ff4385bf58c47bb7ecf1cfc17364d7d', 'Laca Labaza', 'brendaguille284@gmail.com', '', NULL, 1, NULL, NULL, NULL);
+(1, 'Eloy', 'b0d8dc4e2b69059c760d53c7637cb44d', 'Gerente1', 'sage040621haslnla5@gmail.com', 'gerente', '81dc9bdb52d04dc20036dbd8313ed055', 1, '2026-11-02 18:35:43', NULL, NULL),
+(10, 'Lala', 'b0d8dc4e2b69059c760d53c7637cb44d', 'Lalocomotora', '22151220@aguascalientes.tecnm.mx', 'subgerente', NULL, 1, '2026-10-01 19:12:14', NULL, NULL),
+(15, 'Laca', '5ff4385bf58c47bb7ecf1cfc17364d7d', 'Laca Labaza', 'brendaguille284@gmail.com', 'logistica', NULL, 1, '2026-10-01 19:41:26', NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -73,6 +73,37 @@ INSERT INTO `categorias` (`id`, `nombre`, `icono`, `orden`, `activa`) VALUES
 (2, 'Platillos', '🍽️', 2, 1),
 (3, 'Bebidas', '🥤', 3, 1),
 (4, 'Postres', '🍰', 4, 1);
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `erp_ordenes`
+--
+
+CREATE TABLE `erp_ordenes` (
+  `id` int(11) NOT NULL,
+  `folio` varchar(20) NOT NULL,
+  `cliente_id` int(11) DEFAULT NULL,
+  `fecha` datetime DEFAULT current_timestamp(),
+  `total` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `estado` enum('Procesada','Procesando','Cancelada','No procesado') DEFAULT 'Procesada',
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `erp_ordenes_detalle`
+--
+
+CREATE TABLE `erp_ordenes_detalle` (
+  `id` int(11) NOT NULL,
+  `orden_id` int(11) NOT NULL,
+  `producto_id` int(11) NOT NULL,
+  `cantidad` int(11) NOT NULL DEFAULT 1,
+  `precio_unitario` decimal(10,2) NOT NULL,
+  `subtotal` decimal(10,2) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -316,6 +347,19 @@ INSERT INTO `productos` (`id`, `categoria_id`, `nombre`, `descripcion`, `precio`
 -- --------------------------------------------------------
 
 --
+-- Estructura de tabla para la tabla `producto_ingredientes`
+--
+
+CREATE TABLE `producto_ingredientes` (
+  `id` int(11) NOT NULL,
+  `producto_id` int(11) NOT NULL COMMENT 'Platillo del menú (ej. Guacamole, Tacos)',
+  `scm_producto_id` int(11) NOT NULL COMMENT 'Materia prima en logística (ej. Jitomate, Cebolla)',
+  `cantidad_requerida` decimal(10,2) NOT NULL DEFAULT 1.00 COMMENT 'Cantidad que consume por cada platillo vendido'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Estructura de tabla para la tabla `proveedores`
 --
 
@@ -377,7 +421,15 @@ INSERT INTO `scm_movimientos` (`id`, `producto_id`, `tipo`, `cantidad`, `motivo`
 (13, 6, 'Salida', 5, 'Merma de caducidad', '2026-10-01', 1, '2026-10-01 07:00:02'),
 (14, 6, 'Salida', 10, 'Comida', '2026-10-01', 1, '2026-10-01 07:00:43'),
 (15, 6, 'Entrada', 9, 'Recepción Automática ORD-PUSH-B2277E', '2026-10-01', 1, '2026-10-01 07:07:54'),
-(16, 5, 'Entrada', 15, 'Recepción Manual Pull ORD-PULL-C82DD5', '2026-10-01', 1, '2026-10-01 07:19:45');
+(16, 5, 'Entrada', 15, 'Recepción Manual Pull ORD-PULL-C82DD5', '2026-10-01', 1, '2026-10-01 07:19:45'),
+(17, 5, 'Salida', 17, 'Me la robe', '2026-10-01', 1, '2026-10-01 18:53:43'),
+(18, 2, 'Salida', 27, 'Las vendi', '2026-10-01', 1, '2026-10-01 18:56:16'),
+(19, 2, 'Entrada', 14, 'Recepción Automática ORD-PUSH-3FF3A3', '2026-10-01', 1, '2026-10-01 18:56:56'),
+(20, 5, 'Entrada', 15, 'Ya compre', '2026-10-01', 1, '2026-10-01 18:57:42'),
+(21, 2, 'Salida', 15, 'ajshdkjbasd', '2026-10-01', 1, '2026-10-01 19:38:55'),
+(22, 2, 'Entrada', 15, 'Recepción Automática ORD-PUSH-13D4F1', '2026-10-01', 1, '2026-10-01 19:39:24'),
+(23, 3, 'Salida', 55, 'asjnhdkajsd', '2026-10-01', 1, '2026-10-01 19:40:03'),
+(24, 3, 'Entrada', 25, 'Recepción Manual Pull ORD-PULL-47F4D5', '2026-10-01', 1, '2026-10-01 19:40:28');
 
 -- --------------------------------------------------------
 
@@ -406,7 +458,10 @@ INSERT INTO `scm_pedidos` (`id`, `numero_orden_scm`, `producto_id`, `proveedor_i
 (2, 'ORD-SCM-48A058', 1, 1, 15, 'Reposición Manual (Pull)', 'recibido', '2026-09-20', '2026-09-21 19:15:16'),
 (3, 'ORD-SCM-A4F378', 2, 1, 2, 'Reposición Manual (Pull)', 'recibido', '2026-09-18', '2026-09-21 19:17:46'),
 (4, 'ORD-PUSH-B2277E', 6, 4, 9, 'Reposición Automática (Push)', 'recibido', '2026-10-01', '2026-10-01 07:07:28'),
-(5, 'ORD-PULL-C82DD5', 5, 3, 15, 'Reposición Manual (Pull)', 'recibido', '2026-10-01', '2026-10-01 07:19:40');
+(5, 'ORD-PULL-C82DD5', 5, 3, 15, 'Reposición Manual (Pull)', 'recibido', '2026-10-01', '2026-10-01 07:19:40'),
+(6, 'ORD-PUSH-3FF3A3', 2, 1, 14, 'Reposición Automática (Push)', 'recibido', '2026-10-01', '2026-10-01 18:56:19'),
+(7, 'ORD-PUSH-13D4F1', 2, 1, 15, 'Reposición Automática (Push)', 'recibido', '2026-10-01', '2026-10-01 19:38:59'),
+(8, 'ORD-PULL-47F4D5', 3, 2, 25, 'Reposición Manual (Pull)', 'recibido', '2026-10-01', '2026-10-01 19:40:20');
 
 -- --------------------------------------------------------
 
@@ -431,11 +486,11 @@ CREATE TABLE `scm_productos` (
 --
 
 INSERT INTO `scm_productos` (`id`, `nombre`, `descripcion`, `stock_actual`, `stock_minimo`, `estrategia_logistica`, `proveedor_id`, `precio`, `creado_en`) VALUES
-(1, 'Jitomate Saladette', 'Verdura fresca por kilo para salsas y guarniciones', 59, 10, 'PUSH', 1, 28.50, '2026-09-21 16:57:03'),
-(2, 'Cebolla Blanca', 'Insumo diario de verdura para cocina y tacos', 29, 8, 'PUSH', 1, 22.00, '2026-09-21 16:57:03'),
-(3, 'Refresco Coca-Cola 600ml', 'Botella individual de refresco', 60, 20, 'PUSH', 2, 18.00, '2026-09-21 16:57:03'),
-(4, 'Refresco Sprite 600ml', 'Bebida embotellada sabor lima-limón', 40, 15, 'PUSH', 2, 18.00, '2026-09-21 16:57:03'),
-(5, 'Carne Arrachera / Bistec', 'Corte seleccionado para platillos principales', 18, 10, 'PULL', 3, 140.00, '2026-09-21 16:57:03'),
+(1, 'Jitomate Saladette', 'Verdura fresca por kilo para salsas y guarniciones', 59, 10, 'PULL', 1, 28.50, '2026-09-21 16:57:03'),
+(2, 'Cebolla Blanca', 'Insumo diario de verdura para cocina y tacos', 16, 8, 'PUSH', 1, 22.00, '2026-09-21 16:57:03'),
+(3, 'Refresco Coca-Cola 600ml', 'Botella individual de refresco', 30, 20, 'PULL', 2, 18.00, '2026-09-21 16:57:03'),
+(4, 'Refresco Sprite 600ml', 'Bebida embotellada sabor lima-limón', 40, 15, 'PULL', 2, 18.00, '2026-09-21 16:57:03'),
+(5, 'Carne Arrachera / Bistec', 'Corte seleccionado para platillos principales', 16, 10, 'PULL', 3, 140.00, '2026-09-21 16:57:03'),
 (6, 'Pan para Hamburguesa', 'Paquete con 10 piezas', 12, 6, 'PUSH', 4, 45.00, '2026-09-21 16:57:03');
 
 -- --------------------------------------------------------
@@ -484,6 +539,22 @@ ALTER TABLE `admins`
 --
 ALTER TABLE `categorias`
   ADD PRIMARY KEY (`id`);
+
+--
+-- Indices de la tabla `erp_ordenes`
+--
+ALTER TABLE `erp_ordenes`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `folio` (`folio`),
+  ADD KEY `fk_erp_orden_cliente` (`cliente_id`);
+
+--
+-- Indices de la tabla `erp_ordenes_detalle`
+--
+ALTER TABLE `erp_ordenes_detalle`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `fk_detalle_orden` (`orden_id`),
+  ADD KEY `fk_detalle_producto` (`producto_id`);
 
 --
 -- Indices de la tabla `evaluaciones`
@@ -538,6 +609,14 @@ ALTER TABLE `productos`
   ADD KEY `categoria_id` (`categoria_id`);
 
 --
+-- Indices de la tabla `producto_ingredientes`
+--
+ALTER TABLE `producto_ingredientes`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `producto_id` (`producto_id`),
+  ADD KEY `scm_producto_id` (`scm_producto_id`);
+
+--
 -- Indices de la tabla `proveedores`
 --
 ALTER TABLE `proveedores`
@@ -582,13 +661,25 @@ ALTER TABLE `usuarios_cliente`
 -- AUTO_INCREMENT de la tabla `admins`
 --
 ALTER TABLE `admins`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
 
 --
 -- AUTO_INCREMENT de la tabla `categorias`
 --
 ALTER TABLE `categorias`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+
+--
+-- AUTO_INCREMENT de la tabla `erp_ordenes`
+--
+ALTER TABLE `erp_ordenes`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `erp_ordenes_detalle`
+--
+ALTER TABLE `erp_ordenes_detalle`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `evaluaciones`
@@ -633,6 +724,12 @@ ALTER TABLE `productos`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
 
 --
+-- AUTO_INCREMENT de la tabla `producto_ingredientes`
+--
+ALTER TABLE `producto_ingredientes`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT de la tabla `proveedores`
 --
 ALTER TABLE `proveedores`
@@ -642,19 +739,19 @@ ALTER TABLE `proveedores`
 -- AUTO_INCREMENT de la tabla `scm_movimientos`
 --
 ALTER TABLE `scm_movimientos`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=25;
 
 --
 -- AUTO_INCREMENT de la tabla `scm_pedidos`
 --
 ALTER TABLE `scm_pedidos`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT de la tabla `scm_productos`
 --
 ALTER TABLE `scm_productos`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT de la tabla `usuarios_cliente`
@@ -665,6 +762,19 @@ ALTER TABLE `usuarios_cliente`
 --
 -- Restricciones para tablas volcadas
 --
+
+--
+-- Filtros para la tabla `erp_ordenes`
+--
+ALTER TABLE `erp_ordenes`
+  ADD CONSTRAINT `fk_erp_orden_cliente` FOREIGN KEY (`cliente_id`) REFERENCES `usuarios_cliente` (`id`) ON DELETE SET NULL;
+
+--
+-- Filtros para la tabla `erp_ordenes_detalle`
+--
+ALTER TABLE `erp_ordenes_detalle`
+  ADD CONSTRAINT `fk_detalle_orden` FOREIGN KEY (`orden_id`) REFERENCES `erp_ordenes` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_detalle_producto` FOREIGN KEY (`producto_id`) REFERENCES `productos` (`id`);
 
 --
 -- Filtros para la tabla `evaluaciones`
@@ -697,6 +807,13 @@ ALTER TABLE `pedido_items`
 --
 ALTER TABLE `productos`
   ADD CONSTRAINT `fk_productos_categoria` FOREIGN KEY (`categoria_id`) REFERENCES `categorias` (`id`) ON DELETE CASCADE;
+
+--
+-- Filtros para la tabla `producto_ingredientes`
+--
+ALTER TABLE `producto_ingredientes`
+  ADD CONSTRAINT `producto_ingredientes_ibfk_1` FOREIGN KEY (`producto_id`) REFERENCES `productos` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `producto_ingredientes_ibfk_2` FOREIGN KEY (`scm_producto_id`) REFERENCES `scm_productos` (`id`) ON DELETE CASCADE;
 
 --
 -- Filtros para la tabla `scm_movimientos`

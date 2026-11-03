@@ -318,7 +318,11 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
         <a class="nav-item" href="usuarios.php"><span>🛡️</span> Usuarios</a>
         <a class="nav-item active" href="miactividad.php"><span>⏱️</span> Mi actividad</a>
         <a class="nav-item" href="configuracion.php"><span>⚙️</span> Configuración</a>
-
+        <?php if (($_SESSION['admin_rol'] ?? '') === 'gerente'): ?>
+        <a href="../erp/dashboard.php" class="sidebar-item" style="background: rgba(7, 136, 201, 0.15); color: #38bdf8; margin-top: auto; font-weight: 700;">
+        <span>👑</span> Volver al Centro ERP
+        </a>
+        <?php endif; ?>
         <?php if ($rol_actual === 'gerente'): ?>
             <div style="padding: 10px 16px; font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: 700; margin-top: 10px;">SCM & Logística</div>
             <a class="nav-item" href="../scm/dashboard.php">

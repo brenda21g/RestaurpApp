@@ -1,11 +1,11 @@
 <?php
 /**
  * Archivo: subgerente/pedido_detalle.php
- * Descripción: Endpoint JSON para consultar el detalle completo de un pedido y sus ítems con control de acceso.
+ * Descripción: Endpoint JSON para consultar el detalle completo de un pedido y sus ítems con control de acceso unificado.
  */
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
-verificarAcceso(['subgerente']);
+verificarAcceso(['subgerente', 'gerente']);
 
 $db = getDB();
 
@@ -42,15 +42,15 @@ $items_stmt = $db->prepare("
 $items_stmt->execute([$id]);
 $items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Formatear numéricos de los ítems y proteger textos con htmlspecialchars si se renderizan directamente (aquí van en JSON puro)
+// Formatear numéricos de los ítems
 foreach ($items as &$item) {
-    $item['cantidad']        = (int)$item['cantidad'];
+    $item['cantidad']          = (int)$item['cantidad'];
     $item['precio_unitario'] = (float)$item['precio_unitario'];
     $item['subtotal']        = (float)$item['subtotal'];
 }
 unset($item);
 
-// Responder con la información estructurada
+// Responder con la información estructurada en JSON
 jsonResponse([
     'success' => true,
     'pedido'  => $pedido, 

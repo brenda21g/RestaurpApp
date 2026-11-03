@@ -5,7 +5,7 @@
  */
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
-verificarAcceso(['subgerente']);
+verificarAcceso(['subgerente', 'gerente']);
 $db = getDB();
 
 $tipo = $_GET['tipo'] ?? 'dia';
@@ -486,15 +486,21 @@ tbody tr:hover {
 <aside class="sidebar">
     <div class="sidebar-logo">
         <div class="name">🍽️ RestaurApp</div>
-        <div class="role">Subgerente</div>
+        <div class="role">Subgerencia / Ventas</div>
     </div>
 
     <nav class="nav">
-        <a class="nav-item" href="dashboard.php">
-            <span class="icon">📊</span> Dashboard
+        <a class="nav-item" href="dashboard.php?seccion=inicio">
+            <span class="icon">📊</span> Dashboard Principal
+        </a>
+        <a class="nav-item" href="dashboard.php?seccion=ordenes">
+            <span class="icon">🛒</span> Órdenes y Ventas
+        </a>
+        <a class="nav-item" href="dashboard.php?seccion=ordenes&paso=nueva" style="padding-left: 32px; font-size: 12px;">
+            <span class="icon">➕</span> Hacer Pedido de Venta
         </a>
         <a class="nav-item" href="pedidos.php">
-            <span class="icon">📋</span> Pedidos
+            <span class="icon">📋</span> Pedidos de Mesas
         </a>
         <a class="nav-item" href="mesas_qr.php">
             <span class="icon">🪑</span> Mesas & QR
@@ -503,12 +509,17 @@ tbody tr:hover {
             <span class="icon">🍽️</span> Menú
         </a>
         <a class="nav-item active" href="corte.php">
-            <span>💵</span> Corte de Caja
+            <span class="icon">💵</span> Corte de Caja
         </a>
-        <!-- ENLACE AL SCM EN MODO CONSULTA PARA EL SUBGERENTE -->
+        <!-- ENLACE AL SCM -->
         <a class="nav-item" href="../scm/dashboard.php" style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
-            <span class="icon">📦</span> SCM / Inventario (Ver)
+            <span class="icon">📦</span> SCM / Inventario
         </a>
+        <?php if (($_SESSION['admin_rol'] ?? '') === 'gerente'): ?>
+        <a href="../erp/dashboard.php" class="sidebar-item" style="background: rgba(7, 136, 201, 0.15); color: #38bdf8; margin-top: auto; font-weight: 700;">
+            <span>👑</span> Volver al Centro ERP
+        </a>
+        <?php endif; ?>
     </nav>
 
     <div class="sidebar-bottom">

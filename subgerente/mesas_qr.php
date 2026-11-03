@@ -1,11 +1,11 @@
 <?php
 /**
  * Archivo: subgerente/mesas_qr.php
- * Descripción: Gestión de mesas y códigos QR con control de acceso y definición segura de SITE_URL.
+ * Descripción: Gestión de mesas y códigos QR con control de acceso, definición segura de SITE_URL y menú unificado.
  */
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
-verificarAcceso(['subgerente']);
+verificarAcceso(['subgerente', 'gerente']);
 
 // Definir SITE_URL de forma segura si no existe en los archivos de configuración
 if (!defined('SITE_URL')) {
@@ -15,7 +15,7 @@ if (!defined('SITE_URL')) {
 $db = getDB();
 
 // Carga explicita con FETCH_ASSOC
-$mesas =$db->query("SELECT * FROM mesas ORDER BY numero ASC")->fetchAll(PDO::FETCH_ASSOC);
+$mesas = $db->query("SELECT * FROM mesas ORDER BY numero ASC")->fetchAll(PDO::FETCH_ASSOC);
 
 // Pre-generar la estructura para JavaScript en una sola pasada
 $mesasData = array_map(function($m) {
@@ -268,14 +268,20 @@ body {
 <aside class="sidebar">
     <div class="sidebar-logo">
         <div class="name">🍽️ RestaurApp</div>
-        <div class="role">Subgerente</div>
+        <div class="role">Subgerencia / Ventas</div>
     </div>
     <nav class="nav">
-        <a class="nav-item" href="dashboard.php">
-            <span class="icon">📊</span> Dashboard
+        <a class="nav-item" href="dashboard.php?seccion=inicio">
+            <span class="icon">📊</span> Dashboard Principal
+        </a>
+        <a class="nav-item" href="dashboard.php?seccion=ordenes">
+            <span class="icon">🛒</span> Órdenes y Ventas
+        </a>
+        <a class="nav-item" href="dashboard.php?seccion=ordenes&paso=nueva" style="padding-left: 32px; font-size: 12px;">
+            <span class="icon">➕</span> Hacer Pedido de Venta
         </a>
         <a class="nav-item" href="pedidos.php">
-            <span class="icon">📋</span> Pedidos
+            <span class="icon">📋</span> Pedidos de Mesas
         </a>
         <a class="nav-item active" href="mesas_qr.php">
             <span class="icon">🪑</span> Mesas & QR
@@ -284,11 +290,16 @@ body {
             <span class="icon">🍽️</span> Menú
         </a>
         <a class="nav-item" href="corte.php">
-            <span>💵</span> Corte de Caja
+            <span class="icon">💵</span> Corte de Caja
         </a>
-        <!-- ENLACE AL SCM EN MODO CONSULTA PARA EL SUBGERENTE -->
+        <?php if (($_SESSION['admin_rol'] ?? '') === 'gerente'): ?>
+        <a href="../erp/dashboard.php" class="sidebar-item" style="background: rgba(7, 136, 201, 0.15); color: #38bdf8; margin-top: auto; font-weight: 700;">
+        <span>👑</span> Volver al Centro ERP
+        </a>
+        <?php endif; ?>
+        <!-- ENLACE AL SCM -->
         <a class="nav-item" href="../scm/dashboard.php" style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
-            <span class="icon">📦</span> SCM / Inventario (Ver)
+            <span class="icon">📦</span> SCM / Inventario
         </a>
     </nav>
     <div class="sidebar-bottom">
@@ -307,7 +318,7 @@ body {
     </div>
 
     <div class="mesas-grid">
-        <?php foreach ($mesasData as$m): ?>
+        <?php foreach ($mesasData as $m): ?>
         <div class="mesa-card">
             <div class="mesa-num">
                 Mesa <?= htmlspecialchars($m['numero'], ENT_QUOTES, 'UTF-8') ?>

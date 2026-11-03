@@ -7,7 +7,7 @@ require_once __DIR__ . '/../config/config.php';
 
 // Redirigir si ya existe una sesión activa
 if (isset($_SESSION['admin_id'])) {
-    header('Location: dashboard.php');
+    header('Location: ../erp/dashboard.php');
     exit;
 }
 

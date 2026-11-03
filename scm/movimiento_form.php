@@ -344,7 +344,12 @@ if ($rol_actual === 'gerente') {
         <a href="movimientos.php" class="sidebar-item active"><span>🔄</span> Movimientos</a>
         <a href="pedidos.php" class="sidebar-item"><span>🛒</span> Pedidos Internos</a>
         <a href="logistica.php" class="sidebar-item"><span>⚙️</span> Logística Push/Pull</a>
-        
+        <!-- Si es gerente, mostrar botón directo al ERP en cualquier pantalla del SCM -->
+        <?php if (($rol_actual ?? $_SESSION['admin_rol'] ?? '') === 'gerente'): ?>
+        <a href="../erp/dashboard.php" class="sidebar-item" style="background: rgba(7, 136, 201, 0.15); color: #38bdf8; margin-top: auto; font-weight: 700;">
+        <span>👑</span> Volver al Centro ERP
+        </a>
+        <?php endif; ?>
         <!-- Salida condicional: Cerrar sesión para Logística, Salir al Panel para Gerente/Subgerente -->
         <?php if ($rol_actual === 'logistica'): ?>
             <a href="logout.php" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>🚪</span> Cerrar sesión</a>

@@ -39,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $update = $db->prepare("UPDATE admins SET ultimo_login = NOW() WHERE id = ?");
                 $update->execute([$admin['id']]);
 
-                header('Location: dashboard.php');
+                header('Location: ./erp/dashboard.php');
                 exit;
             } else {
                 $error = "PIN de seguridad incorrecto.";

@@ -1,16 +1,16 @@
 <?php
 /**
  * Archivo: subgerente/pedidos.php
- * Descripción: Módulo de registro, filtrado y visualización detallada de pedidos para el Subgerente.
+ * Descripción: Módulo de registro, filtrado y visualización detallada de pedidos para el Subgerente con navegación unificada.
  */
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
-verificarAcceso(['subgerente']);
+verificarAcceso(['subgerente', 'gerente']);
 
 $db = getDB();
 
-$estado_filtro =$_GET['estado'] ?? '';
-$fecha_filtro =$_GET['fecha'] ?? date('Y-m-d');
+$estado_filtro = $_GET['estado'] ?? '';
+$fecha_filtro = $_GET['fecha'] ?? date('Y-m-d');
 
 $where = "WHERE DATE(pe.creado_en) = ?";
 $params = [$fecha_filtro];
@@ -23,11 +23,11 @@ if (
     )
 ) {
     $where .= " AND pe.estado = ?";
-    $params[] =$estado_filtro;
+    $params[] = $estado_filtro;
 }
 
 /* Obtener pedidos */
-$pedidos =$db->prepare("
+$pedidos = $db->prepare("
     SELECT
         pe.*,
         m.numero as mesa_num
@@ -38,7 +38,7 @@ $pedidos =$db->prepare("
 ");
 
 $pedidos->execute($params);
-$lista =$pedidos->fetchAll(PDO::FETCH_ASSOC);
+$lista = $pedidos->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <!DOCTYPE html>
@@ -477,18 +477,26 @@ tbody tr:hover {
                 🍽️ RestaurApp
             </div>
             <div class="role">
-                Subgerente
+                Subgerencia / Ventas
             </div>
         </div>
 
         <nav class="nav">
-            <a class="nav-item" href="dashboard.php">
+            <a class="nav-item" href="dashboard.php?seccion=inicio">
                 <span class="icon">📊</span>
-                Dashboard
+                Dashboard Principal
+            </a>
+            <a class="nav-item" href="dashboard.php?seccion=ordenes">
+                <span class="icon">🛒</span>
+                Órdenes y Ventas
+            </a>
+            <a class="nav-item" href="dashboard.php?seccion=ordenes&paso=nueva" style="padding-left: 32px; font-size: 12px;">
+                <span class="icon">➕</span>
+                Hacer Pedido de Venta
             </a>
             <a class="nav-item active" href="pedidos.php">
                 <span class="icon">📋</span>
-                Pedidos
+                Pedidos de Mesas
             </a>
             <a class="nav-item" href="mesas_qr.php">
                 <span class="icon">🪑</span>
@@ -502,9 +510,15 @@ tbody tr:hover {
                 <span>💵</span>
                 Corte de Caja
             </a>
-            <!-- ENLACE AL SCM EN MODO CONSULTA PARA EL SUBGERENTE -->
+            <?php if (($_SESSION['admin_rol'] ?? '') === 'gerente'): ?>
+            <a href="../erp/dashboard.php" class="sidebar-item" style="background: rgba(7, 136, 201, 0.15); color: #38bdf8; margin-top: auto; font-weight: 700;">
+            <span>👑</span> Volver al Centro ERP
+            </a>
+            <?php endif; ?>
+            <!-- ENLACE AL SCM -->
             <a class="nav-item" href="../scm/dashboard.php" style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
-                <span class="icon">📦</span> SCM / Inventario (Ver)
+                <span class="icon">📦</span>
+                SCM / Inventario
             </a>
         </nav>
 
@@ -537,7 +551,7 @@ tbody tr:hover {
                 <?php foreach (['pendiente', 'preparando', 'listo', 'entregado', 'cancelado'] as $e): ?>
                     <option
                         value="<?= htmlspecialchars($e, ENT_QUOTES, 'UTF-8') ?>"
-                        <?= $estado_filtro ===$e ? 'selected' : '' ?>
+                        <?= $estado_filtro === $e ? 'selected' : '' ?>
                     >
                         <?= ucfirst($e) ?>
                     </option>
@@ -570,7 +584,7 @@ tbody tr:hover {
                             </td>
                         </tr>
                     <?php else: ?>
-                        <?php foreach ($lista as $p):$numOrden = $p['numero_orden'] ?? ('#' . str_pad($p['id'], 4, '0', STR_PAD_LEFT));
+                        <?php foreach ($lista as $p): $numOrden = $p['numero_orden'] ?? ('#' . str_pad($p['id'], 4, '0', STR_PAD_LEFT));
                         ?>
                             <tr>
                                 <td style="font-weight:600;">
