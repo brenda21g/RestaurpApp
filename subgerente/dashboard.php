@@ -1,7 +1,7 @@
 <?php
 /**
  * Archivo: subgerente/dashboard.php
- * Descripción: Dashboard principal del Subgerente con métricas operativas, gráficos, cortes de caja y módulo integrado de órdenes/ventas ERP con SCM.
+ * Descripción: Dashboard principal del Subgerente con métricas operativas, gráficos, cortes de caja y módulo integrado de órdenes/ventas ERP con SCM, pantalla de éxito y detalle.
  */
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
@@ -43,6 +43,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 if (!empty($detalle_valido)) {
+                    
+                    // ========================================================
+                    // VALIDACIÓN ESTRICTA DE STOCK ANTES DE PROCESAR LA VENTA
+                    // ========================================================
+                    foreach ($detalle_valido as $dv) {
+                        $stmt_ing = $db->prepare("
+                            SELECT pi.scm_producto_id, pi.cantidad_requerida, sp.nombre as insumo_nombre, sp.stock_actual 
+                            FROM producto_ingredientes pi 
+                            JOIN scm_productos sp ON sp.id = pi.scm_producto_id 
+                            WHERE pi.producto_id = ?
+                        ");
+                        $stmt_ing->execute([$dv['id']]);
+                        $ingredientes = $stmt_ing->fetchAll(PDO::FETCH_ASSOC);
+
+                        if (!empty($ingredientes)) {
+                            foreach ($ingredientes as $ing) {
+                                $cant_requerida_total = $ing['cantidad_requerida'] * $dv['cantidad'];
+                                if ($ing['stock_actual'] < $cant_requerida_total) {
+                                    throw new Exception("Stock insuficiente para el insumo '{$ing['insumo_nombre']}' (Requerido: {$cant_requerida_total}, Disponible: {$ing['stock_actual']}). Venta cancelada.");
+                                }
+                            }
+                        } else {
+                            $stmt_scm = $db->prepare("SELECT id, nombre, stock_actual FROM scm_productos WHERE id = ? OR nombre LIKE ?");
+                            $stmt_scm->execute([$dv['id'], '%' . $dv['nombre'] . '%']);
+                            $scm_prod = $stmt_scm->fetch(PDO::FETCH_ASSOC);
+
+                            if ($scm_prod) {
+                                if ($scm_prod['stock_actual'] < $dv['cantidad']) {
+                                    throw new Exception("Stock insuficiente para el producto directo '{$scm_prod['nombre']}' (Requerido: {$dv['cantidad']}, Disponible: {$scm_prod['stock_actual']}). Venta cancelada.");
+                                }
+                            }
+                        }
+                    }
+                    // ========================================================
+
                     // 1. Insertar orden ERP/Ventas
                     $stmt_o = $db->prepare("INSERT INTO erp_ordenes (folio, cliente_id, fecha, total, estado) VALUES (?, ?, NOW(), ?, 'Procesada')");
                     $stmt_o->execute([$folio, $cliente_id, $total]);
@@ -53,7 +88,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $stmt_d = $db->prepare("INSERT INTO erp_ordenes_detalle (orden_id, producto_id, cantidad, precio_unitario, subtotal) VALUES (?, ?, ?, ?, ?)");
                         $stmt_d->execute([$orden_id, $dv['id'], $dv['cantidad'], $dv['precio'], $dv['subtotal']]);
 
-                        // A. Verificar si es un platillo con receta/ingredientes
                         $stmt_ing = $db->prepare("SELECT scm_producto_id, cantidad_requerida FROM producto_ingredientes WHERE producto_id = ?");
                         $stmt_ing->execute([$dv['id']]);
                         $ingredientes = $stmt_ing->fetchAll(PDO::FETCH_ASSOC);
@@ -64,27 +98,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 $db->prepare("UPDATE scm_productos SET stock_actual = stock_actual - ? WHERE id = ?")
                                    ->execute([$cant_descontar, $ing['scm_producto_id']]);
                                 
-                                $db->prepare("INSERT INTO scm_movimientos (producto_id, tipo, cantidad, motivo, fecha) VALUES (?, 'Salida', ?, ?, CURDATE())")
-                                   ->execute([$ing['scm_producto_id'], $cant_descontar, "Venta Subgerencia: $folio"]);
+                                $db->prepare("INSERT INTO scm_movimientos (producto_id, tipo, cantidad, motivo, fecha, erp_orden_id) VALUES (?, 'Salida', ?, ?, CURDATE(), ?)")
+                                   ->execute([$ing['scm_producto_id'], $cant_descontar, "Venta Subgerencia: $folio", $orden_id]);
                             }
                         } else {
-                            // B. Producto directo (buscado por nombre exacto o coincidencia en SCM)
-                            $stmt_scm_directo = $db->prepare("SELECT id FROM scm_productos WHERE nombre LIKE ? OR id = ?");
-                            $stmt_scm_directo->execute(['%' . $dv['nombre'] . '%', $dv['id']]);
+                            $stmt_scm_directo = $db->prepare("SELECT id FROM scm_productos WHERE id = ? OR nombre LIKE ?");
+                            $stmt_scm_directo->execute([$dv['id'], '%' . $dv['nombre'] . '%']);
                             $scm_prod = $stmt_scm_directo->fetch(PDO::FETCH_ASSOC);
 
                             if ($scm_prod) {
                                 $db->prepare("UPDATE scm_productos SET stock_actual = stock_actual - ? WHERE id = ?")
                                    ->execute([$dv['cantidad'], $scm_prod['id']]);
 
-                                $db->prepare("INSERT INTO scm_movimientos (producto_id, tipo, cantidad, motivo, fecha) VALUES (?, 'Salida', ?, ?, CURDATE())")
-                                   ->execute([$scm_prod['id'], $dv['cantidad'], "Venta Directa Subgerencia ($folio): {$dv['nombre']}"]);
+                                $db->prepare("INSERT INTO scm_movimientos (producto_id, tipo, cantidad, motivo, fecha, erp_orden_id) VALUES (?, 'Salida', ?, ?, CURDATE(), ?)")
+                                   ->execute([$scm_prod['id'], $dv['cantidad'], "Venta Directa Subgerencia ($folio): {$dv['nombre']}", $orden_id]);
                             }
                         }
                     }
 
                     $db->commit();
-                    header("Location: dashboard.php?seccion=ordenes&procesando=1&folio=$folio");
+                    header("Location: dashboard.php?seccion=ordenes&procesando=1&folio=$folio&id=$orden_id");
                     exit;
                 } else {
                     $error_msj = "Selecciona al menos un producto con cantidad mayor a 0.";
@@ -159,7 +192,7 @@ $ultimos_pedidos = $ultimos->fetchAll(PDO::FETCH_ASSOC);
 // Alertas y datos adicionales para ventas/ERP
 $alertas_stock = $db->query("SELECT * FROM scm_productos WHERE stock_actual <= stock_minimo")->fetchAll(PDO::FETCH_ASSOC);
 $total_alertas = count($alertas_stock);
-$clientes_crm = $db->query("SELECT id, nombre FROM usuarios_cliente ORDER BY nombre ASC")->fetchAll(PDO::FETCH_ASSOC);
+$clientes_crm = $db->query("SELECT id, nombre, email, telefono FROM usuarios_cliente ORDER BY nombre ASC")->fetchAll(PDO::FETCH_ASSOC);
 $categorias = $db->query("SELECT id, nombre FROM categorias ORDER BY id ASC")->fetchAll(PDO::FETCH_ASSOC);
 $productos_db = $db->query("SELECT id, categoria_id, nombre, precio, descripcion FROM productos ORDER BY nombre ASC")->fetchAll(PDO::FETCH_ASSOC);
 $todas_ordenes_erp = $db->query("SELECT o.*, c.nombre as cliente_nombre FROM erp_ordenes o LEFT JOIN usuarios_cliente c ON c.id = o.cliente_id ORDER BY o.creado_en DESC")->fetchAll(PDO::FETCH_ASSOC);
@@ -268,20 +301,28 @@ $todas_ordenes_erp = $db->query("SELECT o.*, c.nombre as cliente_nombre FROM erp
 
         .btn-primary { background: var(--primary); color: #fff; padding: 10px 18px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 13px; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
         .btn-primary:hover { background: var(--primary-dark); }
+        .btn-success { background: var(--green-dashboard); color: #fff; padding: 12px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-success:hover { background: #0f9e68; }
         .form-control { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin-top: 6px; margin-bottom: 16px; font-size: 14px; }
         .category-title { background: #eef2f7; padding: 12px 24px; font-size: 14px; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 0.5px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
 
-        /* Pantalla de Carga de Pedido */
+        /* Pantalla de Carga */
         #loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(3, 20, 61, 0.85); z-index: 9999; display: flex; align-items: center; justify-content: center; flex-direction: column; color: #fff; transition: opacity 0.3s ease; }
         .spinner { width: 50px; height: 50px; border: 5px solid rgba(255,255,255,0.2); border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 20px; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .loading-step { font-size: 16px; font-weight: 500; margin: 6px 0; opacity: 0.8; }
         .loading-step.active { opacity: 1; font-weight: 700; color: var(--green-dashboard); }
+
+        /* Estilos Pantalla de Éxito (Imagen 7) */
+        .success-card { background: #fff; border: 1px solid var(--border); border-radius: 16px; padding: 40px; text-align: center; max-width: 600px; margin: 20px auto; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .success-icon { width: 70px; height: 70px; background: #e5f8f1; color: var(--green-dashboard); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 32px; margin: 0 auto 20px; }
+        .success-details { background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 20px; text-align: left; margin: 25px 0; }
+        .success-details p { margin-bottom: 8px; font-size: 14px; color: var(--text); }
     </style>
 </head>
 <body>
 
-    <!-- PANTALLA DE CARGA (Procesando Orden) -->
+    <!-- PANTALLA DE CARGA Y POSTERIOR PASO A ÉXITO -->
     <?php if (isset($_GET['procesando'])): ?>
     <div id="loading-overlay">
         <div class="spinner"></div>
@@ -299,7 +340,7 @@ $todas_ordenes_erp = $db->query("SELECT o.*, c.nombre as cliente_nombre FROM erp
             document.querySelector('.spinner').style.display = 'none';
             document.getElementById('step-4').style.display = 'block';
         }, 2400);
-        setTimeout(() => { window.location.href = 'dashboard.php?seccion=ordenes'; }, 3800);
+        setTimeout(() => { window.location.href = 'dashboard.php?seccion=ordenes&paso=exito&folio=<?= $_GET['folio'] ?? '' ?>&id=<?= $_GET['id'] ?? '' ?>'; }, 3800);
     </script>
     <?php endif; ?>
 
@@ -332,15 +373,7 @@ $todas_ordenes_erp = $db->query("SELECT o.*, c.nombre as cliente_nombre FROM erp
             <a class="nav-item" href="corte.php">
                 <span class="icon">💵</span> Corte de Caja
             </a>
-            <?php if (($_SESSION['admin_rol'] ?? '') === 'gerente'): ?>
-            <a href="../erp/dashboard.php" class="sidebar-item" style="background: rgba(7, 136, 201, 0.15); color: #38bdf8; margin-top: auto; font-weight: 700;">
-            <span>👑</span> Volver al Centro ERP
-            </a>
-            <?php endif; ?>
-            <!-- ENLACE AL SCM -->
-            <a class="nav-item" href="../scm/dashboard.php" style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
-                <span class="icon">📦</span> SCM / Inventario
-            </a>
+            
         </nav>
 
         <div class="sidebar-bottom">
@@ -357,6 +390,8 @@ $todas_ordenes_erp = $db->query("SELECT o.*, c.nombre as cliente_nombre FROM erp
                 <div class="page-title">
                     <?php 
                         if($seccion === 'ordenes' && $paso === 'nueva') echo 'Registrar Nueva Orden de Venta';
+                        elseif($seccion === 'ordenes' && $paso === 'exito') echo 'Operación exitosa (Imagen 7)';
+                        elseif($seccion === 'ordenes' && $paso === 'detalle') echo 'Detalle de la Orden';
                         elseif($seccion === 'ordenes') echo 'Gestión de Órdenes y Ventas';
                         else echo 'Dashboard Operativo';
                     ?>
@@ -370,7 +405,6 @@ $todas_ordenes_erp = $db->query("SELECT o.*, c.nombre as cliente_nombre FROM erp
             </div>
         </div>
 
-        <!-- ALERTA DE STOCK BAJO SCM -->
         <?php if ($total_alertas > 0): ?>
             <div class="alert-banner">
                 <span>⚠️ <b>¡Atención Inventario SCM!</b> Hay <?= $total_alertas ?> insumo(s) con stock crítico por debajo del mínimo permitido.</span>
@@ -384,9 +418,8 @@ $todas_ordenes_erp = $db->query("SELECT o.*, c.nombre as cliente_nombre FROM erp
             </div>
         <?php endif; ?>
 
-        <!-- SECCIÓN 1: DASHBOARD PRINCIPAL (ORIGINAL CON GRÁFICAS Y MÉTRICAS) -->
+        <!-- SECCIÓN 1: DASHBOARD PRINCIPAL -->
         <?php if ($seccion === 'inicio'): ?>
-            <!-- STATS -->
             <div class="stats-grid">
                 <div class="stat-card">
                     <span class="stat-icon">💰</span>
@@ -413,9 +446,7 @@ $todas_ordenes_erp = $db->query("SELECT o.*, c.nombre as cliente_nombre FROM erp
                 </div>
             </div>
 
-            <!-- CHARTS -->
             <div class="charts-row">
-                <!-- PEDIDOS POR HORA -->
                 <div class="chart-card">
                     <div class="chart-title">📊 Pedidos por hora (hoy)</div>
                     <?php $max_pedidos = max(array_column($pedidos_hora, 'cantidad') ?: [1]); ?>
@@ -432,7 +463,6 @@ $todas_ordenes_erp = $db->query("SELECT o.*, c.nombre as cliente_nombre FROM erp
                     </div>
                 </div>
 
-                <!-- TOP PRODUCTOS -->
                 <div class="chart-card">
                     <div class="chart-title">🔥 Productos más vendidos (hoy)</div>
                     <?php if (empty($top_productos)): ?>
@@ -455,7 +485,6 @@ $todas_ordenes_erp = $db->query("SELECT o.*, c.nombre as cliente_nombre FROM erp
                 </div>
             </div>
 
-            <!-- ÚLTIMOS PEDIDOS -->
             <div class="table-card">
                 <div class="table-header">
                     <h3>📋 Registro de pedidos recientes</h3>
@@ -481,7 +510,6 @@ $todas_ordenes_erp = $db->query("SELECT o.*, c.nombre as cliente_nombre FROM erp
                 </table>
             </div>
 
-            <!-- CORTES DE CAJA -->
             <div class="cortes-section">
                 <div class="cortes-title">🖨️ Cortes de caja e impresión</div>
                 <div class="cortes-btns">
@@ -491,7 +519,7 @@ $todas_ordenes_erp = $db->query("SELECT o.*, c.nombre as cliente_nombre FROM erp
                 </div>
             </div>
 
-        <!-- SECCIÓN 2: REGISTRAR NUEVA ORDEN (PRODUCTOS SEPARADOS Y BOTÓN "Hacer pedido") -->
+        <!-- SECCIÓN 2: REGISTRAR NUEVA ORDEN (Con retención de datos) -->
         <?php elseif ($seccion === 'ordenes' && $paso === 'nueva'): ?>
             <div class="table-card" style="padding: 25px;">
                 <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
@@ -506,11 +534,13 @@ $todas_ordenes_erp = $db->query("SELECT o.*, c.nombre as cliente_nombre FROM erp
                     <select name="cliente_id" class="form-control" required>
                         <option value="">-- Seleccionar cliente del CRM --</option>
                         <?php foreach ($clientes_crm as $c): ?>
-                            <option value="<?= $c['id'] ?>"><?= htmlspecialchars($c['nombre']) ?></option>
+                            <option value="<?= $c['id'] ?>" <?= (isset($_POST['cliente_id']) && $_POST['cliente_id'] == $c['id']) ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($c['nombre']) ?>
+                            </option>
                         <?php endforeach; ?>
                     </select>
 
-                    <label style="font-weight: 600; text-transform: uppercase; font-size: 11px; color: var(--muted); margin-top: 15px; display: block;">Paso 2: Seleccionar Productos por Categorías (Refrescos separados)</label>
+                    <label style="font-weight: 600; text-transform: uppercase; font-size: 11px; color: var(--muted); margin-top: 15px; display: block;">Paso 2: Seleccionar Productos por Categorías</label>
                     
                     <div style="border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-top: 10px; margin-bottom: 20px;">
                         <table>
@@ -525,17 +555,18 @@ $todas_ordenes_erp = $db->query("SELECT o.*, c.nombre as cliente_nombre FROM erp
                                         foreach ($productos_db as $p): 
                                             if ($p['categoria_id'] == $cat['id']):
                                                 $hay_prod = true;
+                                                $val_anterior = isset($_POST['items'][$p['id']]) ? (int)$_POST['items'][$p['id']] : 0;
                                     ?>
-                                        <tr>
-                                            <td>
-                                                <b><?= htmlspecialchars($p['nombre']) ?></b>
-                                                <?php if(!empty($p['descripcion'])): ?>
-                                                    <div style="font-size: 11px; color: var(--muted);"><?= htmlspecialchars($p['descripcion']) ?></div>
-                                                <?php endif; ?>
-                                            </td>
-                                            <td>$<?= number_format($p['precio'], 2) ?></td>
-                                            <td><input type="number" name="items[<?= $p['id'] ?>]" value="0" min="0" class="form-control" style="margin: 0;"></td>
-                                        </tr>
+                                    <tr>
+                                        <td>
+                                            <b><?= htmlspecialchars($p['nombre']) ?></b>
+                                            <?php if(!empty($p['descripcion'])): ?>
+                                                <div style="font-size: 11px; color: var(--muted);"><?= htmlspecialchars($p['descripcion']) ?></div>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>$<?= number_format($p['precio'], 2) ?></td>
+                                        <td><input type="number" name="items[<?= $p['id'] ?>]" value="<?= $val_anterior ?>" min="0" class="form-control" style="margin: 0;"></td>
+                                    </tr>
                                     <?php 
                                             endif;
                                         endforeach; 
@@ -547,12 +578,86 @@ $todas_ordenes_erp = $db->query("SELECT o.*, c.nombre as cliente_nombre FROM erp
                         </table>
                     </div>
 
-                    <!-- BOTÓN "Hacer pedido" -->
                     <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; padding: 14px; font-size: 15px;">Hacer pedido</button>
                 </form>
             </div>
 
-        <!-- SECCIÓN 3: LISTADO DE ÓRDENES ERP/VENTAS -->
+        <!-- SECCIÓN 2.1: OPERACIÓN EXITOSA (Imagen 7) -->
+        <?php elseif ($seccion === 'ordenes' && $paso === 'exito'): ?>
+            <?php 
+                $orden_id_exito = $_GET['id'] ?? 0;
+                $stmt_ex = $db->prepare("SELECT o.*, c.nombre as cliente_nombre FROM erp_ordenes o LEFT JOIN usuarios_cliente c ON c.id = o.cliente_id WHERE o.id = ?");
+                $stmt_ex->execute([$orden_id_exito]);
+                $orden_exitosa = $stmt_ex->fetch(PDO::FETCH_ASSOC);
+            ?>
+            <div class="success-card">
+                <div class="success-icon">✓</div>
+                <h2 style="font-family: 'Playfair Display', serif; font-size: 24px; color: var(--text);">¡Orden registrada con éxito!</h2>
+                
+                <div class="success-details">
+                    <p><b>Folio:</b> <?= htmlspecialchars($orden_exitosa['folio'] ?? 'OR-000') ?></p>
+                    <p><b>Cliente:</b> <?= htmlspecialchars($orden_exitosa['cliente_nombre'] ?? 'General') ?></p>
+                    <p><b>Total:</b> $<?= number_format($orden_exitosa['total'] ?? 0, 2) ?></p>
+                    <p><b>Fecha:</b> <?= htmlspecialchars($orden_exitosa['fecha'] ?? date('Y-m-d H:i')) ?></p>
+                </div>
+
+                <div style="display: flex; gap: 15px; justify-content: center;">
+                    <a href="dashboard.php?seccion=ordenes&paso=detalle&id=<?= $orden_id_exito ?>" class="btn-primary" style="padding: 12px 24px;">Ver orden</a>
+                    <a href="dashboard.php?seccion=ordenes" class="btn-success" style="padding: 12px 24px; background: var(--sidebar);">Ir a órdenes</a>
+                </div>
+            </div>
+
+        <!-- SECCIÓN 2.2: DETALLE DE UNA ORDEN ESPECÍFICA (Ver orden / Lupa) -->
+        <?php elseif ($seccion === 'ordenes' && $paso === 'detalle'): ?>
+            <?php 
+                $id_det = $_GET['id'] ?? 0;
+                $stmt_ord = $db->prepare("SELECT o.*, c.nombre as cliente_nombre, c.email as cliente_email, c.telefono as cliente_tel FROM erp_ordenes o LEFT JOIN usuarios_cliente c ON c.id = o.cliente_id WHERE o.id = ?");
+                $stmt_ord->execute([$id_det]);
+                $ord_info = $stmt_ord->fetch(PDO::FETCH_ASSOC);
+
+                $stmt_det = $db->prepare("SELECT od.*, p.nombre as producto_nombre FROM erp_ordenes_detalle od JOIN productos p ON p.id = od.producto_id WHERE od.orden_id = ?");
+                $stmt_det->execute([$id_det]);
+                $items_det = $stmt_det->fetchAll(PDO::FETCH_ASSOC);
+            ?>
+            <div class="table-card" style="padding: 25px; max-width: 800px; margin: 0 auto;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3>🔍 Detalle de la Orden: <b><?= htmlspecialchars($ord_info['folio'] ?? '') ?></b></h3>
+                    <a href="dashboard.php?seccion=ordenes" style="color: var(--primary); text-decoration: none;">← Volver al listado</a>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 15px; margin-bottom: 20px;">
+                    <div>
+                        <p style="margin-bottom: 6px;"><b>📅 Fecha:</b> <?= htmlspecialchars($ord_info['fecha'] ?? '') ?></p>
+                        <p style="margin-bottom: 6px;"><b>📌 Estado:</b> <span class="badge"><?= htmlspecialchars($ord_info['estado'] ?? '') ?></span></p>
+                    </div>
+                    <div>
+                        <p style="margin-bottom: 6px;"><b>👤 Cliente:</b> <?= htmlspecialchars($ord_info['cliente_nombre'] ?? 'General') ?></p>
+                        <p style="margin-bottom: 6px;"><b>✉️ Correo:</b> <?= htmlspecialchars($ord_info['cliente_email'] ?? 'N/A') ?></p>
+                    </div>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr><th>Producto</th><th>Cantidad</th><th>Precio Unitario</th><th>Subtotal</th></tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($items_det as $item): ?>
+                        <tr>
+                            <td><b><?= htmlspecialchars($item['producto_nombre']) ?></b></td>
+                            <td><?= $item['cantidad'] ?></td>
+                            <td>$<?= number_format($item['precio_unitario'], 2) ?></td>
+                            <td>$<?= number_format($item['subtotal'], 2) ?></td>
+                        </tr>
+                        <?php endforeach; ?>
+                        <tr>
+                            <td colspan="3" style="text-align: right; font-weight: 700; font-size: 15px;">Total de la Orden:</td>
+                            <td style="font-weight: 700; font-size: 16px; color: var(--primary);">$<?= number_format($ord_info['total'] ?? 0, 2) ?></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+        <!-- SECCIÓN 3: LISTADO DE ÓRDENES ERP/VENTAS CON LUPA -->
         <?php elseif ($seccion === 'ordenes'): ?>
             <div class="table-card">
                 <div class="table-header">
@@ -561,11 +666,11 @@ $todas_ordenes_erp = $db->query("SELECT o.*, c.nombre as cliente_nombre FROM erp
                 </div>
                 <table>
                     <thead>
-                        <tr><th>Folio</th><th>Fecha</th><th>Cliente (CRM)</th><th>Total</th><th>Estado</th></tr>
+                        <tr><th>Folio</th><th>Fecha</th><th>Cliente (CRM)</th><th>Total</th><th>Estado</th><th style="text-align: center;">Acciones</th></tr>
                     </thead>
                     <tbody>
                         <?php if (empty($todas_ordenes_erp)): ?>
-                            <tr><td colspan="5" style="text-align: center; color: var(--muted); padding: 30px;">No hay órdenes registradas.</td></tr>
+                            <tr><td colspan="6" style="text-align: center; color: var(--muted); padding: 30px;">No hay órdenes registradas.</td></tr>
                         <?php else: foreach ($todas_ordenes_erp as $o): ?>
                             <tr>
                                 <td><b><?= htmlspecialchars($o['folio'], ENT_QUOTES, 'UTF-8') ?></b></td>
@@ -573,6 +678,9 @@ $todas_ordenes_erp = $db->query("SELECT o.*, c.nombre as cliente_nombre FROM erp
                                 <td><?= htmlspecialchars($o['cliente_nombre'] ?? 'General', ENT_QUOTES, 'UTF-8') ?></td>
                                 <td>$<?= number_format($o['total'], 2) ?></td>
                                 <td><span class="badge <?= htmlspecialchars($o['estado'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($o['estado'], ENT_QUOTES, 'UTF-8') ?></span></td>
+                                <td style="text-align: center;">
+                                    <a href="dashboard.php?seccion=ordenes&paso=detalle&id=<?= $o['id'] ?>" title="Ver detalle de orden" style="background: var(--primary); color: #fff; padding: 6px 10px; border-radius: 6px; text-decoration: none; font-size: 12px;">🔍 Ver</a>
+                                </td>
                             </tr>
                         <?php endforeach; endif; ?>
                     </tbody>
@@ -581,12 +689,13 @@ $todas_ordenes_erp = $db->query("SELECT o.*, c.nombre as cliente_nombre FROM erp
         <?php endif; ?>
     </main>
 
-    <!-- SCRIPT DE INACTIVIDAD Y RECARGA -->
+    <!-- SCRIPT DE RECARGA INTELIGENTE (Pausada en formularios y éxito) -->
     <script>
         (function() {
             const INTERVALO_RECARGA = 30000;
             setInterval(() => {
-                if (!document.hidden && !document.getElementById('loading-overlay')) {
+                const esProcesoOrden = window.location.search.includes('paso=nueva') || window.location.search.includes('paso=exito');
+                if (!document.hidden && !document.getElementById('loading-overlay') && !esProcesoOrden) {
                     location.reload();
                 }
             }, INTERVALO_RECARGA);
