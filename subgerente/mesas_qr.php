@@ -1,7 +1,7 @@
 <?php
 /**
  * Archivo: subgerente/mesas_qr.php
- * Descripción: Gestión de mesas y códigos QR con control de acceso, definición segura de SITE_URL y menú unificado.
+ * Descripción: Gestión de mesas y códigos QR con control de acceso, definición segura de SITE_URL y menú unificado para Subgerencia.
  */
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
@@ -59,7 +59,7 @@ $mesasData = array_map(function($m) {
     --green-light: #e4f7f0;
     --blue: #1684c4;
     --red: #ff5b5b;
-    --sidebar-w: 240px;
+    --sidebar-w: 260px;
 }
 
 body {
@@ -268,38 +268,35 @@ body {
 <aside class="sidebar">
     <div class="sidebar-logo">
         <div class="name">🍽️ RestaurApp</div>
-        <div class="role">Subgerencia / Ventas</div>
+        <div class="role">Subgerencia</div>
     </div>
     <nav class="nav">
         <a class="nav-item" href="dashboard.php?seccion=inicio">
-            <span class="icon">📊</span> Dashboard Principal
+            <span class="icon">📊</span> Dashboard
         </a>
         <a class="nav-item" href="dashboard.php?seccion=ordenes">
-            <span class="icon">🛒</span> Órdenes y Ventas
+            <span class="icon">🛒</span> Órdenes ERP
         </a>
-        <a class="nav-item" href="dashboard.php?seccion=ordenes&paso=nueva" style="padding-left: 32px; font-size: 12px;">
-            <span class="icon">➕</span> Hacer Pedido de Venta
+        <a class="nav-item" href="clientes.php">
+            <span class="icon">👥</span> Clientes
+        </a>
+        <a class="nav-item" href="productos.php">
+            <span class="icon">📦</span> Productos
         </a>
         <a class="nav-item" href="pedidos.php">
-            <span class="icon">📋</span> Pedidos de Mesas
+            <span class="icon">📋</span> Pedidos
         </a>
         <a class="nav-item active" href="mesas_qr.php">
-            <span class="icon">🪑</span> Mesas & QR
+            <span class="icon">🪑</span> Mesas QR
         </a>
         <a class="nav-item" href="menu.php">
-            <span class="icon">🍽️</span> Menú
+            <span class="icon">🍲</span> Menú
         </a>
         <a class="nav-item" href="corte.php">
-            <span class="icon">💵</span> Corte de Caja
+            <span class="icon">💰</span> Corte
         </a>
-        <?php if (($_SESSION['admin_rol'] ?? '') === 'gerente'): ?>
-        <a href="../erp/dashboard.php" class="sidebar-item" style="background: rgba(7, 136, 201, 0.15); color: #38bdf8; margin-top: auto; font-weight: 700;">
-        <span>👑</span> Volver al Centro ERP
-        </a>
-        <?php endif; ?>
-        <!-- ENLACE AL SCM -->
-        <a class="nav-item" href="../scm/dashboard.php" style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
-            <span class="icon">📦</span> SCM / Inventario
+        <a class="nav-item" href="miactividad.php">
+            <span class="icon">📈</span> Mi Actividad
         </a>
     </nav>
     <div class="sidebar-bottom">
