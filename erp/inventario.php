@@ -363,11 +363,12 @@ if ($rol_actual === 'gerente') {
             <a class="sidebar-item" href="clientes.php"><span>👥</span> Clientes</a>
             <a class="sidebar-item"href="productos.php"><span>📦</span> Productos</a>
             <a href="inventario.php" class="sidebar-item active"><span>📊</span> Inventario</a>
+            <a class="sidebar-item" href="usuarios.php"><span>️️🛡️</span>Usuarios</a>
             <a class="sidebar-item" href="configuracion.php"><span>⚙️</span> Configuracion</a>
         
     </div>
     <div style="padding: 16px; border-top: 1px solid #0b2455;">
-            <a href="../logout.php" style="color: #ff6868; text-decoration: none; font-size: 13px; font-weight: 500;">🚪 Cerrar sesión</a>
+            <a href="logout.php" style="color: #ff6868; text-decoration: none; font-size: 13px; font-weight: 500;">🚪 Cerrar sesión</a>
         </div>
 
 </div>

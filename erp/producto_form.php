@@ -292,35 +292,23 @@ if ($rol_actual === 'gerente') {
 <body>
 
 <div class="sidebar">
-    <div class="sidebar-brand">Restaurant <span>App SCM</span></div>
+    <div class="sidebar-brand">Restaurant <span>App</span></div>
     <div class="sidebar-menu">
-        <a href="dashboard.php" class="sidebar-item"><span>📈</span> Dashboard SCM</a>
-        <a href="productos.php" class="sidebar-item active"><span>📦</span> Productos SCM</a>
-        <a href="proveedores.php" class="sidebar-item"><span>🤝</span> Proveedores</a>
+        <a class="sidebar-item <?= $seccion === 'inicio' ? 'active' : '' ?>" href="dashboard.php?seccion=inicio"><span>📊</span> Inicio ERP</a>
+            <a class="sidebar-item <?= $seccion === 'ordenes' ? 'active' : '' ?>" href="dashboard.php?seccion=ordenes"><span>🛒</span> Órdenes ERP</a>
+            <a class="sidebar-item <?= $seccion === 'reportes' ? 'active' : '' ?>" href="dashboard.php?seccion=reportes"><span>📈</span> Reportes y Métricas</a>
+            <a class="sidebar-item <?= $seccion === 'usuarios' ? 'active' : '' ?>" href="dashboard.php?seccion=usuarios"><span>⚙️</span> Usuarios del Sistema</a>
+            <a class="sidebar-item" href="clientes.php"><span>👥</span> Clientes</a>
+            <a class="sidebar-item active"href="productos.php"><span>📦</span> Productos</a>
+            <a href="inventario.php" class="sidebar-item"><span>📊</span> Inventario</a>
+            <a class="sidebar-item" href="usuarios.php"><span>️️🛡️</span>Usuarios</a>
+            <a class="sidebar-item" href="configuracion.php"><span>⚙️</span> Configuracion</a>
         
-        <a href="inventario.php" class="sidebar-item">
-            <span>📊</span> Inventario / Alertas 
-            <?php if($num_alertas_global > 0): ?>
-                <span style="background: var(--danger); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: auto; font-weight: 700;"><?= htmlspecialchars($num_alertas_global, ENT_QUOTES, 'UTF-8') ?></span>
-            <?php endif; ?>
-        </a>
-
-        <a href="movimientos.php" class="sidebar-item"><span>🔄</span> Movimientos</a>
-        <a href="pedidos.php" class="sidebar-item"><span>🛒</span> Pedidos Internos</a>
-        <a href="logistica.php" class="sidebar-item"><span>⚙️</span> Logística Push/Pull</a>
-        <!-- Si es gerente, mostrar botón directo al ERP en cualquier pantalla del SCM -->
-        <?php if (($rol_actual ?? $_SESSION['admin_rol'] ?? '') === 'gerente'): ?>
-        <a href="../erp/dashboard.php" class="sidebar-item" style="background: rgba(7, 136, 201, 0.15); color: #38bdf8; margin-top: auto; font-weight: 700;">
-        <span>👑</span> Volver al Centro ERP
-        </a>
-        <?php endif; ?>
-        <!-- Salida condicional: Cerrar sesión para Logística, Salir al Panel para Gerente/Subgerente -->
-        <?php if ($rol_actual === 'logistica'): ?>
-            <a href="logout.php" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>🚪</span> Cerrar sesión</a>
-        <?php else: ?>
-            <a href="<?= htmlspecialchars($url_salida, ENT_QUOTES, 'UTF-8') ?>" class="sidebar-item" style="margin-top: auto; color: #fca5a5;"><span>←</span> Salir al Panel</a>
-        <?php endif; ?>
     </div>
+    <div style="padding: 16px; border-top: 1px solid #0b2455;">
+            <a href="logout.php" style="color: #ff6868; text-decoration: none; font-size: 13px; font-weight: 500;">🚪 Cerrar sesión</a>
+        </div>
+
 </div>
 
 <div class="main-content">

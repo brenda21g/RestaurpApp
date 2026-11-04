@@ -421,7 +421,9 @@ $rol_actual = $_SESSION['rol'] ?? ($_SESSION['tipo'] ?? 'Subgerente');
     <a class="nav-item" href="mesas_qr.php"><span>🪑</span> Mesas QR</a>
     <a class="nav-item" href="menu.php"><span>🍲</span> Menú</a>
     <a class="nav-item" href="corte.php"><span>💰</span> Corte</a>
+    <a class="nav-item" href="interacciones.php"><span> </span>Interacciones</a>
     <a class="nav-item" href="miactividad.php"><span>📈</span> Mi Actividad</a>
+    <a class="nav-item" href="configuracion.php"><span>⚙️</span>Configuracion</a>
   </nav>
   <div class="sidebar-bottom">
     <a class="logout-btn" href="logout.php">🚪 Cerrar sesión</a>

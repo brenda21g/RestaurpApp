@@ -514,10 +514,13 @@ tbody tr:hover {
         <a class="nav-item active" href="corte.php">
             <span class="icon">💰</span> Corte
         </a>
+        
+    <a class="nav-item" href="interacciones.php"><span> </span>Interacciones</a>
         <a class="nav-item" href="miactividad.php">
             <span class="icon">📈</span> Mi Actividad
         </a>
     </nav>
+        <a class="nav-item" href="configuracion.php"><span>⚙️</span>Configuracion</a>
 
     <div class="sidebar-bottom">
         <a class="logout-btn" href="logout.php">

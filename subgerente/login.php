@@ -1,4 +1,8 @@
 <?php
+/**
+ * Archivo: subgerente/login.php (o el nombre de tu archivo de subgerencia)
+ * Descripción: Login exclusivo del módulo de subgerencia con diseño en tonos azul cobalto y azul acentuado.
+ */
 require_once __DIR__ . '/../config/config.php';
 
 // Redirigir si ya existe una sesión activa
@@ -29,37 +33,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Verificación mediante MD5 y existencia del usuario
             if ($admin && md5($password) === $admin['password_hash']) {
 
-                // Prevenir Session Fixation
-                session_regenerate_id(true);
+                // Validar que el usuario tenga permitido entrar a subgerencia (subgerente, gerente o super_admin)
+                $rol = $admin['rol'];
+                if ($rol !== 'subgerente' && $rol !== 'gerente' && $rol !== 'super_admin') {
+                    $error = "Esta cuenta no tiene permisos para acceder al panel de subgerencia.";
+                } else {
+                    // Prevenir Session Fixation
+                    session_regenerate_id(true);
 
-                // Si es Super Administrador y tiene un PIN configurado,
-                // pedir PIN en segundo paso
-                if ($admin['rol'] === 'super_admin' && !empty($admin['pin'])) {
-                    $_SESSION['temp_admin_id'] = $admin['id'];
-                    $_SESSION['requires_pin'] = true;
+                    // Si es Super Administrador y tiene un PIN configurado, pedir PIN en segundo paso
+                    if ($admin['rol'] === 'super_admin' && !empty($admin['pin'])) {
+                        $_SESSION['temp_admin_id'] = $admin['id'];
+                        $_SESSION['requires_pin'] = true;
 
-                    header('Location: verificar_pin.php');
+                        header('Location: verificar_pin.php');
+                        exit;
+                    }
+
+                    // Guardar variables de sesión
+                    $_SESSION['admin_id'] = $admin['id'];
+                    $_SESSION['admin_nombre'] = $admin['nombre'];
+                    $_SESSION['admin_user'] = $admin['username'];
+                    $_SESSION['admin_rol'] = $admin['rol'];
+                    $_SESSION['loggedin'] = true;
+
+                    // Actualizar último login
+                    $update = $db->prepare("
+                        UPDATE admins
+                        SET ultimo_login = NOW()
+                        WHERE id = ?
+                    ");
+                    $update->execute([$admin['id']]);
+
+                    // REDIRECCIÓN EXCLUSIVA AL DASHBOARD DE SUBGERENCIA
+                    header('Location: dashboard.php');
                     exit;
                 }
-
-                // Para administradores menores o superadmins sin PIN configurado
-                $_SESSION['admin_id'] = $admin['id'];
-                $_SESSION['admin_nombre'] = $admin['nombre'];
-                $_SESSION['admin_user'] = $admin['username'];
-                $_SESSION['admin_rol'] = $admin['rol'];
-                $_SESSION['loggedin'] = true;
-
-                // Actualizar último login
-                $update = $db->prepare("
-                    UPDATE admins
-                    SET ultimo_login = NOW()
-                    WHERE id = ?
-                ");
-
-                $update->execute([$admin['id']]);
-
-                header('Location: dashboard.php');
-                exit;
 
             } else {
                 $error = "Usuario o contraseña incorrectos.";
@@ -80,8 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Admin – RestaurApp</title>
+<title>Subgerencia – RestaurApp</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
@@ -96,18 +104,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 :root {
-    --bg: #f7f9fc;
     --card: #ffffff;
-    --border: #e2e8f0;
-    --accent: #ffffff;
+    --border: #bae6fd; /* Borde azul cielo suave */
     --text: #071b3a;
     --muted: #60708a;
-    --sidebar: #03143d;
-    --sidebar-hover: #092e70;
-    --green: #07543f;
-    --green-light: #e4f7f0;
-    --blue: #1684c4;
-    --red: #ff5b5b;
+    --sidebar: #0284c7;        /* Azul cobalto / brillante principal para subgerencia */
+    --sidebar-hover: #0369a1;  /* Azul cobalto oscuro para hover */
+    --accent-blue: #0284c7;
+    --red: #ef4444;
 }
 
 /* =========================
@@ -115,7 +119,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ========================= */
 
 body {
-    background: var(--bg);
+    /* Fondo con un degradado elegante combinando azul muy suave y matices celestes */
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
     color: var(--text);
     font-family: 'DM Sans', sans-serif;
     min-height: 100vh;
@@ -127,14 +132,13 @@ body {
     overflow-x: hidden;
 }
 
-/* Decoración de fondo */
-
+/* Decoración de fondo difuminada */
 body::before {
     content: "";
     position: fixed;
-    width: 450px;
-    height: 450px;
-    background: rgba(22, 132, 196, 0.06);
+    width: 480px;
+    height: 480px;
+    background: rgba(2, 132, 199, 0.10);
     border-radius: 50%;
     top: -180px;
     left: -150px;
@@ -144,9 +148,9 @@ body::before {
 body::after {
     content: "";
     position: fixed;
-    width: 500px;
-    height: 500px;
-    background: rgba(3, 20, 61, 0.04);
+    width: 520px;
+    height: 520px;
+    background: rgba(14, 116, 144, 0.08);
     border-radius: 50%;
     bottom: -250px;
     right: -180px;
@@ -178,7 +182,7 @@ body::after {
     font-size: 48px;
     display: block;
     margin-bottom: 10px;
-    filter: drop-shadow(0 4px 8px rgba(3, 20, 61, 0.15));
+    filter: drop-shadow(0 4px 8px rgba(2, 132, 199, 0.2));
 }
 
 .logo-title {
@@ -190,12 +194,17 @@ body::after {
 }
 
 .logo-sub {
-    color: var(--muted);
+    color: #ffffff;
     font-size: 11px;
-    font-weight: 500;
+    font-weight: 600;
     letter-spacing: 1.5px;
     text-transform: uppercase;
-    margin-top: 5px;
+    margin-top: 6px;
+    display: inline-block;
+    background: var(--sidebar);
+    padding: 5px 14px;
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(2, 132, 199, 0.25);
 }
 
 /* =========================
@@ -207,7 +216,7 @@ body::after {
     border: 1px solid var(--border);
     border-radius: 16px;
     padding: 36px;
-    box-shadow: 0 12px 30px rgba(7, 27, 58, 0.08);
+    box-shadow: 0 12px 30px rgba(2, 132, 199, 0.08);
 }
 
 .card h2 {
@@ -239,7 +248,7 @@ label {
 input {
     width: 100%;
     background: #ffffff;
-    border: 1px solid var(--border);
+    border: 1px solid #cbd5e1;
     border-radius: 8px;
     padding: 13px 14px;
     color: var(--text);
@@ -254,12 +263,12 @@ input::placeholder {
 }
 
 input:focus {
-    border-color: var(--blue);
-    box-shadow: 0 0 0 3px rgba(22, 132, 196, 0.10);
+    border-color: var(--sidebar);
+    box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
 }
 
 input:hover {
-    border-color: #cbd5e1;
+    border-color: #94a3b8;
 }
 
 /* =========================
@@ -268,7 +277,7 @@ input:hover {
 
 .btn {
     width: 100%;
-    background: var(--sidebar);
+    background: linear-gradient(135deg, #0f172a 0%, var(--sidebar) 100%);
     color: #ffffff;
     border: none;
     border-radius: 8px;
@@ -279,12 +288,13 @@ input:hover {
     cursor: pointer;
     margin-top: 6px;
     transition: all .2s;
+    box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
 }
 
 .btn:hover {
-    background: var(--sidebar-hover);
+    background: linear-gradient(135deg, #0f172a 0%, var(--sidebar-hover) 100%);
     transform: translateY(-1px);
-    box-shadow: 0 5px 12px rgba(3, 20, 61, 0.15);
+    box-shadow: 0 6px 15px rgba(2, 132, 199, 0.35);
 }
 
 .btn:active {
@@ -296,11 +306,11 @@ input:hover {
 ========================= */
 
 .error-msg {
-    background: #fde9eb;
-    border: 1px solid #f4c7cc;
+    background: #fee2e2;
+    border: 1px solid #fecaca;
     border-radius: 8px;
     padding: 11px 14px;
-    color: #c8424c;
+    color: #b91c1c;
     font-size: 13px;
     margin-bottom: 20px;
 }
@@ -348,24 +358,6 @@ input:hover {
         font-size: 20px;
     }
 }
-
-@media (max-width: 380px) {
-    .login-wrap {
-        padding: 12px;
-    }
-
-    .card {
-        padding: 24px 20px;
-    }
-
-    .logo-icon {
-        font-size: 38px;
-    }
-
-    .logo-title {
-        font-size: 26px;
-    }
-}
 </style>
 </head>
 
@@ -374,14 +366,14 @@ input:hover {
 <div class="login-wrap">
 
     <div class="logo-area">
-        <span class="logo-icon">🍽️</span>
+        <span class="logo-icon">📊</span>
 
         <div class="logo-title">
             RestaurApp
         </div>
 
         <div class="logo-sub">
-            Panel Administrativo
+            Módulo de Subgerencia
         </div>
     </div>
 
@@ -391,7 +383,7 @@ input:hover {
 
         <?php if ($error): ?>
             <div class="error-msg">
-                ⚠️ <?= htmlspecialchars($error) ?>
+                ⚠️ <?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?>
             </div>
         <?php endif; ?>
 
@@ -399,7 +391,6 @@ input:hover {
 
             <div class="field">
                 <label>Usuario</label>
-
                 <input
                     type="text"
                     name="username"
@@ -411,7 +402,6 @@ input:hover {
 
             <div class="field">
                 <label>Contraseña</label>
-
                 <input
                     type="password"
                     name="password"
@@ -422,7 +412,7 @@ input:hover {
             </div>
 
             <button type="submit" class="btn">
-                Entrar al panel →
+                Entrar a Subgerencia →
             </button>
 
         </form>

@@ -29,21 +29,21 @@ function verificarAcceso($rolesPermitidos = []) {
 
     $rutaActual = $_SERVER['PHP_SELF'];
     $estaEnScm = (strpos($rutaActual, '/scm/') !== false);
+    $estaEnLogistica = (strpos($rutaActual, '/logistica/') !== false);
 
     // 2. REGLA PARA LOGÍSTICA:
-    // Logística solo puede estar en el módulo SCM. Si intenta ir a otro lado, lo mandamos al dashboard SCM.
+    // Logística puede estar en su módulo de Logística o en SCM. Si intenta ir a otro lado, lo mandamos al dashboard de Logística.
     if ($rolActual === 'logistica') {
-        if (!$estaEnScm) {
-            header("Location: ../scm/dashboard.php");
+        if (!$estaEnLogistica && !$estaEnScm) {
+            header("Location: ../logistica/dashboard.php");
             exit;
         }
-        // Si ya está en SCM, permitimos el acceso total para que pueda editar
         return true;
     }
 
-    // 3. REGLA PARA EL SCM:
-    // Si la página actual es del SCM, permitimos la entrada tanto a gerentes, subgerentes como a logística.
-    if ($estaEnScm) {
+    // 3. REGLA PARA SCM / LOGISTICA:
+    // Si la página actual es del SCM o Logística, permitimos la entrada a los roles autorizados.
+    if ($estaEnScm || $estaEnLogistica) {
         if (in_array($rolActual, ['gerente', 'subgerente', 'logistica'], true)) {
             return true;
         }
@@ -56,7 +56,7 @@ function verificarAcceso($rolesPermitidos = []) {
                 header("Location: ../subgerente/dashboard.php");
                 break;
             case 'logistica':
-                header("Location: ../scm/dashboard.php");
+                header("Location: ../logistica/dashboard.php");
                 break;
             case 'cocina':
                 header("Location: ../cocina/dashboard.php");

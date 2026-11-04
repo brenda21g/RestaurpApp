@@ -298,6 +298,7 @@ body {
         <a class="nav-item" href="miactividad.php">
             <span class="icon">📈</span> Mi Actividad
         </a>
+        <a class="nav-item" href="configuracion.php"><span>⚙️</span>Configuracion</a>
     </nav>
     <div class="sidebar-bottom">
         <a class="logout-btn" href="logout.php">

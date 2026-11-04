@@ -420,7 +420,9 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
             <a class="nav-item active" href="clientes.php"><span>👥</span> Clientes</a>
             <a class="nav-item"href="productos.php"><span>📦</span> Productos</a>
             <a href="inventario.php" class="nav-item"><span>📊</span> Inventario</a>
+            <a class="nav-item" href="usuarios.php"><span>️️🛡️</span>Usuarios</a>
             <a class="nav-item" href="configuracion.php"><span>⚙️</span> Configuracion</a>
+
             
         </nav>
   <div class="sidebar-bottom">
