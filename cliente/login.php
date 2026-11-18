@@ -1,4 +1,3 @@
-
 <?php
 // Cargar configuración global (inicia la sesión y carga las funciones necesarias)
 require_once __DIR__ . '/../config/config.php';
@@ -21,6 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
+    $recuerdame = isset($_POST['recuerdame']);
 
     if (empty($email) || empty($password)) {
 
@@ -51,6 +51,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['cliente_id'] = $cliente['id'];
                 $_SESSION['cliente_nombre'] = $cliente['nombre'];
 
+                // Gestionar opción "Recuérdame" mediante cookies (30 días)
+                if ($recuerdame) {
+                    setcookie('cookie_email', $email, time() + (86400 * 30), "/");
+                } else {
+                    if (isset($_COOKIE['cookie_email'])) {
+                        setcookie('cookie_email', '', time() - 3600, "/");
+                    }
+                }
+
                 // Determinar a qué página redirigir manteniendo la mesa
                 $mesaParam = '';
 
@@ -75,8 +84,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Construir la URL del enlace a registro preservando el parámetro mesa
-$registroUrl = "registro_cliente.php";
+// Construir la URL del enlace a registro preservando el parámetro mesa (apunta a registro.php)
+$registroUrl = "registro.php";
 
 if (!empty($_GET['mesa'])) {
 
@@ -86,6 +95,10 @@ if (!empty($_GET['mesa'])) {
 
     $registroUrl .= "?mesa=" . urlencode($_SESSION['mesa_token']);
 }
+
+// Obtener valor precargado si existe la cookie de recuérdame
+$saved_email = $_COOKIE['cookie_email'] ?? (isset($_POST['email']) ? $_POST['email'] : '');
+$is_remembered = !empty($saved_email);
 ?>
 
 <!DOCTYPE html>
@@ -478,7 +491,7 @@ input:hover {
                     placeholder="Presione para escribir"
                     required
                     autocomplete="email"
-                    value="<?= isset($_POST['email']) ? htmlspecialchars($_POST['email']) : '' ?>"
+                    value="<?= htmlspecialchars($saved_email) ?>"
                 >
 
             </div>
@@ -501,6 +514,12 @@ input:hover {
 
             </div>
 
+            <!-- Opción Recuérdame -->
+            <div class="field" style="display: flex; align-items: center; gap: 8px; margin-bottom: 20px;">
+                <input type="checkbox" id="recuerdame" name="recuerdame" <?= $is_remembered ? 'checked' : '' ?> style="width: auto; cursor: pointer;">
+                <label for="recuerdame" style="margin-bottom: 0; cursor: pointer; text-transform: none; font-size: 13px; color: var(--text);">Recordarme en este equipo</label>
+            </div>
+
 
             <button type="submit" class="btn">
                 Iniciar sesión →
@@ -510,7 +529,7 @@ input:hover {
 
 
         <a
-            href="registro.php"
+            href="<?= htmlspecialchars($registroUrl) ?>"
             class="register-link"
         >
             ¿No tienes cuenta? Regístrate

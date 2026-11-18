@@ -21,6 +21,51 @@ try {
     $db = getDB();
     $cliente_id = (int)$_SESSION['cliente_id'];
 
+    // Si viene una petición POST para confirmar el pago en efectivo (desde el módulo del mesero)
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $input = json_decode(file_get_contents('php://input'), true);
+        $pedido_id = (int)($input['pedido_id'] ?? 0);
+
+        if ($pedido_id <= 0) {
+            jsonResponse(['error' => 'ID de pedido inválido'], 400);
+        }
+
+        // Buscar el pedido
+        $stmtP = $db->prepare("SELECT * FROM pedidos WHERE id = ?");
+        $stmtP->execute([$pedido_id]);
+        $pedidoInfo = $stmtP->fetch(PDO::FETCH_ASSOC);
+
+        if (!$pedidoInfo) {
+            jsonResponse(['error' => 'Pedido no encontrado'], 404);
+        }
+
+        // Actualizar el estado del pedido a 'pagado'
+        $stmtUpd = $db->prepare("UPDATE pedidos SET estado = 'pagado' WHERE id = ?");
+        $stmtUpd->execute([$pedido_id]);
+
+        $totalPedido = floatval($pedidoInfo['total']);
+        // Calcular cashback: $1 por cada $100 consumidos ($200 = 2, $300 = 3, etc.)
+        $reembolso = $totalPedido >= 100 ? floor($totalPedido / 100) : 0;
+
+        // Inicializar historial y saldo en sesión si no existen
+        if (!isset($_SESSION['historial_movimientos'])) {
+            $_SESSION['historial_movimientos'] = [];
+        }
+
+        // Registrar el movimiento de pago en efectivo confirmado y su cashback en el historial
+        $fechaActual = date('Y-m-d H:i:s');
+        $_SESSION['historial_movimientos'][] = [
+            'fecha' => $fechaActual,
+            'tipo' => 'Pago en Efectivo (Confirmado)',
+            'monto' => -$totalPedido,
+            'reembolso' => $reembolso,
+            'detalle' => 'Confirmado por Mesero (Pedido #' . $pedidoInfo['id'] . ')'
+        ];
+
+        jsonResponse(['success' => true, 'mensaje' => 'Pago confirmado con éxito y cashback aplicado al monedero.']);
+    }
+
+    // Consulta normal GET para obtener el estado del pedido
     $pedido_id = (int)($_GET['pedido_id'] ?? 0);
     $mesa_id   = (int)($_GET['mesa_id'] ?? 0);
 

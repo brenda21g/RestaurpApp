@@ -44,10 +44,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Obtener datos del cliente
+// Obtener datos del cliente actual
 $stmt = $db->prepare("SELECT * FROM usuarios_cliente WHERE id = ?");
 $stmt->execute([$cliente_id]);
 $cliente = $stmt->fetch(PDO::FETCH_ASSOC);
+
+// Sincronizar saldo de monedero actual si está en sesión
+$saldo_actual = isset($_SESSION['saldo_monedero']) ? floatval($_SESSION['saldo_monedero']) : floatval($cliente['monedero'] ?? 0);
 
 // Obtener las evaluaciones de este cliente
 $stmt_evs = $db->prepare("SELECT * FROM evaluaciones WHERE cliente_id = ? ORDER BY fecha DESC");
@@ -66,14 +69,15 @@ if (!empty($_GET['mesa'])) {
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     <title>Mi Cuenta y Evaluaciones – RestaurApp</title>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         :root {
-          --bg: #fdfdfd; --card: #d4cccc; --border: #2a2a2a;
-          --accent: #e8b86d; --text: #f0ede8; --muted: #7a7060;
+          --bg: #faf8f5; --surface: #ffffff; --border: #ede8e0;
+          --accent: #c8502a; --accent2: #e8733a; --text: #1a1510; --muted: #8a7a6a;
+          --card-shadow: 0 2px 12px rgba(0,0,0,0.08);
         }
         body { 
             background: var(--bg); 
@@ -82,6 +86,8 @@ if (!empty($_GET['mesa'])) {
             padding: 24px 16px; 
             max-width: 480px; 
             margin: 0 auto; 
+            font-size: 14px;
+            padding-bottom: 60px;
         }
         .btn-back { 
             display: inline-block; 
@@ -89,35 +95,36 @@ if (!empty($_GET['mesa'])) {
             text-decoration: none; 
             font-size: 14px; 
             font-weight: 500; 
-            margin-bottom: 20px; 
+            margin-bottom: 16px; 
         }
         .card { 
-            background: var(--card); 
+            background: var(--surface); 
             border: 1px solid var(--border); 
-            padding: 24px; 
+            padding: 20px; 
             border-radius: 16px; 
-            margin-bottom: 20px; 
+            margin-bottom: 16px; 
+            box-shadow: var(--card-shadow);
         }
-        .puntos-box { 
-            background: rgba(255, 255, 255, 0.08); 
+        .monedero-box { 
+            background: rgba(200,80,42,0.05); 
             border: 1px solid var(--accent); 
-            border-radius: 12px; 
+            border-radius: 14px; 
             padding: 20px; 
             text-align: center; 
         }
-        .puntos-val { 
+        .monedero-val { 
             font-family: 'Playfair Display', serif;
-            font-size: 36px; 
+            font-size: 32px; 
             font-weight: bold; 
             color: var(--accent); 
             margin: 6px 0; 
         }
-        .form-group { margin-bottom: 16px; }
-        label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .form-group { margin-bottom: 14px; }
+        label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; }
         input, select, textarea { 
             width: 100%; 
-            padding: 12px 14px; 
-            background: #2c267e; 
+            padding: 10px 14px; 
+            background: var(--bg); 
             border: 1px solid var(--border); 
             color: var(--text); 
             border-radius: 8px; 
@@ -126,20 +133,21 @@ if (!empty($_GET['mesa'])) {
             outline: none; 
         }
         input:focus, select:focus, textarea:focus { border-color: var(--accent); }
-        input[disabled] { opacity: 0.6; cursor: not-allowed; }
+        input[disabled] { opacity: 0.6; cursor: not-allowed; background: #f0ece6; }
         textarea { resize: vertical; min-height: 80px; }
         button { 
             width: 100%; 
-            padding: 12px; 
-            background: linear-gradient(135deg, #6d9ae8, #1d1283); 
-            color: #f4eded;
+            padding: 13px; 
+            background: linear-gradient(135deg, var(--accent), var(--accent2)); 
+            color: #ffffff;
             border: none; 
             font-family: 'DM Sans', sans-serif;
             font-weight: 600; 
             font-size: 14px;
-            border-radius: 8px; 
+            border-radius: 10px; 
             cursor: pointer; 
-            margin-top: 8px;
+            margin-top: 6px;
+            box-shadow: 0 4px 15px rgba(200,80,42,0.3);
         }
         .btn-logout { 
             display: block; 
@@ -147,38 +155,39 @@ if (!empty($_GET['mesa'])) {
             color: #e07070; 
             text-decoration: none; 
             font-size: 13px; 
-            margin-top: 18px; 
+            font-weight: 600;
+            margin-top: 16px; 
         }
         .btn-logout:hover { text-decoration: underline; }
-        .alert { padding: 10px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; text-align: center; }
-        .alert-success { background: rgba(109,191,138,.15); color: #6dbf8a; border: 1px solid rgba(109,191,138,.3); }
-        .alert-error { background: rgba(224,112,112,.15); color: #e07070; border: 1px solid rgba(224,112,112,.3); }
+        .alert { padding: 10px; border-radius: 8px; font-size: 13px; margin-bottom: 14px; text-align: center; }
+        .alert-success { background: #e4f7fa; color: #07543f; border: 1px solid #c7eadc; }
+        .alert-error { background: #fde9eb; color: #c8424c; border: 1px solid #f4c7cc; }
         
         .eval-item {
-            background: #9b90ff;
+            background: var(--bg);
             border: 1px solid var(--border);
             border-radius: 10px;
             padding: 12px;
             margin-bottom: 10px;
             font-size: 13px;
         }
-        .stars { color: #0a0a0a; font-weight: bold; }
+        .stars { color: #f59e0b; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <a href="index.php<?= $mesa_param ?>" class="btn-back">← Volver al Menú</a>
     
-    <!-- Bloque de Puntos -->
-    <div class="card puntos-box">
-        <div style="font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:1px;">Tus Puntos Acumulados</div>
-        <div class="puntos-val"><?= (int)($cliente['puntos'] ?? 0) ?> pts</div>
-        <small style="color:var(--muted); font-size:12px;">Acumulas 1 punto por cada $10 de compra</small>
+    <!-- Bloque de Saldo en Monedero -->
+    <div class="card monedero-box">
+        <div style="font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; font-weight:600;">Saldo en Monedero</div>
+        <div class="monedero-val">$<?= number_format($saldo_actual, 2) ?></div>
+        <small style="color:var(--muted); font-size:12px;">Ganas $1 de reembolso por cada $100 de compra</small>
     </div>
 
     <!-- Formulario Datos Personales -->
     <div class="card">
-        <h3 style="font-family:'Playfair Display',serif; font-size:18px; margin-bottom:16px;">Mis Datos Personales</h3>
+        <h3 style="font-family:'Playfair Display',serif; font-size:18px; margin-bottom:14px;">Mis Datos Personales</h3>
         
         <?php if ($mensaje && isset($_POST['actualizar_perfil'])): ?>
             <div class="alert alert-<?= $tipo_alerta ?>"><?= htmlspecialchars($mensaje) ?></div>
@@ -198,7 +207,7 @@ if (!empty($_GET['mesa'])) {
             
             <div class="form-group">
                 <label>Teléfono</label>
-                <input type="tel" name="telefono" value="<?= htmlspecialchars($cliente['telefono'] ?? '') ?>" placeholder="Ej. 5512345678">
+                <input type="tel" name="telefono" value="<?= htmlspecialchars($cliente['telefono'] ?? '') ?>" placeholder="Ej. 4491234567">
             </div>
             
             <button type="submit">Guardar Cambios</button>
@@ -207,7 +216,7 @@ if (!empty($_GET['mesa'])) {
 
     <!-- Formulario de Evaluaciones / Reseñas -->
     <div class="card">
-        <h3 style="font-family:'Playfair Display',serif; font-size:18px; margin-bottom:16px;">⭐ Califícanos</h3>
+        <h3 style="font-family:'Playfair Display',serif; font-size:18px; margin-bottom:14px;">⭐ Califícanos</h3>
         
         <?php if ($mensaje && isset($_POST['enviar_evaluacion'])): ?>
             <div class="alert alert-<?= $tipo_alerta ?>"><?= htmlspecialchars($mensaje) ?></div>
@@ -244,8 +253,8 @@ if (!empty($_GET['mesa'])) {
             <button type="submit">Enviar Evaluación</button>
         </form>
 
-        <div style="margin-top: 20px;">
-            <label style="margin-bottom: 10px;">Mis Evaluaciones Anteriores</label>
+        <div style="margin-top: 18px;">
+            <label style="margin-bottom: 8px;">Mis Evaluaciones Anteriores</label>
             <?php if (empty($mis_evaluaciones)): ?>
                 <p style="color: var(--muted); font-size: 12px;">Aún no has registrado opiniones.</p>
             <?php else: ?>

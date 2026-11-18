@@ -34,53 +34,60 @@ if ($token) {
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     <title>Confirmación de Cuenta – RestaurApp</title>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+          --bg: #faf8f5; --surface: #ffffff; --border: #ede8e0;
+          --accent: #c8502a; --accent2: #e8733a; --text: #1a1510; --muted: #8a7a6a;
+          --card-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
         body { 
-            background: #010374; 
-            color: #f0ede8; 
+            background: var(--bg); 
+            color: var(--text); 
             font-family: 'DM Sans', sans-serif; 
             display: flex;
             align-items: center;
             justify-content: center;
             min-height: 100vh;
             padding: 20px;
+            font-size: 14px;
         }
         .card {
-            background: #b6adad;
-            border: 1px solid #2a2a2a;
-            border-radius: 16px;
-            padding: 32px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 36px 28px;
             max-width: 400px;
             width: 100%;
             text-align: center;
-            box-shadow: 0 4px 25px rgba(0,0,0,0.6);
+            box-shadow: var(--card-shadow);
         }
         h2 {
             font-family: 'Playfair Display', serif;
             font-size: 22px;
-            color: <?= $estado === 'exito' ? '#e8b86d' : '#e07070' ?>;
+            color: <?= $estado === 'exito' ? 'var(--accent)' : '#c8424c' ?>;
             margin-bottom: 12px;
         }
         p {
             font-size: 14px;
-            color: #a09a90;
+            color: var(--muted);
             margin-bottom: 24px;
             line-height: 1.5;
         }
         .btn {
             display: inline-block;
             width: 100%;
-            padding: 12px;
-            background: linear-gradient(135deg, #e8b86d, #c9956a);
-            color: #0f0f0f;
+            padding: 13px;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            color: #ffffff;
             text-decoration: none;
-            border-radius: 8px;
+            border-radius: 12px;
             font-weight: 600;
             font-size: 14px;
+            box-shadow: 0 4px 15px rgba(200,80,42,0.3);
             transition: opacity 0.2s;
         }
         .btn:hover { opacity: 0.9; }

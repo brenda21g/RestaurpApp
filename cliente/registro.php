@@ -89,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $mail->Body    = "
                         <h3>¡Hola, {$nombreHtml}!</h3>
                         <p>Gracias por registrarte. Haz clic en el siguiente enlace para activar tu cuenta y comenzar a realizar tus pedidos:</p>
-                        <p><a href='{$enlace}' style='padding: 10px 15px; background: #e8b86d; color: #000; text-decoration: none; border-radius: 5px; font-weight: bold;'>Activar mi cuenta</a></p>
+                        <p><a href='{$enlace}' style='padding: 10px 15px; background: #c8502a; color: #fff; text-decoration: none; border-radius: 8px; font-weight: bold;'>Activar mi cuenta</a></p>
                         <br><small>O copia este enlace en tu navegador: {$enlace}</small>
                     ";
 
@@ -115,86 +115,100 @@ $loginUrl = "login.php" . $mesa_param;
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     <title>Crear Cuenta – RestaurApp</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+          --bg: #faf8f5; --surface: #ffffff; --border: #ede8e0;
+          --accent: #c8502a; --accent2: #e8733a; --text: #1a1510; --muted: #8a7a6a;
+          --card-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
         body { 
-            background: #f3f4fb; 
-            color: #131cbf; 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            background: var(--bg); 
+            color: var(--text); 
+            font-family: 'DM Sans', sans-serif; 
             display: flex; 
             justify-content: center; 
             align-items: center; 
             min-height: 100vh; 
             padding: 20px;
+            font-size: 14px;
         }
         .card { 
-            background: #060274; 
-            border: 1px solid #fff7f7; 
-            padding: 30px; 
-            border-radius: 12px; 
+            background: var(--surface); 
+            border: 1px solid var(--border); 
+            padding: 32px 28px; 
+            border-radius: 20px; 
             width: 100%;
-            max-width: 360px; 
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            max-width: 380px; 
+            box-shadow: var(--card-shadow);
         }
         h2 { 
-            color: #f7f5f3; 
+            font-family: 'Playfair Display', serif;
+            color: var(--text); 
             margin-bottom: 20px; 
             font-size: 22px; 
             text-align: center; 
         }
-        .msg { font-size: 13px; margin-bottom: 15px; text-align: center; line-height: 1.4; }
-        .msg.success { color: #6dbf8a; }
-        .msg.error { color: #ef5757; }
+        .msg { font-size: 13px; margin-bottom: 16px; text-align: center; line-height: 1.4; padding: 10px; border-radius: 8px; }
+        .msg.success { background: #e4f7fa; color: #07543f; border: 1px solid #c7eadc; }
+        .msg.error { background: #fde9eb; color: #c8424c; border: 1px solid #f4c7cc; }
         
         label {
             display: block;
-            font-size: 13px;
-            color: #a09a90;
+            font-size: 11px;
+            color: var(--muted);
             margin-bottom: 6px;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.5px;
         }
         input { 
             width: 100%; 
-            padding: 12px; 
+            padding: 11px 14px; 
             margin-bottom: 16px; 
-            background: #faf9f9; 
-            border: 1px solid #2a2a2a; 
-            color: #0e0c0c; 
-            border-radius: 6px; 
+            background: var(--bg); 
+            border: 1px solid var(--border); 
+            color: var(--text); 
+            border-radius: 10px; 
             font-size: 14px;
+            font-family: 'DM Sans', sans-serif;
             outline: none;
             transition: border-color 0.2s;
         }
         input:focus {
-            border-color: #0c0e5d;
+            border-color: var(--accent);
         }
         button { 
             width: 100%; 
-            padding: 12px; 
-            background: #0062d9; 
+            padding: 13px; 
+            background: linear-gradient(135deg, var(--accent), var(--accent2)); 
             border: none; 
-            color: #0b0b0b;
-            font-weight: bold; 
-            font-size: 15px;
-            border-radius: 6px; 
+            color: #ffffff;
+            font-weight: 600; 
+            font-size: 14px;
+            border-radius: 10px; 
             cursor: pointer; 
-            transition: background 0.2s;
+            box-shadow: 0 4px 15px rgba(200,80,42,0.3);
+            transition: opacity 0.2s;
         }
         button:hover {
-            background: #d4a359;
+            opacity: 0.9;
         }
         a { 
-            color: #fffbf5; 
+            color: var(--accent); 
             text-decoration: none; 
             font-size: 13px; 
             display: block; 
             text-align: center; 
             margin-top: 18px; 
+            font-weight: 500;
             transition: color 0.2s;
         }
         a:hover {
-            color: #fffdf9;
+            text-decoration: underline;
         }
     </style>
 </head>
