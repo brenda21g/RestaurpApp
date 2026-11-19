@@ -1,7 +1,7 @@
 <?php
 /**
  * Archivo: erp/dashboard.php
- * Descripción: Centro ERP sincronizado con SCM, pantalla de carga, validación estricta, pantalla de éxito (Imagen 7) y detalle de órdenes.
+ * Descripción: Centro ERP sincronizado con SCM, pantalla de carga, validación estricta, pantalla de éxito (Imagen 7), detalle de órdenes y reportes/métricas reales.
  */
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
@@ -9,6 +9,9 @@ verificarAcceso(['gerente']);
 $db = getDB();
 
 $seccion = $_GET['seccion'] ?? 'inicio';
+if ($seccion === 'usuarios') {
+    $seccion = 'inicio';
+}
 $paso = $_GET['paso'] ?? '1';
 $error_msj = '';
 
@@ -118,7 +121,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
 
                     $db->commit();
-                    // Redirigir activando la pantalla de carga y posterior éxito (Imagen 7)
                     header("Location: dashboard.php?seccion=ordenes&procesando=1&folio=$folio&id=$orden_id");
                     exit;
                 } else {
@@ -134,8 +136,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Consultas y métricas
-$total_ventas = $db->query("SELECT SUM(total) FROM erp_ordenes WHERE estado = 'Procesada'")->fetchColumn() ?: 0;
+// Consultas y métricas generales
+$total_ventas = $db->query("SELECT COALESCE(SUM(total), 0) FROM erp_ordenes WHERE estado = 'Procesada'")->fetchColumn() ?: 0;
 $total_ordenes = $db->query("SELECT COUNT(*) FROM erp_ordenes")->fetchColumn() ?: 0;
 $clientes_activos = $db->query("SELECT COUNT(*) FROM usuarios_cliente")->fetchColumn() ?: 0;
 
@@ -149,8 +151,43 @@ $clientes_crm = $db->query("SELECT id, nombre, email, telefono FROM usuarios_cli
 $categorias = $db->query("SELECT id, nombre FROM categorias ORDER BY id ASC")->fetchAll(PDO::FETCH_ASSOC);
 $productos_db = $db->query("SELECT id, categoria_id, nombre, precio, descripcion FROM productos ORDER BY nombre ASC")->fetchAll(PDO::FETCH_ASSOC);
 
+// Métricas y reportes reales para la sección 'reportes'
+$ordenes_procesadas_cnt = $db->query("SELECT COUNT(*) FROM erp_ordenes WHERE estado = 'Procesada'")->fetchColumn() ?: 0;
+$ticket_promedio = $ordenes_procesadas_cnt > 0 ? ($total_ventas / $ordenes_procesadas_cnt) : 0;
+$promedio_evaluacion = $db->query("SELECT COALESCE(AVG(puntuacion), 0) FROM evaluaciones")->fetchColumn() ?: 0;
+$total_salidas_scm = $db->query("SELECT COALESCE(SUM(cantidad), 0) FROM scm_movimientos WHERE tipo = 'Salida'")->fetchColumn() ?: 0;
+
+$top_productos = $db->query("
+    SELECT p.nombre, c.nombre as categoria,
+           COALESCE(SUM(od.cantidad), 0) as unidades_vendidas,
+           COALESCE(SUM(od.subtotal), 0) as ingresos_totales
+    FROM erp_ordenes_detalle od
+    JOIN productos p ON p.id = od.producto_id
+    LEFT JOIN categorias c ON c.id = p.categoria_id
+    JOIN erp_ordenes o ON o.id = od.orden_id AND o.estado = 'Procesada'
+    GROUP BY od.producto_id, p.nombre, c.nombre
+    ORDER BY ingresos_totales DESC, unidades_vendidas DESC
+    LIMIT 8
+")->fetchAll(PDO::FETCH_ASSOC);
+
+$max_ingreso_prod = !empty($top_productos) ? max(array_column($top_productos, 'ingresos_totales')) : 1;
+if ($max_ingreso_prod <= 0) $max_ingreso_prod = 1;
+
+$ordenes_por_estado = $db->query("
+    SELECT estado, COUNT(*) as cantidad, COALESCE(SUM(total), 0) as monto
+    FROM erp_ordenes
+    GROUP BY estado
+    ORDER BY cantidad DESC
+")->fetchAll(PDO::FETCH_ASSOC);
+
+$inventario_scm_resumen = $db->query("
+    SELECT id, nombre, unidad_medida, stock_actual, stock_minimo, estrategia_logistica
+    FROM scm_productos
+    ORDER BY (stock_actual <= stock_minimo) DESC, nombre ASC
+    LIMIT 10
+")->fetchAll(PDO::FETCH_ASSOC);
+
 $evaluaciones = $db->query("SELECT e.*, c.nombre as cliente_nombre FROM evaluaciones e LEFT JOIN usuarios_cliente c ON c.id = e.cliente_id ORDER BY e.fecha DESC")->fetchAll(PDO::FETCH_ASSOC);
-$usuarios_sistema = $db->query("SELECT id, username, nombre, email, rol, activo FROM admins ORDER BY id DESC")->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -184,11 +221,6 @@ $usuarios_sistema = $db->query("SELECT id, username, nombre, email, rol, activo 
     .nav { padding: 16px 12px; flex: 1; }
     .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; color: #9db0ce; text-decoration: none; font-size: 13px; font-weight: 500; margin-bottom: 4px; transition: .15s; }
     .nav-item:hover, .nav-item.active { background: var(--sidebar-hover); color: #fff; }
-
-    .sidebar-modules { padding: 16px 12px; border-top: 1px solid #0b2455; background: #020f2e; display: flex; flex-direction: column; gap: 8px; }
-    .sidebar-modules-title { font-size: 10px; text-transform: uppercase; color: #7a94be; font-weight: 700; margin-bottom: 4px; letter-spacing: 0.5px; }
-    .sub-module-btn { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 8px; color: #cbd5e1; background: rgba(255,255,255,0.04); text-decoration: none; font-size: 12px; font-weight: 500; transition: all .2s; border: 1px solid rgba(255,255,255,0.06); }
-    .sub-module-btn:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
     
     .main { margin-left: var(--sidebar-w); flex: 1; padding: 32px; }
     .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; }
@@ -201,14 +233,22 @@ $usuarios_sistema = $db->query("SELECT id, username, nombre, email, rol, activo 
     .stat-label { font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
     .stat-value { font-size: 26px; font-weight: 700; color: var(--text); }
     .stat-value.money::before { content: '$'; font-size: 18px; color: var(--muted); }
+    .stat-sub { font-size: 11px; color: var(--muted); margin-top: 6px; }
 
+    .grid-2 { display: grid; grid-template-columns: 1.35fr 1fr; gap: 20px; margin-bottom: 25px; }
     .table-card { background: var(--card); border: 1px solid var(--border); border-radius: 13px; overflow: hidden; box-shadow: 0 2px 5px rgba(15,23,42,.025); margin-bottom: 25px; }
-    .table-header { padding: 20px 24px; font-size: 15px; font-weight: 700; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .table-header { padding: 18px 22px; font-size: 15px; font-weight: 700; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
     table { width: 100%; border-collapse: collapse; }
-    th { text-align: left; padding: 12px 24px; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--muted); background: #f8fafc; border-bottom: 1px solid var(--border); }
-    td { padding: 14px 24px; border-bottom: 1px solid #edf1f5; font-size: 13px; }
+    th { text-align: left; padding: 12px 22px; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--muted); background: #f8fafc; border-bottom: 1px solid var(--border); }
+    td { padding: 13px 22px; border-bottom: 1px solid #edf1f5; font-size: 13px; }
     
     .badge { padding: 4px 10px; border-radius: 10px; font-size: 11px; font-weight: 600; background: #e5f8f1; color: #0bad77; }
+    .badge-warn { background: #fef3c7; color: #b45309; }
+    .badge-crit { background: #fee2e2; color: #b91c1c; }
+
+    .progress-bar { height: 7px; background: #e2e8f0; border-radius: 999px; overflow: hidden; margin-top: 6px; }
+    .progress-fill { height: 100%; background: var(--primary); border-radius: 999px; }
+
     .btn-primary { background: var(--primary); color: #fff; padding: 10px 18px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 13px; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
     .btn-primary:hover { background: #0674ad; }
     .btn-success { background: var(--green); color: #fff; padding: 12px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
@@ -224,16 +264,23 @@ $usuarios_sistema = $db->query("SELECT id, username, nombre, email, rol, activo 
     .loading-step { font-size: 16px; font-weight: 500; margin: 6px 0; opacity: 0.8; }
     .loading-step.active { opacity: 1; font-weight: 700; color: #13b77a; }
 
-    /* Estilos Pantalla de Éxito (Imagen 7) */
+    /* Estilos Pantalla de Éxito */
     .success-card { background: #fff; border: 1px solid var(--border); border-radius: 16px; padding: 40px; text-align: center; max-width: 600px; margin: 20px auto; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
     .success-icon { width: 70px; height: 70px; background: #e5f8f1; color: var(--green); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 32px; margin: 0 auto 20px; }
     .success-details { background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 20px; text-align: left; margin: 25px 0; }
     .success-details p { margin-bottom: 8px; font-size: 14px; color: var(--text); }
+
+    @media (max-width: 1024px) {
+        .stats-grid, .grid-2 { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 768px) {
+        .stats-grid, .grid-2 { grid-template-columns: 1fr; }
+    }
 </style>
 </head>
 <body>
 
-    <!-- PANTALLA DE CARGA Y POSTERIOR PASO A ÉXITO (Imagen 7) -->
+    <!-- PANTALLA DE CARGA Y POSTERIOR PASO A ÉXITO -->
     <?php if (isset($_GET['procesando'])): ?>
     <div id="loading-overlay">
         <div class="spinner"></div>
@@ -251,8 +298,7 @@ $usuarios_sistema = $db->query("SELECT id, username, nombre, email, rol, activo 
             document.querySelector('.spinner').style.display = 'none';
             document.getElementById('step-4').style.display = 'block';
         }, 2400);
-        // Redirigir a la pantalla de éxito (Imagen 7) después de la carga
-        setTimeout(() => { window.location.href = 'dashboard.php?seccion=ordenes&paso=exito&folio=<?= $_GET['folio'] ?? '' ?>&id=<?= $_GET['id'] ?? '' ?>'; }, 3800);
+        setTimeout(() => { window.location.href = 'dashboard.php?seccion=ordenes&paso=exito&folio=<?= urlencode($_GET['folio'] ?? '') ?>&id=<?= urlencode($_GET['id'] ?? '') ?>'; }, 3800);
     </script>
     <?php endif; ?>
 
@@ -266,14 +312,11 @@ $usuarios_sistema = $db->query("SELECT id, username, nombre, email, rol, activo 
             <a class="nav-item <?= $seccion === 'inicio' ? 'active' : '' ?>" href="dashboard.php?seccion=inicio"><span>📊</span> Inicio ERP</a>
             <a class="nav-item <?= $seccion === 'ordenes' ? 'active' : '' ?>" href="dashboard.php?seccion=ordenes"><span>🛒</span> Órdenes ERP</a>
             <a class="nav-item <?= $seccion === 'reportes' ? 'active' : '' ?>" href="dashboard.php?seccion=reportes"><span>📈</span> Reportes y Métricas</a>
-            <a class="nav-item <?= $seccion === 'usuarios' ? 'active' : '' ?>" href="dashboard.php?seccion=usuarios"><span>⚙️</span> Usuarios del Sistema</a>
             <a class="nav-item" href="clientes.php"><span>👥</span> Clientes</a>
-            <a class="nav-item"href="productos.php"><span>📦</span> Productos</a>
+            <a class="nav-item" href="productos.php"><span>📦</span> Productos</a>
             <a href="inventario.php" class="nav-item"><span>📊</span> Inventario</a>
-            <a class="nav-item" href="usuarios.php"><span>️️🛡️</span>Usuarios</a>
+            <a class="nav-item" href="usuarios.php"><span>🛡️</span> Usuarios</a>
             <a class="nav-item" href="configuracion.php"><span>⚙️</span> Configuracion</a>
-
-
         </nav>
 
         <div style="padding: 16px; border-top: 1px solid #0b2455;">
@@ -287,11 +330,10 @@ $usuarios_sistema = $db->query("SELECT id, username, nombre, email, rol, activo 
                 <div class="page-title">
                     <?php 
                         if($seccion === 'ordenes' && $paso === 'nueva') echo 'Nueva Orden de Venta (ERP)';
-                        elseif($seccion === 'ordenes' && $paso === 'exito') echo 'Operación exitosa (Imagen 7)';
+                        elseif($seccion === 'ordenes' && $paso === 'exito') echo 'Operación exitosa';
                         elseif($seccion === 'ordenes' && $paso === 'detalle') echo 'Detalle de la Orden';
                         elseif($seccion === 'ordenes') echo 'Listado de Órdenes (ERP)';
-                        elseif($seccion === 'reportes') echo 'Reportes del Negocio';
-                        elseif($seccion === 'usuarios') echo 'Usuarios del Sistema';
+                        elseif($seccion === 'reportes') echo 'Reportes y Métricas del Negocio';
                         else echo 'Dashboard General ERP';
                     ?>
                 </div>
@@ -361,7 +403,7 @@ $usuarios_sistema = $db->query("SELECT id, username, nombre, email, rol, activo 
                 </table>
             </div>
 
-        <!-- SECCIÓN 2: NUEVA ORDEN (Directa con retención de datos y botón "Hacer pedido") -->
+        <!-- SECCIÓN 2: NUEVA ORDEN -->
         <?php elseif ($seccion === 'ordenes' && $paso === 'nueva'): ?>
             <div class="table-card" style="padding: 25px;">
                 <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
@@ -426,7 +468,7 @@ $usuarios_sistema = $db->query("SELECT id, username, nombre, email, rol, activo 
                 </form>
             </div>
 
-        <!-- SECCIÓN 2.1: OPERACIÓN EXITOSA (Imagen 7) -->
+        <!-- SECCIÓN 2.1: OPERACIÓN EXITOSA -->
         <?php elseif ($seccion === 'ordenes' && $paso === 'exito'): ?>
             <?php 
                 $orden_id_exito = $_GET['id'] ?? 0;
@@ -451,7 +493,7 @@ $usuarios_sistema = $db->query("SELECT id, username, nombre, email, rol, activo 
                 </div>
             </div>
 
-        <!-- SECCIÓN 2.2: DETALLE DE UNA ORDEN ESPECÍFICA (Ver orden / Lupa) -->
+        <!-- SECCIÓN 2.2: DETALLE DE UNA ORDEN ESPECÍFICA -->
         <?php elseif ($seccion === 'ordenes' && $paso === 'detalle'): ?>
             <?php 
                 $id_det = $_GET['id'] ?? 0;
@@ -501,7 +543,7 @@ $usuarios_sistema = $db->query("SELECT id, username, nombre, email, rol, activo 
                 </table>
             </div>
 
-        <!-- SECCIÓN 2.3: LISTADO GENERAL DE ÓRDENES CON LUPA (Imagen 2) -->
+        <!-- SECCIÓN 2.3: LISTADO GENERAL DE ÓRDENES -->
         <?php elseif ($seccion === 'ordenes'): ?>
             <div class="table-card">
                 <div class="table-header">
@@ -531,10 +573,118 @@ $usuarios_sistema = $db->query("SELECT id, username, nombre, email, rol, activo 
                 </table>
             </div>
 
-        <!-- SECCIÓN 3: REPORTES -->
+        <!-- SECCIÓN 3: REPORTES Y MÉTRICAS REALES -->
         <?php elseif ($seccion === 'reportes'): ?>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Ingresos Procesados (ERP)</div>
+                    <div class="stat-value money" style="color: var(--green);"><?= number_format($total_ventas, 2) ?></div>
+                    <div class="stat-sub"><?= $ordenes_procesadas_cnt ?> órdenes procesadas</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Ticket Promedio</div>
+                    <div class="stat-value money"><?= number_format($ticket_promedio, 2) ?></div>
+                    <div class="stat-sub">Por orden procesada</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Satisfacción Promedio (CRM)</div>
+                    <div class="stat-value" style="color: #d97706;"><?= number_format($promedio_evaluacion, 1) ?> ★</div>
+                    <div class="stat-sub"><?= count($evaluaciones) ?> evaluaciones registradas</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Salidas de Insumos (SCM)</div>
+                    <div class="stat-value" style="color: var(--primary);"><?= number_format($total_salidas_scm, 2) ?></div>
+                    <div class="stat-sub">Unidades descontadas en movimientos</div>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="table-card" style="margin-bottom: 0;">
+                    <div class="table-header">
+                        <span>🏆 Productos con Mayor Ingreso (ERP)</span>
+                        <span style="font-size: 11px; color: var(--muted);">Órdenes procesadas</span>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr><th>Producto</th><th>Unidades</th><th>Ingreso</th></tr>
+                        </thead>
+                        <tbody>
+                            <?php if (empty($top_productos)): ?>
+                                <tr><td colspan="3" style="text-align: center; color: var(--muted); padding: 25px;">Sin ventas registradas aún.</td></tr>
+                            <?php else: foreach ($top_productos as $tp): 
+                                $pct = min(100, round(($tp['ingresos_totales'] / $max_ingreso_prod) * 100));
+                            ?>
+                                <tr>
+                                    <td>
+                                        <b><?= htmlspecialchars($tp['nombre']) ?></b>
+                                        <div style="font-size: 11px; color: var(--muted);"><?= htmlspecialchars($tp['categoria'] ?? 'General') ?></div>
+                                        <div class="progress-bar"><div class="progress-fill" style="width: <?= $pct ?>%;"></div></div>
+                                    </td>
+                                    <td><b><?= (int)$tp['unidades_vendidas'] ?></b></td>
+                                    <td><b>$<?= number_format($tp['ingresos_totales'], 2) ?></b></td>
+                                </tr>
+                            <?php endforeach; endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="table-card" style="margin-bottom: 0;">
+                    <div class="table-header">
+                        <span>📌 Órdenes por Estado</span>
+                        <span style="font-size: 11px; color: var(--muted);">Total: <?= $total_ordenes ?></span>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr><th>Estado</th><th>Órdenes</th><th>Monto</th></tr>
+                        </thead>
+                        <tbody>
+                            <?php if (empty($ordenes_por_estado)): ?>
+                                <tr><td colspan="3" style="text-align: center; color: var(--muted); padding: 25px;">Sin datos de órdenes.</td></tr>
+                            <?php else: foreach ($ordenes_por_estado as $oe): ?>
+                                <tr>
+                                    <td><span class="badge"><?= htmlspecialchars($oe['estado']) ?></span></td>
+                                    <td><b><?= (int)$oe['cantidad'] ?></b></td>
+                                    <td>$<?= number_format($oe['monto'], 2) ?></td>
+                                </tr>
+                            <?php endforeach; endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <div class="table-card">
-                <div class="table-header">📈 Reporte General de Evaluaciones (CRM)</div>
+                <div class="table-header">
+                    <span>📦 Estado de Inventario SCM vs. Stock Mínimo</span>
+                    <a href="../scm/inventario.php" style="font-size: 12px; color: var(--primary); text-decoration: none;">Ir a inventario completo →</a>
+                </div>
+                <table>
+                    <thead>
+                        <tr><th>Insumo</th><th>Estrategia</th><th>Stock Actual</th><th>Stock Mínimo</th><th>Estatus</th></tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($inventario_scm_resumen as $inv): 
+                            $es_critico = (float)$inv['stock_actual'] <= (float)$inv['stock_minimo'];
+                        ?>
+                            <tr>
+                                <td><b><?= htmlspecialchars($inv['nombre']) ?></b></td>
+                                <td><?= htmlspecialchars($inv['estrategia_logistica']) ?></td>
+                                <td><b><?= number_format($inv['stock_actual'], 2) ?></b> <?= htmlspecialchars($inv['unidad_medida']) ?></td>
+                                <td style="color: var(--muted);"><?= number_format($inv['stock_minimo'], 2) ?> <?= htmlspecialchars($inv['unidad_medida']) ?></td>
+                                <td>
+                                    <?php if ($es_critico): ?>
+                                        <span class="badge badge-crit">Bajo / Crítico</span>
+                                    <?php else: ?>
+                                        <span class="badge">Saludable</span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="table-card">
+                <div class="table-header">⭐ Reporte de Evaluaciones de Clientes (CRM)</div>
                 <table>
                     <thead>
                         <tr><th>Fecha</th><th>Cliente</th><th>Puntuación</th><th>Tipo</th><th>Comentario</th></tr>
@@ -546,34 +696,11 @@ $usuarios_sistema = $db->query("SELECT id, username, nombre, email, rol, activo 
                             <tr>
                                 <td style="color: var(--muted);"><?= htmlspecialchars($ev['fecha']) ?></td>
                                 <td><b><?= htmlspecialchars($ev['cliente_nombre'] ?? 'Anónimo') ?></b></td>
-                                <td style="color: #f5a000; font-weight: 700;"><?= $ev['puntuacion'] ?> ★</td>
+                                <td style="color: #f5a000; font-weight: 700;"><?= (int)$ev['puntuacion'] ?> ★</td>
                                 <td><?= htmlspecialchars($ev['tipo']) ?></td>
-                                <td style="color: var(--muted);"><?= htmlspecialchars($ev['comempotario'] ?? $ev['comentario']) ?></td>
+                                <td style="color: var(--muted);"><?= htmlspecialchars($ev['comentario'] ?? '') ?></td>
                             </tr>
                         <?php endforeach; endif; ?>
-                    </tbody>
-                </table>
-            </div>
-
-        <!-- SECCIÓN 4: USUARIOS -->
-        <?php elseif ($seccion === 'usuarios'): ?>
-            <div class="table-card">
-                <div class="table-header">⚙️ Control de Usuarios del Sistema</div>
-                <table>
-                    <thead>
-                        <tr><th>ID</th><th>Usuario</th><th>Nombre</th><th>Correo</th><th>Rol</th><th>Estado</th></tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($usuarios_sistema as $usr): ?>
-                            <tr>
-                                <td><?= $usr['id'] ?></td>
-                                <td><b><?= htmlspecialchars($usr['username']) ?></b></td>
-                                <td><?= htmlspecialchars($usr['nombre'] ?? 'N/A') ?></td>
-                                <td style="color: var(--muted);"><?= htmlspecialchars($usr['email']) ?></td>
-                                <td><span style="text-transform:uppercase; font-weight:600; color:var(--primary);"><?= htmlspecialchars($usr['rol']) ?></span></td>
-                                <td><span class="badge"><?= $usr['activo'] == 1 ? 'Activo' : 'Inactivo' ?></span></td>
-                            </tr>
-                        <?php endforeach; ?>
                     </tbody>
                 </table>
             </div>

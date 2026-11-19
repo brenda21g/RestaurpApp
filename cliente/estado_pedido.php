@@ -1,115 +1,36 @@
 <?php
-// Carga config.php subiendo un nivel desde la carpeta cliente/
 require_once __DIR__ . '/../config/config.php';
 
-// Asegurar función de respuesta JSON en caso de no estar en config.php
-if (!function_exists('jsonResponse')) {
-    function jsonResponse($data, $status = 200) {
-        http_response_code($status);
-        header('Content-Type: application/json; charset=utf-8');
-        echo json_encode($data);
-        exit;
-    }
+if (!isset($_SESSION['cliente_id'])) {
+    echo json_encode(['success' => false, 'error' => 'No autorizado']);
+    exit;
 }
 
-// Verificar sesión sin redirigir a HTML (respuesta JSON limpia para AJAX)
-if (!isset($_SESSION['cliente_id'])) {
-    jsonResponse(['error' => 'No autorizado. Inicie sesión.'], 401);
-}
+$mesa_id = (int)($_GET['mesa_id'] ?? 0);
+$cliente_id = (int)$_SESSION['cliente_id'];
 
 try {
     $db = getDB();
-    $cliente_id = (int)$_SESSION['cliente_id'];
-
-    // Si viene una petición POST para confirmar el pago en efectivo (desde el módulo del mesero)
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $input = json_decode(file_get_contents('php://input'), true);
-        $pedido_id = (int)($input['pedido_id'] ?? 0);
-
-        if ($pedido_id <= 0) {
-            jsonResponse(['error' => 'ID de pedido inválido'], 400);
-        }
-
-        // Buscar el pedido
-        $stmtP = $db->prepare("SELECT * FROM pedidos WHERE id = ?");
-        $stmtP->execute([$pedido_id]);
-        $pedidoInfo = $stmtP->fetch(PDO::FETCH_ASSOC);
-
-        if (!$pedidoInfo) {
-            jsonResponse(['error' => 'Pedido no encontrado'], 404);
-        }
-
-        // Actualizar el estado del pedido a 'pagado'
-        $stmtUpd = $db->prepare("UPDATE pedidos SET estado = 'pagado' WHERE id = ?");
-        $stmtUpd->execute([$pedido_id]);
-
-        $totalPedido = floatval($pedidoInfo['total']);
-        // Calcular cashback: $1 por cada $100 consumidos ($200 = 2, $300 = 3, etc.)
-        $reembolso = $totalPedido >= 100 ? floor($totalPedido / 100) : 0;
-
-        // Inicializar historial y saldo en sesión si no existen
-        if (!isset($_SESSION['historial_movimientos'])) {
-            $_SESSION['historial_movimientos'] = [];
-        }
-
-        // Registrar el movimiento de pago en efectivo confirmado y su cashback en el historial
-        $fechaActual = date('Y-m-d H:i:s');
-        $_SESSION['historial_movimientos'][] = [
-            'fecha' => $fechaActual,
-            'tipo' => 'Pago en Efectivo (Confirmado)',
-            'monto' => -$totalPedido,
-            'reembolso' => $reembolso,
-            'detalle' => 'Confirmado por Mesero (Pedido #' . $pedidoInfo['id'] . ')'
-        ];
-
-        jsonResponse(['success' => true, 'mensaje' => 'Pago confirmado con éxito y cashback aplicado al monedero.']);
-    }
-
-    // Consulta normal GET para obtener el estado del pedido
-    $pedido_id = (int)($_GET['pedido_id'] ?? 0);
-    $mesa_id   = (int)($_GET['mesa_id'] ?? 0);
-
-    if ($pedido_id > 0) {
-        // Validar que el pedido pertenezca al cliente autenticado
-        $stmt = $db->prepare("
-            SELECT pe.*, m.numero as mesa_num
-            FROM pedidos pe 
-            JOIN mesas m ON m.id = pe.mesa_id
-            WHERE pe.id = ? AND pe.cliente_id = ?
-        ");
-        $stmt->execute([$pedido_id, $cliente_id]);
-    } elseif ($mesa_id > 0) {
-        // Busca el último pedido de esa mesa perteneciente al cliente autenticado
-        $stmt = $db->prepare("
-            SELECT pe.*, m.numero as mesa_num
-            FROM pedidos pe 
-            JOIN mesas m ON m.id = pe.mesa_id
-            WHERE pe.mesa_id = ? AND pe.cliente_id = ?
-            ORDER BY pe.creado_en DESC LIMIT 1
-        ");
-        $stmt->execute([$mesa_id, $cliente_id]);
-    } else {
-        jsonResponse(['error' => 'Parámetros inválidos'], 400);
-    }
-
+    // Consultar el pedido más reciente de la mesa para el cliente en el día actual
+    $stmt = $db->prepare("
+        SELECT id, numero_orden, estado, total, creado_en 
+        FROM pedidos 
+        WHERE mesa_id = ? AND cliente_id = ? 
+          AND DATE(creado_en) = CURDATE()
+        ORDER BY creado_en DESC 
+        LIMIT 1
+    ");
+    $stmt->execute([$mesa_id, $cliente_id]);
     $pedido = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$pedido) {
-        jsonResponse(['pedido' => null]);
-    }
-
-    // Obtener los platillos e ítems del pedido
-    $items_stmt = $db->prepare("
-        SELECT pi.*, p.nombre
-        FROM pedido_items pi 
-        JOIN productos p ON p.id = pi.producto_id
-        WHERE pi.pedido_id = ?
-    ");
-    $items_stmt->execute([$pedido['id']]);
-    $pedido['items'] = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    jsonResponse(['pedido' => $pedido]);
-
+    echo json_encode([
+        'success' => true,
+        'pedido'  => $pedido ? $pedido : null
+    ]);
 } catch (Exception $e) {
-    jsonResponse(['error' => 'Error en el servidor: ' . $e->getMessage()], 500);
+    echo json_encode([
+        'success' => false,
+        'error'   => $e->getMessage()
+    ]);
 }
+?>

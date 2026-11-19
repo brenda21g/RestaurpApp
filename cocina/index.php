@@ -162,12 +162,19 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 
 .order-num {
   font-weight: 600;
   font-size: 14px;
+}
+
+.cliente-tag {
+  font-size: 11px;
+  color: var(--accent2);
+  margin-bottom: 8px;
+  display: block;
 }
 
 .mesa-tag {
@@ -369,7 +376,6 @@ body {
 let knownOrders = new Set();
 let timerValues = {};
 
-// Función para obtener pedidos corregida llamando a pedidos.php en el mismo directorio
 async function fetchPedidos() {
   try {
     const res = await fetch('pedidos.php'); 
@@ -385,13 +391,11 @@ async function fetchPedidos() {
   }
 }
 
-// Procesa y distribuye los pedidos en las tres columnas
 function renderPedidos(pedidos) {
   const pendientes = pedidos.filter(p => p.estado === 'pendiente');
   const preparando = pedidos.filter(p => p.estado === 'preparando');
   const listos = pedidos.filter(p => p.estado === 'listo');
 
-  // Sonido y notificación de nuevo pedido
   let hasNew = false;
   pendientes.forEach(p => {
     if (!knownOrders.has(p.id)) {
@@ -407,13 +411,11 @@ function renderPedidos(pedidos) {
     pendientes.forEach(p => knownOrders.add(p.id));
   }
 
-  // Actualizar contadores
   document.getElementById('pending-count').textContent = `${pendientes.length} pendientes`;
   document.getElementById('count-pendiente').textContent = pendientes.length;
   document.getElementById('count-preparando').textContent = preparando.length;
   document.getElementById('count-listo').textContent = listos.length;
 
-  // Renderizar columnas
   renderColumn('pendiente', pendientes);
   renderColumn('preparando', preparando);
   renderColumn('listo', listos);
@@ -470,7 +472,8 @@ function renderColumn(estado, pedidos) {
       `;
     }
 
-    const mesaNombre = p.mesa_num || p.mesa_nombre || p.mesa_id;
+    const mesaNombre = p.mesa_num || p.mesa_id;
+    const clienteNombre = p.cliente_nombre || 'Cliente General';
 
     return `
       <div class="order-card ${estado === 'pendiente' ? 'new-pulse' : ''}" id="card-${p.id}">
@@ -478,6 +481,7 @@ function renderColumn(estado, pedidos) {
           <span class="order-num">${p.numero_orden}</span>
           <span class="mesa-tag">Mesa ${mesaNombre}</span>
         </div>
+        <span class="cliente-tag">👤 ${clienteNombre}</span>
         <div class="order-time">Recibido a las ${hora}</div>
         <div class="items-list">${items}</div>
         ${p.notas ? `<div style="font-size:12px;color:var(--muted);margin-bottom:8px;">📝 ${p.notas}</div>` : ''}
@@ -487,7 +491,6 @@ function renderColumn(estado, pedidos) {
   }).join('');
 }
 
-// Llamada a actualizar.php en la carpeta cocina/
 async function cambiarEstado(id, nuevoEstado) {
   const timerInput = document.getElementById('timer-' + id);
   const tiempoEstimado = timerInput ? parseInt(timerInput.value) || null : null;
@@ -538,7 +541,6 @@ function playNotificationSound() {
   } catch (e) {}
 }
 
-// Fetch inicial y actualización automática cada 5 segundos
 fetchPedidos();
 setInterval(fetchPedidos, 5000);
 </script>

@@ -1,7 +1,7 @@
 <?php
 /**
  * Archivo: subgerente/dashboard.php
- * Descripción: Dashboard completo de Subgerencia con menú lateral íntegro y validación estricta de stock SCM.
+ * Descripción: Dashboard completo de Subgerencia con ventas en tiempo real, filtro de órdenes exclusivas del subgerente en sesión y validación de stock SCM.
  */
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
@@ -12,8 +12,13 @@ $seccion = $_GET['seccion'] ?? 'inicio';
 $paso = $_GET['paso'] ?? '1';
 $error_msj = '';
 
-// Obtener ID del usuario actual en sesión para guardarlo en la orden
+// Obtener ID del usuario actual en sesión para guardarlo en la orden y filtrar sus operaciones
 $usuario_actual_id = $_SESSION['id'] ?? ($_SESSION['usuario_id'] ?? 1);
+
+// Obtener los datos del administrador actual (nombre y rol) para mostrarlos en el menú y títulos
+$stmtAdminSesion = $db->prepare("SELECT id, nombre, rol FROM admins WHERE id = ?");
+$stmtAdminSesion->execute([$usuario_actual_id]);
+$admin_sesion = $stmtAdminSesion->fetch(PDO::FETCH_ASSOC);
 
 /* Procesar la creación de la orden por POST */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -81,7 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                     // ========================================================
 
-                    // 1. Insertar orden ERP guardando el admin_id que la realizó
+                    // 1. Insertar orden ERP guardando el admin_id que la realizó en sesión
                     $stmt_o = $db->prepare("INSERT INTO erp_ordenes (folio, cliente_id, admin_id, fecha, total, estado) VALUES (?, ?, ?, NOW(), ?, 'Procesada')");
                     $stmt_o->execute([$folio, $cliente_id, $usuario_actual_id, $total]);
                     $orden_id = $db->lastInsertId();
@@ -112,7 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                             if ($scm_prod) {
                                 $db->prepare("UPDATE scm_productos SET stock_actual = stock_actual - ? WHERE id = ?")
-                                   ->execute([$dv['cantidad'], $scm_prod['id']]);
+                                   ->execute([$scm_prod['id'], $dv['cantidad']]);
 
                                 $db->prepare("INSERT INTO scm_movimientos (producto_id, tipo, cantidad, motivo, fecha, erp_orden_id) VALUES (?, 'Salida', ?, ?, CURDATE(), ?)")
                                    ->execute([$scm_prod['id'], $dv['cantidad'], "Venta Directa ($folio): {$dv['nombre']}", $orden_id]);
@@ -149,7 +154,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Consultas y métricas operacionales del día
+// Consultas y métricas operacionales del día en tiempo real
 $hoy = date('Y-m-d');
 $total_ventas = $db->prepare("SELECT SUM(total) FROM erp_ordenes WHERE estado = 'Procesada' AND DATE(fecha) = ?");
 $total_ventas->execute([$hoy]);
@@ -162,8 +167,8 @@ $ordenes_dia = $total_ordenes_dia->fetchColumn() ?: 0;
 $alertas_stock = $db->query("SELECT * FROM scm_productos WHERE stock_actual <= stock_minimo")->fetchAll(PDO::FETCH_ASSOC);
 $total_alertas = count($alertas_stock);
 
-// Órdenes recientes haciendo JOIN con la tabla de admins para obtener nombre y rol real
-$sql_ordenes = "
+// SQL Base para Órdenes con JOIN a admins para mostrar nombre y rol exactos
+$sql_ordenes_base = "
     SELECT o.*, 
            c.nombre as cliente_nombre, 
            a.nombre as admin_nombre, 
@@ -171,11 +176,15 @@ $sql_ordenes = "
     FROM erp_ordenes o 
     LEFT JOIN usuarios_cliente c ON c.id = o.cliente_id 
     LEFT JOIN admins a ON a.id = o.admin_id 
-    ORDER BY o.creado_en DESC
 ";
 
-$ordenes_recientes = $db->query($sql_ordenes . " LIMIT 6")->fetchAll(PDO::FETCH_ASSOC);
-$todas_ordenes = $db->query($sql_ordenes)->fetchAll(PDO::FETCH_ASSOC);
+// Órdenes recientes generales para el inicio del dashboard
+$ordenes_recientes = $db->query($sql_ordenes_base . " ORDER BY o.creado_en DESC LIMIT 6")->fetchAll(PDO::FETCH_ASSOC);
+
+// FILTRO EXCLUSIVO: Órdenes hechas únicamente por la persona en sesión (subgerente actual)
+$stmt_mis_ordenes = $db->prepare($sql_ordenes_base . " WHERE o.admin_id = ? ORDER BY o.creado_en DESC");
+$stmt_mis_ordenes->execute([$usuario_actual_id]);
+$mis_ordenes = $stmt_mis_ordenes->fetchAll(PDO::FETCH_ASSOC);
 
 $clientes_crm = $db->query("SELECT id, nombre, email, telefono FROM usuarios_cliente ORDER BY nombre ASC")->fetchAll(PDO::FETCH_ASSOC);
 $categorias = $db->query("SELECT id, nombre FROM categorias ORDER BY id ASC")->fetchAll(PDO::FETCH_ASSOC);
@@ -202,13 +211,13 @@ $productos_db = $db->query("SELECT id, categoria_id, nombre, precio, descripcion
         --danger: #ef5b63;
         --sidebar-w: 260px;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'DM Sans', sans-serif; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; font-family: 'DM Sans', sans-serif; }
     body { background: var(--bg); color: var(--text); display: flex; min-height: 100vh; font-size: 14px; }
     
     .sidebar { width: var(--sidebar-w); background: var(--sidebar); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; height: 100vh; z-index: 100; overflow-y: auto; }
     .sidebar-logo { padding: 24px 20px; border-bottom: 1px solid #0b2455; }
     .sidebar-logo .name { font-family: 'Playfair Display', serif; font-size: 20px; color: #fff; }
-    .sidebar-logo .role { font-size: 11px; color: #91a6c7; text-transform: uppercase; margin-top: 2px; }
+    .sidebar-logo .role { font-size: 11px; color: #91a6c7; text-transform: uppercase; margin-top: 4px; font-weight: 600; }
     
     .nav { padding: 16px 12px; flex: 1; }
     .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; color: #9db0ce; text-decoration: none; font-size: 13px; font-weight: 500; margin-bottom: 4px; transition: .15s; }
@@ -217,8 +226,6 @@ $productos_db = $db->query("SELECT id, categoria_id, nombre, precio, descripcion
     .main { margin-left: var(--sidebar-w); flex: 1; padding: 32px; }
     .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; }
     .page-title { font-family: 'Playfair Display', serif; font-size: 26px; font-weight: 700; }
-    
-    .alert-banner { background: #fdebed; border: 1px solid #f4c7cc; border-left: 4px solid var(--danger); padding: 15px; border-radius: 10px; margin-bottom: 25px; display: flex; align-items: center; justify-content: space-between; color: #c8424c; font-weight: 500; }
     
     .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-bottom: 28px; }
     .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 13px; padding: 22px; box-shadow: 0 2px 5px rgba(15,23,42,.025); }
@@ -285,7 +292,7 @@ $productos_db = $db->query("SELECT id, categoria_id, nombre, precio, descripcion
     <aside class="sidebar">
         <div class="sidebar-logo">
             <div class="name">🍽️ RestaurApp</div>
-            <div class="role">Subgerencia</div>
+            <div class="role"><?= htmlspecialchars(ucfirst($admin_sesion['rol'] ?? 'Subgerente')) ?>: <?= htmlspecialchars($admin_sesion['nombre'] ?? '') ?></div>
         </div>
         
         <nav class="nav">
@@ -298,9 +305,9 @@ $productos_db = $db->query("SELECT id, categoria_id, nombre, precio, descripcion
             <a class="nav-item" href="menu.php"><span>🍲</span> Menú</a>
             <a class="nav-item" href="corte.php"><span>💰</span> Corte</a>
             
-    <a class="nav-item" href="interacciones.php"><span> </span>Interacciones</a>
+            <a class="nav-item" href="interacciones.php"><span>💬</span> Interacciones</a>
             <a class="nav-item" href="miactividad.php"><span>📈</span> Mi Actividad</a>
-            <a class="nav-item" href="configuracion.php"><span>⚙️</span>Configuracion</a>
+            <a class="nav-item" href="configuracion.php"><span>⚙️</span> Configuracion</a>
         </nav>
 
         <div style="padding: 16px; border-top: 1px solid #0b2455;">
@@ -316,7 +323,7 @@ $productos_db = $db->query("SELECT id, categoria_id, nombre, precio, descripcion
                         if($seccion === 'ordenes' && $paso === 'nueva') echo 'Registrar Nueva Orden de Venta';
                         elseif($seccion === 'ordenes' && $paso === 'exito') echo 'Operación exitosa';
                         elseif($seccion === 'ordenes' && $paso === 'detalle') echo 'Detalle de la Orden';
-                        elseif($seccion === 'ordenes') echo 'Gestión de Órdenes y Ventas';
+                        elseif($seccion === 'ordenes') echo 'Mis Órdenes ERP Registradas';
                         else echo 'Dashboard Operativo de Subgerencia';
                     ?>
                 </div>
@@ -352,8 +359,8 @@ $productos_db = $db->query("SELECT id, categoria_id, nombre, precio, descripcion
 
             <div class="table-card">
                 <div class="table-header">
-                    <span>📋 Registro de Pedidos Recientes</span>
-                    <a href="dashboard.php?seccion=ordenes" style="font-size: 12px; color: var(--primary); text-decoration: none;">Ver todos →</a>
+                    <span>📋 Registro de Pedidos Recientes (General)</span>
+                    <a href="dashboard.php?seccion=ordenes" style="font-size: 12px; color: var(--primary); text-decoration: none;">Ver mis órdenes →</a>
                 </div>
                 <table>
                     <thead>
@@ -403,7 +410,7 @@ $productos_db = $db->query("SELECT id, categoria_id, nombre, precio, descripcion
         <?php elseif ($seccion === 'ordenes' && $paso === 'nueva'): ?>
             <div class="table-card" style="padding: 25px;">
                 <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
-                    <h3>🛍️ Registrar Nueva Venta (Subgerencia)</h3>
+                    <h3>🛍️ Registrar Nueva Venta (<?= htmlspecialchars(ucfirst($admin_sesion['rol'] ?? 'Subgerente')) ?>: <?= htmlspecialchars($admin_sesion['nombre'] ?? '') ?>)</h3>
                     <a href="dashboard.php?seccion=ordenes" style="color: var(--muted); text-decoration: none; font-size: 13px;">← Cancelar y regresar</a>
                 </div>
 
@@ -460,7 +467,7 @@ $productos_db = $db->query("SELECT id, categoria_id, nombre, precio, descripcion
                         </table>
                     </div>
 
-                    <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; padding: 14px; font-size: 15px;">Hacer pedido</button>
+                    <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; padding: 14px; font-size: 15px;">Hacer pedido y registrar venta</button>
                 </form>
             </div>
 
@@ -495,7 +502,7 @@ $productos_db = $db->query("SELECT id, categoria_id, nombre, precio, descripcion
 
                 <div style="display: flex; gap: 15px; justify-content: center;">
                     <a href="dashboard.php?seccion=ordenes&paso=detalle&id=<?= $orden_id_exito ?>" class="btn-primary" style="padding: 12px 24px;">Ver orden</a>
-                    <a href="dashboard.php?seccion=ordenes" class="btn-success" style="padding: 12px 24px; background: var(--sidebar);">Ir a órdenes</a>
+                    <a href="dashboard.php?seccion=ordenes" class="btn-success" style="padding: 12px 24px; background: var(--sidebar);">Ir a mis órdenes</a>
                 </div>
             </div>
 
@@ -523,7 +530,7 @@ $productos_db = $db->query("SELECT id, categoria_id, nombre, precio, descripcion
             <div class="table-card" style="padding: 25px; max-width: 800px; margin: 0 auto;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                     <h3>🔍 Detalle de la Orden: <b><?= htmlspecialchars($ord_info['folio'] ?? '') ?></b></h3>
-                    <a href="dashboard.php?seccion=ordenes" style="color: var(--primary); text-decoration: none;">← Volver al listado</a>
+                    <a href="dashboard.php?seccion=ordenes" style="color: var(--primary); text-decoration: none;">← Volver a mis órdenes</a>
                 </div>
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 15px; margin-bottom: 20px;">
@@ -559,12 +566,12 @@ $productos_db = $db->query("SELECT id, categoria_id, nombre, precio, descripcion
                 </table>
             </div>
 
-        <!-- SECCIÓN 2.3: LISTADO GENERAL DE ÓRDENES -->
+        <!-- SECCIÓN 2.3: LISTADO DE ÓRDENES EXCLUSIVAS DEL SUBGERENTE EN SESIÓN -->
         <?php elseif ($seccion === 'ordenes'): ?>
             <div class="table-card">
                 <div class="table-header">
-                    <span>🛒 Listado de Órdenes y Ventas Registradas</span>
-                    <a href="dashboard.php?seccion=ordenes&paso=nueva" class="btn-primary">+ Nueva Orden</a>
+                    <span>🛒 Mis Órdenes Registradas (<?= htmlspecialchars($admin_sesion['nombre'] ?? '') ?> - <?= htmlspecialchars(ucfirst($admin_sesion['rol'] ?? '')) ?>)</span>
+                    <a href="dashboard.php?seccion=ordenes&paso=nueva" class="btn-primary">+ Registrar Nueva Venta</a>
                 </div>
                 <table>
                     <thead>
@@ -579,9 +586,9 @@ $productos_db = $db->query("SELECT id, categoria_id, nombre, precio, descripcion
                         </tr>
                     </thead>
                     <tbody>
-                        <?php if (empty($todas_ordenes)): ?>
-                            <tr><td colspan="7" style="text-align: center; color: var(--muted); padding: 30px;">No hay órdenes registradas.</td></tr>
-                        <?php else: foreach ($todas_ordenes as $o): 
+                        <?php if (empty($mis_ordenes)): ?>
+                            <tr><td colspan="7" style="text-align: center; color: var(--muted); padding: 40px;">No has registrado órdenes todavía. ¡Haz clic en "+ Registrar Nueva Venta" para comenzar!</td></tr>
+                        <?php else: foreach ($mis_ordenes as $o): 
                             $rol_bd = !empty($o['admin_rol']) ? ucfirst($o['admin_rol']) : 'Personal';
                             $nombre_bd = !empty($o['admin_nombre']) ? $o['admin_nombre'] : 'Sistema';
                             $realizado_por = "🛠️ $rol_bd: $nombre_bd";
@@ -606,14 +613,14 @@ $productos_db = $db->query("SELECT id, categoria_id, nombre, precio, descripcion
 
     </main>
 
-    <!-- RECARGA AUTOMÁTICA INTELIGENTE -->
+    <!-- RECARGA AUTOMÁTICA INTELIGENTE EN TIEMPO REAL -->
     <script>
         setInterval(() => {
             const esProcesoOrden = window.location.search.includes('paso=nueva') || window.location.search.includes('paso=exito');
             if (!document.hidden && !document.getElementById('loading-overlay') && !esProcesoOrden) {
                 location.reload();
             }
-        }, 30000);
+        }, 15000); // Refresca cada 15 segundos para mantener las ventas del día sincronizadas en tiempo real
     </script>
 </body>
 </html>

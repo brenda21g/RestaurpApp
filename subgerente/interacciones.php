@@ -135,7 +135,7 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
         --shadow-sm: 0 2px 5px rgba(15,23,42,.025);
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'DM Sans', sans-serif; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; font-family: 'DM Sans', sans-serif; }
 
     body {
         background: var(--bg);
@@ -175,6 +175,7 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
         color: #91a6c7;
         text-transform: uppercase;
         margin-top: 2px;
+        letter-spacing: 0.5px;
     }
 
     .nav {
@@ -548,21 +549,22 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
 <aside class="sidebar">
     <div class="sidebar-logo">
         <div class="name">🍽️ RestaurApp</div>
-        <div class="role">Logística</div>
+        <div class="role">Subgerencia</div>
     </div>
     
     <nav class="nav">
-        <a class="nav-item" href="dashboard.php?seccion=inicio"><span>📊</span> Inicio</a>
-        <a class="nav-item" href="dashboard.php?seccion=ordenes"><span>🛒</span> Órdenes ERP</a>
-        <a class="nav-item" href="dashboard.php?seccion=reportes"><span>📈</span> Reportes y Métricas</a>
+        <a class="nav-item" href="dashboard.php"><span>📊</span> Dashboard</a>
+        <a class="nav-item" href="ordenes.php"><span>🛒</span> Órdenes ERP</a>
+        <a class="nav-item" href="clientes.php"><span>👥</span> Clientes</a>
         <a class="nav-item" href="productos.php"><span>📦</span> Productos</a>
-        <a class="nav-item" href="inventario.php"><span>📊</span> Inventario</a>
+        <a class="nav-item" href="pedidos.php"><span>📄</span> Pedidos</a>
+        <a class="nav-item" href="mesas.php"><span>🪵</span> Mesas QR</a>
+        <a class="nav-item" href="menu.php"><span>🍲</span> Menú</a>
+        <a class="nav-item" href="corte.php"><span>💰</span> Corte</a>
         <a class="nav-item active" href="interacciones.php"><span>💬</span> Interacciones</a>
-        <a href="movimientos.php" class="nav-item"><span>🔄</span>Movimientos</a>
-        <a class="nav-item" href="configuracion.php"><span>⚙️</span> Configuración</a>
-        <?php if ($rol_actual === 'gerente'): ?>
-        <a class="nav-item" href="../gerente/dashboard.php"><span>👑</span> Volver a Gerencia</a>
-        <?php endif; ?>
+        <a class="nav-item" href="miactividad.php"><span>📈</span> Mi Actividad</a>
+        <a class="nav-item" href="configuracion.php"><span>⚙️</span> Configuracion</a>
+        
     </nav>
 
     <div style="padding: 16px; border-top: 1px solid #0b2455;">

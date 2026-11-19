@@ -1,41 +1,36 @@
 <?php
 /**
  * Archivo: subgerente/miactividad.php
- * Descripción: Historial de actividad y operaciones con Sidebar institucional para Subgerencia.
+ * Descripción: Historial de actividad personal (ventas y órdenes ERP registradas por el subgerente) con Sidebar institucional.
  */
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
 verificarAcceso(['subgerente', 'gerente']);
 $db = getDB();
 
+// Obtener ID del administrador / subgerente actual en sesión
 $admin_id = $_SESSION['admin_id'] ?? ($_SESSION['id'] ?? 0);
 
-// Filtros de fecha (por defecto se puede mostrar un rango o todas)
-$fecha_inicio = $_GET['fecha_inicio'] ?? '';
-$fecha_fin = $_GET['fecha_fin'] ?? '';
-
-// Construir consulta para ver las interacciones o acciones registradas por el usuario actual
+// Consultar las ventas y órdenes ERP realizadas exclusivamente por este usuario en sesión
 $sql = "
-    SELECT i.*, c.nombre AS cliente_nombre 
-    FROM interacciones i
-    LEFT JOIN usuarios_cliente c ON c.id = i.cliente_id
-    WHERE 1=1
+    SELECT o.*, c.nombre AS cliente_nombre 
+    FROM erp_ordenes o
+    LEFT JOIN usuarios_cliente c ON c.id = o.cliente_id
+    WHERE o.admin_id = ?
+    ORDER BY o.creado_en DESC
 ";
-$params = [];
-
-$sql .= " ORDER BY i.fecha DESC, i.hora DESC";
 
 $stmt = $db->prepare($sql);
-$stmt->execute($params);
+$stmt->execute([$admin_id]);
 $actividades = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Totales para métricas de actividad
 $totalActividades = count($actividades);
 
-// Control de alertas de stock crítico para la barra lateral
-$db_sidebar = getDB();
-$num_alertas_global = $db_sidebar->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= stock_minimo")->fetchColumn();
-$rol_actual = $_SESSION['rol'] ?? ($_SESSION['tipo'] ?? 'Subgerente');
+// Obtener datos del admin en sesión para la barra lateral
+$stmtAdmin = $db->prepare("SELECT nombre, rol FROM admins WHERE id = ?");
+$stmtAdmin->execute([$admin_id]);
+$admin_sesion = $stmtAdmin->fetch(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -56,13 +51,13 @@ $rol_actual = $_SESSION['rol'] ?? ($_SESSION['tipo'] ?? 'Subgerente');
         --text-muted: #64748b;
         --border-color: #e2e8f0;
         --color-primary: #0788c9;
-        --color-danger: #ef4444;
+        --color-success: #13b77a;
         --sidebar-w: 260px;
         --radius: 10px;
         --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
     }
 
-    * {
+    *, *::before, *::after {
         box-sizing: border-box;
         margin: 0;
         padding: 0;
@@ -257,12 +252,16 @@ $rol_actual = $_SESSION['rol'] ?? ($_SESSION['tipo'] ?? 'Subgerente');
 
     tr:hover td { background-color: #f8fafc; }
 
-    .badge-tipo {
+    .badge-estado {
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        font-weight: 500;
-        text-transform: capitalize;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+        background: #d1fae5;
+        color: #065f46;
     }
 
     .empty-state {
@@ -293,7 +292,7 @@ $rol_actual = $_SESSION['rol'] ?? ($_SESSION['tipo'] ?? 'Subgerente');
 <aside class="sidebar">
     <div class="sidebar-logo">
         <div class="name">🍽️ RestaurApp</div>
-        <div class="role">Subgerencia</div>
+        <div class="role"><?= htmlspecialchars(ucfirst($admin_sesion['rol'] ?? 'Subgerencia')) ?>: <?= htmlspecialchars($admin_sesion['nombre'] ?? '') ?></div>
     </div>
     <nav class="nav">
         <a class="nav-item" href="dashboard.php?seccion=inicio"><span>📊</span> Dashboard</a>
@@ -304,8 +303,9 @@ $rol_actual = $_SESSION['rol'] ?? ($_SESSION['tipo'] ?? 'Subgerente');
         <a class="nav-item" href="mesas_qr.php"><span>🪑</span> Mesas QR</a>
         <a class="nav-item" href="menu.php"><span>🍲</span> Menú</a>
         <a class="nav-item" href="corte.php"><span>💰</span> Corte</a>
+        <a class="nav-item" href="interacciones.php"><span>💬</span> Interacciones</a>
         <a class="nav-item active" href="miactividad.php"><span>📈</span> Mi Actividad</a>
-        <a class="nav-item" href="configuracion.php"><span>⚙️</span>Configuracion</a>
+        <a class="nav-item" href="configuracion.php"><span>⚙️</span> Configuracion</a>
     </nav>
     <div class="sidebar-bottom">
         <a class="logout-btn" href="logout.php">🚪 Cerrar sesión</a>
@@ -317,13 +317,13 @@ $rol_actual = $_SESSION['rol'] ?? ($_SESSION['tipo'] ?? 'Subgerente');
     <div class="topbar">
         <div>
             <div class="page-title">Mi actividad</div>
-            <div class="subtitle">Historial de gestiones y acciones realizadas en el sistema</div>
+            <div class="subtitle">Historial personal de ventas y órdenes ERP registradas por ti en el sistema</div>
         </div>
     </div>
 
     <div class="card">
         <div class="card-header">
-            <div class="card-title">Registro de operaciones</div>
+            <div class="card-title">Registro de mis operaciones y ventas</div>
             <div class="date-filter-badge">
                 <span>📅</span> <?= htmlspecialchars(date('01/m/Y'), ENT_QUOTES, 'UTF-8') ?> – <?= htmlspecialchars(date('d/m/Y'), ENT_QUOTES, 'UTF-8') ?>
             </div>
@@ -333,52 +333,44 @@ $rol_actual = $_SESSION['rol'] ?? ($_SESSION['tipo'] ?? 'Subgerente');
             <table>
                 <thead>
                     <tr>
-                        <th>Fecha</th>
+                        <th>Folio</th>
+                        <th>Fecha y Hora</th>
                         <th>Cliente</th>
-                        <th>Tipo</th>
-                        <th>Descripción</th>
+                        <th>Total Venta</th>
+                        <th>Estado</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($actividades)): ?>
                         <tr>
-                            <td colspan="4">
+                            <td colspan="5">
                                 <div class="empty-state">
-                                    <div style="font-size:32px;margin-bottom:8px;">⏱️</div>
-                                    <div style="font-weight:600;margin-bottom:2px;">No hay actividades registradas</div>
-                                    <div>Tus acciones e interacciones recientes aparecerán aquí.</div>
+                                    <div style="font-size:32px;margin-bottom:8px;">🛒</div>
+                                    <div style="font-weight:600;margin-bottom:2px;">No tienes ventas registradas</div>
+                                    <div>Las órdenes y ventas que registres en el sistema aparecerán en este historial.</div>
                                 </div>
                             </td>
                         </tr>
                     <?php else: ?>
                         <?php foreach ($actividades as $act): ?>
-                            <?php
-                            $iconoTipo = match(strtolower($act['tipo'] ?? '')) {
-                                'correo' => '📧',
-                                'llamada' => '📞',
-                                'reunion' => '🤝',
-                                default => '💬'
-                            };
-                            ?>
                             <tr>
-                                <td><?= htmlspecialchars(date('d/m/Y', strtotime($act['fecha'])), ENT_QUOTES, 'UTF-8') ?></td>
-                                <td style="font-weight:500;"><?= htmlspecialchars($act['cliente_nombre'] ?? 'Sin cliente específico', ENT_QUOTES, 'UTF-8') ?></td>
+                                <td style="font-weight: 600; color: var(--color-primary);">#<?= htmlspecialchars($act['folio'] ?? 'OR-000', ENT_QUOTES, 'UTF-8') ?></td>
+                                <td style="color: var(--text-muted);"><?= htmlspecialchars($act['creado_en'] ?? $act['fecha'], ENT_QUOTES, 'UTF-8') ?></td>
+                                <td style="font-weight:500;">👤 <?= htmlspecialchars($act['cliente_nombre'] ?? 'Cliente General', ENT_QUOTES, 'UTF-8') ?></td>
+                                <td style="font-weight: 600; color: var(--text-main);">$<?= number_format($act['total'], 2) ?></td>
                                 <td>
-                                    <span class="badge-tipo">
-                                        <span><?= htmlspecialchars($iconoTipo, ENT_QUOTES, 'UTF-8') ?></span>
-                                        <?= htmlspecialchars(ucfirst($act['tipo'] ?? 'Acción'), ENT_QUOTES, 'UTF-8') ?>
+                                    <span class="badge-estado">
+                                        ✓ <?= htmlspecialchars(ucfirst($act['estado'] ?? 'Procesada'), ENT_QUOTES, 'UTF-8') ?>
                                     </span>
                                 </td>
-                                <td style="color: var(--text-muted);"><?= htmlspecialchars($act['descripcion'] ?? $act['asunto'] ?? 'Sin detalles', ENT_QUOTES, 'UTF-8') ?></td>
                             </tr>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
+                        <?php endforeach; endif; ?>
                 </tbody>
             </table>
         </div>
 
         <div class="table-footer">
-            <div>Mostrando <?= htmlspecialchars($totalActividades, ENT_QUOTES, 'UTF-8') ?> de <?= htmlspecialchars($totalActividades, ENT_QUOTES, 'UTF-8') ?> actividades</div>
+            <div>Mostrando <?= htmlspecialchars($totalActividades, ENT_QUOTES, 'UTF-8') ?> registros de actividad personal</div>
         </div>
     </div>
 </main>

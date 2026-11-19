@@ -26,13 +26,20 @@ if (
     $params[] = $estado_filtro;
 }
 
-/* Obtener pedidos */
+/* Obtener pedidos haciendo JOIN robusto para capturar el cliente y el admin */
 $pedidos = $db->prepare("
     SELECT
         pe.*,
-        m.numero as mesa_num
+        m.numero as mesa_num,
+        COALESCE(c.nombre, c_eo.nombre, 'Cliente General') as cliente_nombre,
+        a.nombre as admin_nombre,
+        a.rol as admin_rol
     FROM pedidos pe
     JOIN mesas m ON m.id = pe.mesa_id
+    LEFT JOIN usuarios_cliente c ON c.id = pe.cliente_id
+    LEFT JOIN erp_ordenes eo ON eo.folio = pe.numero_orden OR eo.id = pe.numero_orden
+    LEFT JOIN usuarios_cliente c_eo ON c_eo.id = eo.cliente_id
+    LEFT JOIN admins a ON a.id = eo.admin_id
     {$where}
     ORDER BY pe.creado_en DESC
 ");
@@ -347,6 +354,16 @@ tbody tr:hover {
     color: #dc4c55;
 }
 
+.badge.autor {
+    background: #e0f2fe;
+    color: #0284c7;
+}
+
+.badge.cliente-tag {
+    background: #f3e8ff;
+    color: #9333ea;
+}
+
 /* ================================
    DETAIL BUTTON
 ================================ */
@@ -394,9 +411,9 @@ tbody tr:hover {
     border: 1px solid var(--border);
     border-radius: 16px;
     padding: 28px;
-    max-width: 500px;
+    max-width: 520px;
     width: 90%;
-    max-height: 80vh;
+    max-height: 85vh;
     overflow-y: auto;
     box-shadow: 0 15px 40px rgba(7,27,58,.18);
 }
@@ -514,6 +531,7 @@ tbody tr:hover {
                 <span>💰</span>
                 Corte
             </a>
+            <a class="nav-item" href="interacciones.php"><span>💬</span> Interacciones</a>
             <a class="nav-item" href="miactividad.php">
                 <span>📈</span>
                 Mi Actividad
@@ -569,6 +587,8 @@ tbody tr:hover {
                     <tr>
                         <th>#Orden</th>
                         <th>Mesa</th>
+                        <th>Para (Cliente)</th>
+                        <th>Realizado por</th>
                         <th>Total</th>
                         <th>Estado</th>
                         <th>Hora</th>
@@ -578,12 +598,24 @@ tbody tr:hover {
                 <tbody>
                     <?php if (empty($lista)): ?>
                         <tr>
-                            <td colspan="6" style="text-align:center; color:var(--text-muted); padding:30px;">
+                            <td colspan="8" style="text-align:center; color:var(--text-muted); padding:30px;">
                                 Sin pedidos registrados para el filtro seleccionado
                             </td>
                         </tr>
                     <?php else: ?>
-                        <?php foreach ($lista as $p): $numOrden = $p['numero_orden'] ?? ('#' . str_pad($p['id'], 4, '0', STR_PAD_LEFT));
+                        <?php foreach ($lista as $p): 
+                            $numOrden = $p['numero_orden'] ?? ('#' . str_pad($p['id'], 4, '0', STR_PAD_LEFT));
+                            
+                            // Nombre del cliente
+                            $nombreCliente = !empty($p['cliente_nombre']) ? htmlspecialchars($p['cliente_nombre']) : 'Cliente General';
+
+                            // Quién lo hizo (Personal administrativo)
+                            if (!empty($p['admin_nombre'])) {
+                                $rolAdmin = ucfirst(htmlspecialchars($p['admin_rol'] ?? 'Personal'));
+                                $realizadoPor = '🛠️ ' . $rolAdmin . ': <strong>' . htmlspecialchars($p['admin_nombre']) . '</strong>';
+                            } else {
+                                $realizadoPor = '📱 App Cliente / QR';
+                            }
                         ?>
                             <tr>
                                 <td style="font-weight:600;">
@@ -591,6 +623,12 @@ tbody tr:hover {
                                 </td>
                                 <td>
                                     Mesa <?= htmlspecialchars($p['mesa_num'], ENT_QUOTES, 'UTF-8') ?>
+                                </td>
+                                <td>
+                                    <span class="badge cliente-tag">👤 <?= $nombreCliente ?></span>
+                                </td>
+                                <td>
+                                    <span class="badge autor"><?= $realizadoPor ?></span>
                                 </td>
                                 <td>
                                     $<?= number_format($p['total'], 2) ?>
@@ -654,19 +692,50 @@ tbody tr:hover {
 
             const ordenCodigo = p.numero_orden || ('#' + String(p.id).padStart(4, '0'));
 
+            // Quién lo hizo
+            let autorTexto = '📱 App Cliente / Mesa QR';
+            if (p.admin_nombre) {
+                const rol = p.admin_rol ? (p.admin_rol.charAt(0).toUpperCase() + p.admin_rol.slice(1)) : 'Personal';
+                autorTexto = `${rol}: <strong>${p.admin_nombre}</strong>`;
+            }
+
+            // A qué cliente se le hizo
+            const clienteTexto = p.cliente_nombre ? p.cliente_nombre : 'Cliente General / Mostrador';
+
             let html = `
-                <div style="color:var(--muted); font-size:12px; margin-bottom:16px;">
-                    Mesa ${p.mesa_num} · ${new Date(p.creado_en).toLocaleString('es-MX')}
+                <div style="background:#f8fafc; border:1px solid var(--border); border-radius:10px; padding:12px; margin-bottom:14px; font-size:13px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                        <span style="color:var(--muted);">Mesa:</span>
+                        <strong>Mesa ${p.mesa_num}</strong>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                        <span style="color:var(--muted);">Estatus:</span>
+                        <strong style="text-transform:capitalize; color:var(--primary);">${p.estado}</strong>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                        <span style="color:var(--muted);">Cliente (Para):</span>
+                        <strong style="color:#9333ea;">👤 ${clienteTexto}</strong>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                        <span style="color:var(--muted);">Realizado por:</span>
+                        <span>${autorTexto}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between;">
+                        <span style="color:var(--muted);">Fecha y Hora:</span>
+                        <span>${new Date(p.creado_en).toLocaleString('es-MX')}</span>
+                    </div>
                 </div>
             `;
 
             if (p.notas) {
                 html += `
-                    <div style="background:#fff8e7; border-left:3px solid var(--amber); padding:8px 12px; margin-bottom:16px; border-radius:4px; font-size:12px; color:var(--text-main);">
+                    <div style="background:#fff8e7; border-left:3px solid var(--amber); padding:8px 12px; margin-bottom:14px; border-radius:4px; font-size:12px; color:var(--text-main);">
                         <strong>Notas:</strong> ${p.notas}
                     </div>
                 `;
             }
+
+            html += `<div style="font-weight:600; font-size:13px; margin-bottom:8px; text-transform:uppercase; color:var(--muted); letter-spacing:.5px;">Productos del pedido:</div>`;
 
             items.forEach(it => {
                 html += `
@@ -679,7 +748,7 @@ tbody tr:hover {
 
             html += `
                 <div class="total-line">
-                    <span>Total</span>
+                    <span>Total a Pagar</span>
                     <span>$${parseFloat(p.total).toFixed(2)}</span>
                 </div>
             `;

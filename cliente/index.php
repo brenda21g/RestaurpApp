@@ -1,4 +1,8 @@
 <?php
+/**
+ * Archivo: cliente/index.php
+ * Descripción: Interfaz principal de la mesa para consulta del menú, carrito, estatus de pedidos y pasarela de pago.
+ */
 require_once __DIR__ . '/../config/config.php';
 
 if (isset($_GET['mesa']) && !empty($_GET['mesa'])) {
@@ -18,28 +22,13 @@ if (!isset($_SESSION['mesa_token'])) {
 $db = getDB();
 $cliente_id = (int)$_SESSION['cliente_id'];
 
-// Obtener datos precargados del cliente actual
+// Obtener datos reales del cliente leyendo directamente la columna 'monedero' de la base de datos
 $stmtC = $db->prepare("SELECT * FROM usuarios_cliente WHERE id = ?");
 $stmtC->execute([$cliente_id]);
 $cliente_actual = $stmtC->fetch(PDO::FETCH_ASSOC);
 
-// Inicializar el historial de movimientos en sesión si no existe
-if (!isset($_SESSION['historial_movimientos'])) {
-    $_SESSION['historial_movimientos'] = [
-        ['fecha' => '2026-11-15 14:30', 'tipo' => 'Recarga Monedero', 'monto' => 500.00, 'reembolso' => 0.00, 'detalle' => 'SPEI BBVA (Inicial)'],
-        ['fecha' => '2026-11-10 20:15', 'tipo' => 'Pago de Pedido', 'monto' => -250.00, 'reembolso' => 2.50, 'detalle' => 'Consumo en Mesa']
-    ];
-}
-
-// CÁLCULO REAL Y DINÁMICO DEL SALDO BASADO EN EL HISTORIAL DE MOVIMIENTOS
-$saldo_calculado = 0.00;
-foreach ($_SESSION['historial_movimientos'] as $mov) {
-    $saldo_calculado += floatval($mov['monto']);
-    if (isset($mov['reembolso'])) {
-        $saldo_calculado += floatval($mov['reembolso']);
-    }
-}
-$_SESSION['saldo_monedero'] = $saldo_calculado;
+$saldo_real_monedero = floatval($cliente_actual['monedero'] ?? 0.00);
+$_SESSION['saldo_monedero'] = $saldo_real_monedero;
 
 // Obtener impuesto activo configurado por el administrador
 $stmtImp = $db->query("SELECT * FROM configuracion_impuestos WHERE activo = 1 LIMIT 1");
@@ -55,6 +44,12 @@ if (!$mesa) {
     header('Location: escanear_mesa.php?error=mesa_invalida');
     exit;
 }
+
+// Obtener el pedido actual de la mesa de forma automática para precargar el monto en la interfaz
+$stmtPedAct = $db->prepare("SELECT total FROM pedidos WHERE mesa_id = ? AND estado IN ('entregado', 'listo', 'preparando', 'pendiente') ORDER BY id DESC LIMIT 1");
+$stmtPedAct->execute([$mesa['id']]);
+$pedido_activo_db = $stmtPedAct->fetch(PDO::FETCH_ASSOC);
+$monto_inicial_pedido = $pedido_activo_db ? floatval($pedido_activo_db['total']) : 0.00;
 
 $categorias = $db->query("SELECT * FROM categorias WHERE activa = 1 ORDER BY orden ASC")->fetchAll(PDO::FETCH_ASSOC);
 $todos_productos = $db->query("SELECT * FROM productos WHERE disponible = 1 ORDER BY categoria_id, nombre ASC")->fetchAll(PDO::FETCH_ASSOC);
@@ -108,19 +103,20 @@ body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-s
 .cart-total { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-top: 4px; margin-bottom: 12px; }
 .cart-total-row { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 6px; color: var(--muted); }
 .cart-total-row.final { font-size: 17px; font-weight: 600; color: var(--text); border-top: 1px solid var(--border); padding-top: 10px; margin-top: 6px; }
-.order-btn { width: 100%; padding: 15px; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: white; border: none; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 10px; }
+.order-btn { width: 100%; padding: 15px; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: white; border: none; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 10px; box-shadow: 0 4px 15px rgba(200,80,42,0.3); }
 .btn-secondary { background: #e07070; color: white; border: none; border-radius: 8px; padding: 6px 12px; font-size: 12px; cursor: pointer; margin-bottom: 12px; display:inline-block;}
 .cart-float { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--accent); color: white; border: none; border-radius: 24px; padding: 12px 24px; font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 20px rgba(200,80,42,0.4); display: flex; align-items: center; gap: 10px; z-index: 200; }
 .cart-float.hidden { display: none; }
-.success-overlay, .modal-overlay, .alert-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); z-index: 400; align-items: center; justify-content: center; }
-.success-overlay.show, .modal-overlay.show, .alert-overlay.show { display: flex; }
-.success-box, .modal-box, .alert-box { background: white; border-radius: 20px; padding: 36px 28px; text-align: center; max-width: 320px; width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+.loading-overlay, .success-overlay, .modal-overlay, .alert-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); z-index: 400; align-items: center; justify-content: center; }
+.loading-overlay.show, .success-overlay.show, .modal-overlay.show, .alert-overlay.show { display: flex; }
+.success-box, .modal-box, .alert-box, .loading-box { background: white; border-radius: 20px; padding: 36px 28px; text-align: center; max-width: 320px; width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+.spinner { width: 50px; height: 50px; border: 5px solid #ede8e0; border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px auto; }
+@keyframes spin { to { transform: rotate(360deg); } }
 .modal-btn-row { display: flex; gap: 10px; margin-top: 20px; }
 .modal-btn { flex: 1; padding: 12px; border-radius: 8px; font-weight: 600; border: none; cursor: pointer; font-size: 14px; }
 .btn-cancelar { background: #ede8e0; color: var(--text); }
 .btn-aceptar { background: #e07070; color: white; }
 .btn-ok { background: var(--accent); color: white; width: 100%; margin-top: 15px; }
-.movimiento-item { background: var(--bg); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; text-align: left; }
 </style>
 </head>
 <body>
@@ -132,7 +128,7 @@ body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-s
       <div class="logo-text">RestaurApp</div>
     </div>
     <div style="display:flex; align-items:center; gap:10px;">
-      <a href="cuenta.php" class="user-btn">👤 <?= htmlspecialchars(explode(' ', $cliente_actual['nombre'])[0]) ?></a>
+      <a href="cuenta.php" class="user-btn">👤 Mi Cuenta</a>
       <div class="mesa-tag">Mesa <?= htmlspecialchars($mesa['numero']) ?></div>
     </div>
   </div>
@@ -141,9 +137,8 @@ body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-s
 <div class="tab-nav">
   <button class="tab-btn active" onclick="showPage('menu', this)">🍽️ Menú</button>
   <button class="tab-btn" onclick="showPage('carrito', this)">🛒 Carrito <span id="cart-tab-count"></span></button>
-  <button class="tab-btn" onclick="showPage('checkout', this)">💳 Pagar / Checkout</button>
-  <button class="tab-btn" onclick="showPage('estado', this)">📋 Estado</button>
-  <button class="tab-btn" onclick="showPage('monedero', this)">💰 Monedero</button>
+  <button class="tab-btn" onclick="showPage('estado', this)">📋 Estado / Cuenta</button>
+  <button class="tab-btn" onclick="showPage('checkout', this)" id="tab-checkout" style="display:none;">💳 Pagar</button>
 </div>
 
 <!-- MENÚ -->
@@ -187,24 +182,28 @@ body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-s
   <div id="cart-container"></div>
 </div>
 
+<!-- ESTADO / SOLICITAR CUENTA -->
+<div class="page" id="page-estado">
+  <div id="status-container"></div>
+</div>
+
 <!-- CHECKOUT Y PAGO -->
 <div class="page" id="page-checkout">
   <div style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px;">
     <h3 style="font-family:'Playfair Display',serif; font-size:18px; margin-bottom:14px;">Finalizar Pedido y Pago</h3>
     
     <div style="margin-bottom:14px;">
-      <label style="font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase;">Datos de entrega / Cliente (Precargados)</label>
+      <label style="font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase;">Cliente</label>
       <input type="text" id="chk-nombre" value="<?= htmlspecialchars($cliente_actual['nombre']) ?>" readonly style="width:100%; padding:10px; margin-top:4px; background:var(--bg); border:1px solid var(--border); border-radius:8px;">
     </div>
 
     <div style="margin-bottom:14px;">
       <label style="font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase;">Método de Pago</label>
       <select id="metodo-pago" onchange="cambiarMetodoPago()" style="width:100%; padding:10px; margin-top:4px; background:var(--bg); border:1px solid var(--border); border-radius:8px; font-family:'DM Sans',sans-serif;">
-        <option value="monedero">Monedero (Saldo actual: $<span id="lbl-saldo-monedero"><?= number_format($_SESSION['saldo_monedero'], 2) ?></span>)</option>
+        <option value="monedero">Monedero (Saldo actual: $<span id="lbl-saldo-monedero"><?= number_format($saldo_real_monedero, 2) ?></span>)</option>
         <option value="efectivo">Efectivo (Pago en Mesa)</option>
         <option value="tarjeta">Tarjeta de Crédito / Débito</option>
         <option value="transferencia">Transferencia Bancaria</option>
-        <option value="4pagos">Esquema de 4 Pagos (Crédito)</option>
       </select>
     </div>
 
@@ -220,67 +219,35 @@ body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-s
   </div>
 </div>
 
-<!-- ESTADO -->
-<div class="page" id="page-estado">
-  <div id="status-container"></div>
-</div>
-
-<!-- MONEDERO -->
-<div class="page" id="page-monedero">
-  <div style="background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:20px; text-align:center; margin-bottom:16px;">
-    <div style="font-size:11px; color:var(--muted); text-transform:uppercase;">Saldo Disponible en Monedero</div>
-    <div style="font-family:'Playfair Display',serif; font-size:32px; color:var(--accent); font-weight:bold; margin:6px 0;">$<span id="txt-saldo"><?= number_format($_SESSION['saldo_monedero'], 2) ?></span></div>
-    <p style="font-size:12px; color:var(--muted);">Gana $1 de reembolso por cada $100 de compra en tus pedidos.</p>
-  </div>
-
-  <div style="background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:20px; margin-bottom:16px;">
-    <h3 style="font-size:16px; margin-bottom:12px;">Recargar Monedero</h3>
-    <div style="display:flex; gap:8px; margin-bottom:12px;">
-      <button type="button" class="cat-chip" onclick="document.getElementById('monto-recarga').value=100">$100</button>
-      <button type="button" class="cat-chip" onclick="document.getElementById('monto-recarga').value=200">$200</button>
-      <button type="button" class="cat-chip" onclick="document.getElementById('monto-recarga').value=500">$500</button>
-      <button type="button" class="cat-chip" onclick="document.getElementById('monto-recarga').value=1000">$1,000</button>
-    </div>
-    <input type="number" id="monto-recarga" placeholder="Otro monto ($)" style="width:100%; padding:10px; margin-bottom:12px; border:1px solid var(--border); border-radius:8px;">
-    <button class="order-btn" onclick="recargarMonedero()">Generar Solicitud de Recarga</button>
-    
-    <div id="resultado-recarga" style="margin-top: 16px;"></div>
-  </div>
-
-  <!-- HISTORIAL DE MOVIMIENTOS -->
-  <div style="background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:20px;">
-    <h3 style="font-size:16px; margin-bottom:12px;">📋 Historial de Movimientos</h3>
-    <div id="lista-movimientos" style="max-height: 250px; overflow-y: auto;">
-      <?php foreach (array_reverse($_SESSION['historial_movimientos']) as $mov): ?>
-        <div class="movimiento-item">
-          <div>
-            <b><?= htmlspecialchars($mov['tipo']) ?></b><br>
-            <small style="color:var(--muted);"><?= htmlspecialchars($mov['detalle']) ?> – <?= htmlspecialchars($mov['fecha']) ?></small>
-          </div>
-          <div style="text-align:right;">
-            <span style="font-weight:bold; color:<?= floatval($mov['monto']) >= 0 ? '#2d8a56' : '#c8502a' ?>;">
-              <?= (floatval($mov['monto']) > 0 ? '+' : '') . '$' . number_format(floatval($mov['monto']), 2) ?>
-            </span>
-            <?php if (isset($mov['reembolso']) && floatval($mov['reembolso']) > 0): ?>
-              <br><small style="color:#2d8a56; font-weight:bold;">+$<?= number_format(floatval($mov['reembolso']), 2) ?> cashback</small>
-            <?php endif; ?>
-          </div>
-        </div>
-      <?php endforeach; ?>
-    </div>
-  </div>
-</div>
-
 <button class="cart-float hidden" id="cart-float-btn" onclick="showPage('carrito', null)">
   🛒 Ver carrito <span id="cart-float-count">0</span>
 </button>
 
-<!-- MODAL DE CONFIRMACIÓN ELEGANTE -->
+<!-- PANTALLA DE CARGA -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="loading-box">
+    <div class="spinner"></div>
+    <h3 style="font-size:16px; margin-bottom:6px;">Procesando pedido...</h3>
+    <p style="color:var(--muted); font-size:13px;">Por favor, espere un momento.</p>
+  </div>
+</div>
+
+<!-- PANTALLA DE COMPRA COMPLETADA -->
+<div class="success-overlay" id="success-overlay">
+  <div class="success-box">
+    <div style="font-size:56px; margin-bottom:12px;">🎉</div>
+    <h2 style="font-family:'Playfair Display',serif; font-size:20px; margin-bottom:8px;">¡Su pedido ha sido enviado!</h2>
+    <p style="color:var(--muted); font-size:14px; margin-bottom:20px;">Ya puedes revisar el estatus en la pestaña Estado.</p>
+    <button class="order-btn" onclick="cerrarExitoYVerEstado()">Ver Estatus</button>
+  </div>
+</div>
+
+<!-- MODAL DE CONFIRMACIÓN -->
 <div class="modal-overlay" id="modal-confirmacion">
   <div class="modal-box">
     <div style="font-size:40px; margin-bottom:10px;">⚠️</div>
     <h3 id="modal-titulo" style="font-size:16px; margin-bottom:8px;">¿Estás seguro?</h3>
-    <p id="modal-mensaje" style="color:var(--muted); font-size:13px; margin-bottom:10px;">Confirma tu acción para continuar.</p>
+    <p id="modal-mensaje" style="color:var(--muted); font-size:13px; margin-bottom:10px;">Confirma tu acción.</p>
     <div class="modal-btn-row">
       <button class="modal-btn btn-cancelar" onclick="cerrarModal()">Cancelar</button>
       <button class="modal-btn btn-aceptar" id="modal-btn-aceptar">Sí, eliminar</button>
@@ -288,7 +255,7 @@ body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-s
   </div>
 </div>
 
-<!-- MODAL DE ALERTAS PERSONALIZADAS -->
+<!-- MODAL DE ALERTAS -->
 <div class="alert-overlay" id="modal-alerta">
   <div class="alert-box">
     <div id="alert-icon" style="font-size:40px; margin-bottom:10px;">🔔</div>
@@ -298,20 +265,12 @@ body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-s
   </div>
 </div>
 
-<div class="success-overlay" id="success-overlay">
-  <div class="success-box">
-    <div style="font-size:56px; margin-bottom:12px;">🎉</div>
-    <h2>¡Compra realizada con éxito!</h2>
-    <p id="success-msg-det">Tu orden ha sido registrada. Hemos enviado el comprobante a tu correo.</p>
-    <button class="order-btn" style="margin-top:20px;" onclick="cerrarExitoYVerEstado()">Ver mi pedido</button>
-  </div>
-</div>
-
 <script>
 const MESA_ID = <?= (int)$mesa['id'] ?>;
 const PORCENTAJE_IVA = <?= $porcentaje_iva ?>;
 let cart = [];
-let saldoMonederoCliente = <?= floatval($_SESSION['saldo_monedero']) ?>;
+let saldoMonederoCliente = <?= floatval($saldo_real_monedero) ?>;
+let pedidoActualMonto = <?= floatval($monto_inicial_pedido) ?>; // Precargado de inmediato desde PHP
 
 function addToCart(id, nombre, precio, emoji) {
   const existing = cart.find(i => i.id === id);
@@ -374,10 +333,6 @@ function cerrarAlerta() {
   document.getElementById('modal-alerta').classList.remove('show');
 }
 
-function vaciarCarritoConfirmar() {
-  abrirModalVaciar();
-}
-
 function eliminarItem(id) {
   abrirModalEliminarItem(id);
 }
@@ -396,10 +351,6 @@ function updateCartUI() {
   } else {
     fb.classList.add('hidden');
   }
-
-  document.getElementById('res-subtotal').textContent = '$' + subtotal.toFixed(2);
-  document.getElementById('res-iva').textContent = '$' + iva.toFixed(2);
-  document.getElementById('res-total').textContent = '$' + total.toFixed(2);
 
   const container = document.getElementById('cart-container');
   if (cart.length === 0) {
@@ -422,7 +373,12 @@ function updateCartUI() {
       </div>
     </div>
   `).join('') + `
-    <button class="order-btn" onclick="showPage('checkout', null)">Ir al Checkout y Pagar ($${total.toFixed(2)})</button>
+    <div class="cart-total" style="margin-top:10px;">
+      <div class="cart-total-row"><span>Subtotal:</span><span>$${subtotal.toFixed(2)}</span></div>
+      <div class="cart-total-row"><span>Impuestos (${PORCENTAJE_IVA}% IVA):</span><span>$${iva.toFixed(2)}</span></div>
+      <div class="cart-total-row final"><span>Total:</span><span>$${total.toFixed(2)}</span></div>
+    </div>
+    <button class="order-btn" onclick="enviarPedidoDesdeCarrito()">Enviar Pedido a Cocina ($${total.toFixed(2)})</button>
   `;
 }
 
@@ -432,13 +388,19 @@ function cambiarMetodoPago() {
   const btnProcesar = document.getElementById('btn-procesar-pago');
   
   if (metodo === 'efectivo') {
-    btnProcesar.textContent = 'Confirmar';
+    btnProcesar.textContent = 'Confirmar Pago en Efectivo';
     contenedor.innerHTML = `
       <div style="background:var(--bg); padding:12px; border-radius:8px; border:1px solid var(--border); font-size:13px;">
-        💵 <b>Pago en Efectivo:</b> Al confirmar, tu pedido se enviará al mesero indicando que pagarás en efectivo en la mesa. El estado cambiará a <i>Esperando confirmación de pago</i>.
+        💵 <b>Pago en Efectivo:</b> Por favor entrega el efectivo al mesero encargado de tu mesa.
+      </div>`;
+  } else if (metodo === 'monedero') {
+    btnProcesar.textContent = 'Pagar con Monedero ($' + pedidoActualMonto.toFixed(2) + ')';
+    contenedor.innerHTML = `
+      <div style="background:var(--bg); padding:12px; border-radius:8px; border:1px solid var(--border); font-size:13px;">
+        💳 <b>Pago con Monedero:</b> Se descontarán $${pedidoActualMonto.toFixed(2)} de tu saldo disponible. Saldo actual en monedero: $${saldoMonederoCliente.toFixed(2)}.
       </div>`;
   } else {
-    btnProcesar.textContent = 'Confirmar y Pagar Pedido';
+    btnProcesar.textContent = 'Confirmar y Pagar Cuenta';
   }
 
   if (metodo === 'tarjeta') {
@@ -448,7 +410,7 @@ function cambiarMetodoPago() {
         <input type="text" placeholder="4532 •••• •••• 8920" style="width:100%; padding:8px; margin:4px 0 10px 0; border:1px solid var(--border); border-radius:6px;">
         <div style="display:flex; gap:8px;">
           <div><label style="font-size:10px; color:var(--muted);">Vencimiento</label><input type="text" placeholder="MM/AA" style="width:100%; padding:8px; margin-top:4px; border:1px solid var(--border); border-radius:6px;"></div>
-          <div><label style="font-size:10px; color:var(--muted);">CVV (No se guarda)</label><input type="password" placeholder="123" maxlength="4" style="width:100%; padding:8px; margin-top:4px; border:1px solid var(--border); border-radius:6px;"></div>
+          <div><label style="font-size:10px; color:var(--muted);">CVV</label><input type="password" placeholder="123" maxlength="4" style="width:100%; padding:8px; margin-top:4px; border:1px solid var(--border); border-radius:6px;"></div>
         </div>
       </div>`;
   } else if (metodo === 'transferencia') {
@@ -456,151 +418,118 @@ function cambiarMetodoPago() {
       <div style="background:var(--bg); padding:12px; border-radius:8px; border:1px solid var(--border); font-size:13px;">
         <b>Datos para transferir:</b><br>
         Banco: BBVA México<br>
-        CLABE: <code>123456789012345678</code><br>
-        Beneficiario: RestaurApp S.A. de C.V.
+        CLABE: <code>123456789012345678</code>
       </div>`;
-  } else if (metodo === '4pagos') {
-    contenedor.innerHTML = `
-      <div style="background:var(--bg); padding:12px; border-radius:8px; border:1px solid var(--border); font-size:13px;">
-        💳 Esquema de Crédito: Tu pago se diferirá automáticamente en 4 mensualidades quincenales sin intereses.
-      </div>`;
-  } else if (metodo === 'monedero') {
-    contenedor.innerHTML = ``;
   }
 }
 
-async function procesarPagoYPedido() {
+// 1. Enviar el pedido nuevo a cocina
+async function enviarPedidoDesdeCarrito() {
   if (cart.length === 0) {
-    mostrarAviso('Carrito Vacío', 'Agrega productos a tu carrito antes de realizar el pago.', '🛒');
+    mostrarAviso('Carrito Vacío', 'Agrega productos a tu carrito antes de realizar el pedido.', '🛒');
     return;
   }
   
   const subtotal = cart.reduce((s, i) => s + i.precio * i.qty, 0);
   const iva = subtotal * (PORCENTAJE_IVA / 100);
   const total = subtotal + iva;
-  const metodo = document.getElementById('metodo-pago').value;
 
-  if (metodo === 'monedero' && saldoMonederoCliente < total) {
-    mostrarAviso('Saldo Insuficiente', 'No cuentas con suficiente saldo en tu monedero para cubrir este total. Recarga o selecciona otro método.', '💳');
-    return;
-  }
-
-  let reembolso = total >= 100 ? Math.floor(total / 100) : 0;
-  let estadoPedido = (metodo === 'efectivo') ? 'esperando_confirmacion_pago' : 'pagado';
+  document.getElementById('loading-overlay').classList.add('show');
 
   try {
-    const res = await fetch('../api/crear_pedido.php', {
+    const res = await fetch('../cocina/crear_pedido.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         mesa_id: MESA_ID,
-        metodo_pago: metodo,
         subtotal: subtotal,
         impuestos: iva,
         total: total,
-        estado: estadoPedido,
         items: cart.map(i => ({ producto_id: i.id, cantidad: i.qty, precio_unitario: i.precio }))
       })
     });
     const data = await res.json();
 
+    document.getElementById('loading-overlay').classList.remove('show');
     if (data.success) {
-      if (metodo === 'monedero') {
-        actualizarServidorMovimiento('Pago de Pedido (#' + data.orden_codigo + ')', -total, reembolso);
-      } else if (metodo === 'efectivo') {
-        actualizarServidorMovimiento('Pedido en Efectivo (Pendiente)', 0, 0);
-      } else {
-        actualizarServidorMovimiento('Pago Tarjeta/SPEI (#' + data.orden_codigo + ')', -total, reembolso);
-      }
-
       cart = [];
       updateCartUI();
-      
-      if (metodo === 'efectivo') {
-        document.getElementById('success-msg-det').innerHTML = `Tu pedido <b>${data.orden_codigo}</b> fue enviado.<br>Estado: <b style="color:var(--accent);">Esperando confirmación de pago por el mesero</b>.`;
-      } else {
-        document.getElementById('success-msg-det').innerHTML = `Orden <b>${data.orden_codigo}</b> registrada con éxito.<br>Pagado con: <b>${metodo.toUpperCase()}</b>.<br>${reembolso > 0 ? '💰 ¡Ganaste <b>$' + reembolso.toFixed(2) + '</b> de cashback en tu monedero!' : ''}`;
-      }
       document.getElementById('success-overlay').classList.add('show');
     } else {
-      mostrarAviso('Error de Pago', data.error || 'No se pudo procesar tu orden.', '❌');
+      mostrarAviso('Error de Pedido', data.error || 'No se pudo procesar tu orden.', '❌');
     }
   } catch (e) {
-    const tipoMov = (metodo === 'efectivo') ? 'Pedido en Efectivo (Pendiente)' : 'Pago Simulado';
-    actualizarServidorMovimiento(tipoMov, metodo === 'monedero' ? -total : 0, reembolso);
-
-    cart = [];
-    updateCartUI();
-    if (metodo === 'efectivo') {
-      document.getElementById('success-msg-det').innerHTML = `Pedido enviado.<br>Estado: <b style="color:var(--accent);">Esperando confirmación de pago del mesero</b>.`;
-    } else {
-      document.getElementById('success-msg-det').innerHTML = `Orden simulada con éxito.<br>${reembolso > 0 ? '💰 ¡Ganaste <b>$' + reembolso.toFixed(2) + '</b> de cashback!' : ''}`;
-    }
-    document.getElementById('success-overlay').classList.add('show');
+    document.getElementById('loading-overlay').classList.remove('show');
+    mostrarAviso('Error de Conexión', 'Ocurrió un error al enviar el pedido. Intenta de nuevo.', '❌');
   }
 }
 
-function recargarMonedero() {
-  const monto = parseFloat(document.getElementById('monto-recarga').value || 0);
-  const contenedorResultado = document.getElementById('resultado-recarga');
+// 2. Procesar el pago de la cuenta
+async function procesarPagoYPedido() {
+  const metodo = document.getElementById('metodo-pago').value;
 
-  if (monto <= 0) {
-    mostrarAviso('Monto Inválido', 'Por favor ingresa un monto mayor a $0 para generar tu solicitud de recarga.', '⚠️');
+  if (metodo === 'monedero' && saldoMonederoCliente < pedidoActualMonto) {
+    mostrarAviso('Saldo Insuficiente', `No cuentas con suficiente saldo en tu monedero ($${saldoMonederoCliente.toFixed(2)}) para cubrir la cuenta de $${pedidoActualMonto.toFixed(2)}.`, '💳');
     return;
   }
 
-  const refOxxo = '9876' + Math.floor(10000000 + Math.random() * 90000000);
+  document.getElementById('loading-overlay').classList.add('show');
 
-  contenedorResultado.innerHTML = `
-    <div style="background:#f4f7fa; border:1px solid #cbd5e1; border-radius:10px; padding:16px; font-size:13px; text-align:left;">
-      <h4 style="color:#03143d; margin-bottom:8px; font-size:15px;">🧾 Recarga por <b>$${monto.toFixed(2)}</b></h4>
-      <p style="color:#60708a; margin-bottom:10px;">Realiza tu pago con los siguientes datos:</p>
-      
-      <div style="background:#fff; padding:10px; border-radius:6px; border:1px solid #e2e8f0; margin-bottom:8px;">
-        <b>🏪 OXXO Pay:</b> Ref: <code style="color:#c8502a; font-weight:bold;">${refOxxo}</code>
-      </div>
-      <div style="background:#fff; padding:10px; border-radius:6px; border:1px solid #e2e8f0; margin-bottom:12px;">
-        <b>🏦 SPEI BBVA:</b> CLABE: <code>123456789012345678</code>
-      </div>
-
-      <button class="order-btn" style="padding:10px; font-size:13px; background:#2d8a56;" onclick="simularPagoAprobado(${monto})">
-        🟢 Simular que el pago ya se realizó
-      </button>
-    </div>`;
-  
-  document.getElementById('monto-recarga').value = '';
-}
-
-function simularPagoAprobado(monto) {
-  actualizarServidorMovimiento('Recarga de Monedero (Aprobada)', monto, 0);
-
-  document.getElementById('resultado-recarga').innerHTML = `
-    <div style="background:#e4f7fa; border:1px solid #c7eadc; color:#07543f; padding:12px; border-radius:8px; font-size:13px; text-align:center;">
-      ✅ ¡Recarga acreditada con éxito! Se sumaron <b>$${monto.toFixed(2)}</b> a tu monedero.
-    </div>`;
-}
-
-async function actualizarServidorMovimiento(tipo, monto, reembolso) {
   try {
-    await fetch('../api/guardar_movimiento.php', {
+    const res = await fetch('actualizar.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tipo, monto, reembolso })
+      body: JSON.stringify({
+        estado: 'pagado',
+        metodo_pago: metodo
+      })
     });
-    setTimeout(() => { location.reload(); }, 1500);
-  } catch(err) {
-    location.reload();
+    const data = await res.json();
+
+    document.getElementById('loading-overlay').classList.remove('show');
+    if (data.success) {
+      mostrarAviso('¡Pago Exitoso!', 'Tu cuenta ha sido saldada correctamente. ¡Gracias por tu visita!', '🎉');
+      setTimeout(() => { location.reload(); }, 3000);
+    } else {
+      mostrarAviso('Error', data.error || 'No se pudo procesar el pago.', '❌');
+    }
+  } catch (e) {
+    document.getElementById('loading-overlay').classList.remove('show');
+    mostrarAviso('Error', 'Ocurrió un error al procesar el pago.', '❌');
   }
 }
 
+// Función general para alternar páginas/pestañas
 function showPage(id, btn) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('page-' + id).classList.add('active');
-  if (btn) btn.classList.add('active');
-  if (id !== 'menu') document.getElementById('cart-float-btn').classList.add('hidden');
-  else if (cart.length > 0) document.getElementById('cart-float-btn').classList.remove('hidden');
+  
+  const targetPage = document.getElementById('page-' + id);
+  if (targetPage) targetPage.classList.add('active');
+  
+  if (btn) {
+    btn.classList.add('active');
+  } else if (id === 'checkout') {
+    const btnEstado = document.querySelectorAll('.tab-btn')[2];
+    if (btnEstado) btnEstado.classList.add('active');
+  }
+  
+  if (id !== 'menu') {
+    document.getElementById('cart-float-btn').classList.add('hidden');
+  } else if (cart.length > 0) {
+    document.getElementById('cart-float-btn').classList.remove('hidden');
+  }
+  
   if (id === 'estado') fetchStatus();
+  
+  if (id === 'checkout') {
+    const subtotal = pedidoActualMonto / (1 + (PORCENTAJE_IVA / 100));
+    const iva = pedidoActualMonto - subtotal;
+    document.getElementById('res-subtotal').textContent = '$' + subtotal.toFixed(2);
+    document.getElementById('res-iva').textContent = '$' + iva.toFixed(2);
+    document.getElementById('res-total').textContent = '$' + pedidoActualMonto.toFixed(2);
+    cambiarMetodoPago();
+  }
 }
 
 function filterCat(catId, btn) {
@@ -613,7 +542,7 @@ function filterCat(catId, btn) {
 
 function cerrarExitoYVerEstado() {
   document.getElementById('success-overlay').classList.remove('show');
-  showPage('estado', null);
+  showPage('estado', document.querySelectorAll('.tab-btn')[2]);
 }
 
 async function fetchStatus() {
@@ -623,25 +552,65 @@ async function fetchStatus() {
     if (data.pedido) {
       renderStatus(data.pedido);
     } else {
-      document.getElementById('status-container').innerHTML = `<div style="text-align:center; padding:40px; color:var(--muted);">Sin pedidos activos recientes.</div>`;
+      document.getElementById('status-container').innerHTML = `<div style="text-align:center; padding:40px; color:var(--muted);">Sin pedidos activos recientes en esta mesa. Explora el menú para ordenar.</div>`;
     }
-  } catch(e) {}
+  } catch(e) {
+    document.getElementById('status-container').innerHTML = `<div style="text-align:center; padding:40px; color:var(--muted);">Error al consultar el estatus.</div>`;
+  }
 }
 
 function renderStatus(p) {
   let estadoTexto = p.estado.toUpperCase();
   let colorEstado = 'var(--accent)';
-  if (p.estado === 'esperando_confirmacion_pago') {
-    estadoTexto = 'ESPERANDO CONFIRMACIÓN DE PAGO (EFECTIVO EN MESA)';
+  
+  if (p.estado === 'pendiente') {
+    estadoTexto = '🔔 PENDIENTE (ENVIADO A COCINA)';
+    colorEstado = '#d97706';
+  } else if (p.estado === 'preparando') {
+    estadoTexto = '🔥 EN PREPARACIÓN';
+    colorEstado = '#0284c7';
+  } else if (p.estado === 'listo') {
+    estadoTexto = '✅ ¡LISTO PARA SERVIR!';
+    colorEstado = '#10b981';
+  } else if (p.estado === 'entregado') {
+    estadoTexto = '🍽️ ENTREGADO';
+    colorEstado = '#2d8a56';
   } else if (p.estado === 'pagado') {
     colorEstado = '#2d8a56';
+    estadoTexto = '🎉 PAGADO / COMPLETADO';
+  }
+
+  pedidoActualMonto = parseFloat(p.total || 0);
+  let htmlBotonPagar = '';
+
+  if (p.estado === 'entregado') {
+    htmlBotonPagar = `<button class="order-btn" onclick="showPage('checkout', null);">💳 Proceder al Pago de la Cuenta ($${pedidoActualMonto.toFixed(2)})</button>`;
+  } else if (p.estado === 'pagado') {
+    htmlBotonPagar = `<p style="font-size:13px; color:#2d8a56; font-weight:bold; margin-top:12px;">Su cuenta ya ha sido liquidada con éxito.</p>`;
+  } else {
+    htmlBotonPagar = `<p style="font-size:12px; color:var(--muted); margin-top:12px; font-style:italic;">El botón para pagar la cuenta se habilitará automáticamente en cuanto tus platillos sean entregados por cocina.</p>`;
   }
 
   document.getElementById('status-container').innerHTML = `
-    <div style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; text-align:center;">
-      <h3>Pedido #${p.id}</h3>
-      <p style="color:${colorEstado}; font-weight:bold; font-size:15px; margin:8px 0;">Estado: ${estadoTexto}</p>
-      <p style="font-size:13px; color:var(--muted);">Total: $${parseFloat(p.total).toFixed(2)}</p>
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:20px; box-shadow:var(--card-shadow); text-align:center;">
+      <h3 style="font-family:'Playfair Display',serif; font-size:18px; margin-bottom:10px;">📋 Estatus de tu Pedido</h3>
+      
+      <div style="background:var(--bg); padding:12px; border-radius:10px; border:1px solid var(--border); margin-bottom:14px; text-align:left;">
+        <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:6px;">
+          <span style="color:var(--muted);">Orden:</span>
+          <b>#${p.numero_orden || p.id}</b>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:6px;">
+          <span style="color:var(--muted);">Estatus actual:</span>
+          <span style="color:${colorEstado}; font-weight:bold;">${estadoTexto}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:13px; font-weight:600; border-top:1px solid var(--border); padding-top:6px; margin-top:6px;">
+          <span>Total de Consumo:</span>
+          <span style="color:var(--accent); font-size:15px;">$${pedidoActualMonto.toFixed(2)}</span>
+        </div>
+      </div>
+
+      ${htmlBotonPagar}
     </div>`;
 }
 

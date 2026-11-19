@@ -1,7 +1,7 @@
 <?php
 /**
  * Archivo: gerente/usuarios.php
- * Descripción: Gestión de Administradores / Usuarios con soporte para gerente, subgerente, logística y cocina.
+ * Descripción: Gestión de Administradores / Usuarios con soporte para gerente, subgerente, logística, cocina y soporte.
  */
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/auth_check.php';
@@ -30,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pin = trim($_POST['pin'] ?? '');
 
             // Validar que el rol coincida estrictamente con los valores permitidos en el ENUM de la BD
-            $roles_permitidos = ['gerente', 'subgerente', 'logistica', 'cocina'];
+            $roles_permitidos = ['gerente', 'subgerente', 'logistica', 'cocina', 'soporte'];
             if (!in_array($rol, $roles_permitidos, true)) {
                 $rol = 'subgerente';
             }
@@ -74,6 +74,7 @@ $session_admin_id = intval($_SESSION['admin_id'] ?? 0);
 $db_sidebar = getDB();
 $num_alertas_global = $db_sidebar->query("SELECT COUNT(*) FROM scm_productos WHERE stock_actual <= stock_minimo")->fetchColumn();
 $rol_actual = $_SESSION['admin_rol'] ?? '';
+$seccion = $_GET['seccion'] ?? 'usuarios';
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -98,12 +99,13 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
         --color-success: #10b981;
         --color-danger: #ef4444;
         --color-warning: #f59e0b;
+        --color-soporte: #d97706; /* Color ámbar/amarillo para Soporte */
         --sidebar-w: 260px;
         --radius: 10px;
         --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
     }
 
-    * {
+    *, *::before, *::after {
         box-sizing: border-box;
         margin: 0;
         padding: 0;
@@ -335,6 +337,7 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
     .badge.subgerente { background: rgba(100, 116, 139, 0.1); color: var(--text-muted); }
     .badge.logistica { background: rgba(245, 158, 11, 0.1); color: var(--color-warning); }
     .badge.cocina { background: rgba(16, 185, 129, 0.1); color: var(--color-success); }
+    .badge.soporte { background: rgba(217, 119, 6, 0.1); color: var(--color-soporte); }
     .badge.activo { background: rgba(16, 185, 129, 0.1); color: var(--color-success); }
     .badge.inactivo { background: rgba(239, 68, 68, 0.1); color: var(--color-danger); }
 
@@ -357,18 +360,16 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
     <div class="role"><?= ucfirst(htmlspecialchars($rol_actual, ENT_QUOTES, 'UTF-8')) ?></div>
   </div>
   <nav class="nav">
-            <a class="nav-item <?= $seccion === 'inicio' ? 'active' : '' ?>" href="dashboard.php?seccion=inicio"><span>📊</span> Inicio ERP</a>
-            <a class="nav-item <?= $seccion === 'ordenes' ? 'active' : '' ?>" href="dashboard.php?seccion=ordenes"><span>🛒</span> Órdenes ERP</a>
-            <a class="nav-item <?= $seccion === 'reportes' ? 'active' : '' ?>" href="dashboard.php?seccion=reportes"><span>📈</span> Reportes y Métricas</a>
-            <a class="nav-item <?= $seccion === 'usuarios' ? 'active' : '' ?>" href="dashboard.php?seccion=usuarios"><span>⚙️</span> Usuarios del Sistema</a>
-            <a class="nav-item" href="clientes.php"><span>👥</span> Clientes</a>
-            <a class="nav-item"href="productos.php"><span>📦</span> Productos</a>
-            <a href="inventario.php" class="nav-item"><span>📊</span> Inventario</a>
-            <a class="nav-item active" href="usuarios.php"><span>️️🛡️</span>Usuarios</a>
-            <a class="nav-item" href="configuracion.php"><span>⚙️</span> Configuracion</a>
-
-            
-        </nav>
+        <a class="nav-item <?= $seccion === 'inicio' ? 'active' : '' ?>" href="dashboard.php?seccion=inicio"><span>📊</span> Inicio ERP</a>
+        <a class="nav-item <?= $seccion === 'ordenes' ? 'active' : '' ?>" href="dashboard.php?seccion=ordenes"><span>🛒</span> Órdenes ERP</a>
+        <a class="nav-item <?= $seccion === 'reportes' ? 'active' : '' ?>" href="dashboard.php?seccion=reportes"><span>📈</span> Reportes y Métricas</a>
+        <a class="nav-item <?= $seccion === 'usuarios' ? 'active' : '' ?>" href="dashboard.php?seccion=usuarios"><span>⚙️</span> Usuarios del Sistema</a>
+        <a class="nav-item" href="clientes.php"><span>👥</span> Clientes</a>
+        <a class="nav-item" href="productos.php"><span>📦</span> Productos</a>
+        <a href="inventario.php" class="nav-item"><span>📊</span> Inventario</a>
+        <a class="nav-item active" href="usuarios.php"><span>🛡️</span> Usuarios</a>
+        <a class="nav-item" href="configuracion.php"><span>⚙️</span> Configuración</a>
+  </nav>
   <div class="sidebar-bottom">
     <a class="logout-btn" href="logout.php">🚪 Cerrar sesión</a>
   </div>
@@ -416,6 +417,7 @@ $rol_actual = $_SESSION['admin_rol'] ?? '';
                         <option value="subgerente">Subgerente</option>
                         <option value="logistica">Logística</option>
                         <option value="cocina">Cocina</option>
+                        <option value="soporte">Soporte</option>
                         <option value="gerente">Gerente</option>
                     </select>
                 </div>

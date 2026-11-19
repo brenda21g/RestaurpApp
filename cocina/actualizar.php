@@ -49,20 +49,16 @@ try {
 
     $estado_anterior = $pedido['estado'];
 
-    // Iniciar transacción de BD para asegurar inconsistencias
+    // Iniciar transacción de BD para asegurar consistencias
     $db->beginTransaction();
 
     // Armar consulta SQL según los campos a actualizar
-    $fields = ["estado = ?", "actualizado_en = NOW()"];
+    $fields = ["estado = ?"];
     $params = [$nuevo_estado];
 
     if ($tiempo_estimado !== null && $nuevo_estado === 'preparando') {
         $fields[] = "tiempo_estimado = ?";
         $params[] = $tiempo_estimado;
-    }
-
-    if ($nuevo_estado === 'entregado') {
-        $fields[] = "entregado_en = NOW()";
     }
 
     $params[] = $id;

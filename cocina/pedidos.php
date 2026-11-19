@@ -19,7 +19,7 @@ if (!function_exists('jsonResponse')) {
 try {
     $db = getDB();
 
-    // 1. Obtener todos los pedidos activos del día
+    // 1. Obtener todos los pedidos activos del día incluyendo el nombre del cliente
     $stmt = $db->query("
         SELECT 
             pe.id, 
@@ -31,9 +31,11 @@ try {
             pe.notas, 
             pe.tiempo_estimado, 
             pe.creado_en,
-            COALESCE(m.numero, m.id) as mesa_num
+            COALESCE(m.numero, m.id) as mesa_num,
+            COALESCE(c.nombre, 'Cliente General / Mostrador') as cliente_nombre
         FROM pedidos pe
         JOIN mesas m ON m.id = pe.mesa_id
+        LEFT JOIN usuarios_cliente c ON c.id = pe.cliente_id
         WHERE pe.estado IN ('pendiente', 'preparando', 'listo')
           AND DATE(pe.creado_en) = CURDATE()
         ORDER BY pe.creado_en ASC

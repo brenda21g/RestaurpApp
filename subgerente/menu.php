@@ -495,6 +495,7 @@ select option { background: #ffffff; color: var(--text); }
         <a class="nav-item" href="corte.php">
             <span class="icon">💰</span> Corte
         </a>
+        <a class="nav-item" href="interacciones.php"><span>💬</span> Interacciones</a>
         <a class="nav-item" href="miactividad.php">
             <span class="icon">📈</span> Mi Actividad
         </a>
